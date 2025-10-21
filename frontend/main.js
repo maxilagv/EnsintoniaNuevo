@@ -1420,28 +1420,31 @@ document.addEventListener('click', (e) => {
   } catch(e){ /* noop */ }
 })();
 
-// Auto-aplicar filtro en catalogo.html si viene ?cat=Nombre
+// Carga inicial con API: si hay ?cat= filtra; si no, carga general
 (function applyCatQueryIfPresent() {
   try {
     const u = new URL(window.location.href);
-       const cat = u.searchParams.get('cat');
-    if (!cat) return;
+    const cat = u.searchParams.get('cat');
     const path = (window.location.pathname || '').toLowerCase();
-    if (path.includes('catalogo.html') || path.includes('/catalogo')) {
-      // esperar a que firebase y listeners estén listos (retry)
-      const attempt = () => {
-        if (typeof loadProductsByCategory === 'function') {
-          loadProductsByCategory(cat);
-        } else {
-          setTimeout(attempt, 300);
-        }
-      };
-      attempt();
+    if (!(path.includes('catalogo.html') || path.includes('/catalogo'))) return;
+
+    if (cat) {
+      const titleEl = document.getElementById('category-title');
+      const categoriesSectionEl = document.getElementById('productos');
+      const categoriesContainerEl = document.getElementById('categories-container');
+      if (titleEl) titleEl.textContent = `Mostrando productos de: ${cat}`;
+      if (categoriesSectionEl) categoriesSectionEl.style.display = 'none';
+      if (categoriesContainerEl) categoriesContainerEl.style.display = 'none';
+      categoriesInitialLoadComplete = true;
+      loadProductsByCategoryApi(cat);
+    } else {
+      loadCategoriesApi();
+      loadAllProductsApi();
     }
   } catch (e) { /* noop */ }
 })();
 // Manejar navegación con botón "Atrás" para alternar entre catálogo general y por categoría
-window.addEventListener('popstate', () => {
+window.addEventListener('popstate', async () => {
   try {
     const u = new URL(window.location.href);
     const cat = u.searchParams.get('cat');
