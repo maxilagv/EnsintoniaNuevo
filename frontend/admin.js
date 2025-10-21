@@ -1027,7 +1027,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 price: Number(productPrice),
                 image_url: productImageUrl,
                 category_id: Number(productCategoryId),
-                stock_quantity: Number(productStock)
+                stock_quantity: Number(productStock),
+                specifications: (productSpecificationsTextarea?.value || '').trim() || null
             })});
             showMessageBox(`Producto "${productName}" creado exitosamente.`, 'success');
             createProductForm.reset();

@@ -1696,7 +1696,8 @@ function mapApiProduct(row) {
     imageUrl: row.image_url || row.image_file_path || '',
     categoryName: row.category_name,
     createdAt: row.created_at ? new Date(row.created_at) : undefined,
-    stock: row.stock_quantity
+    stock: row.stock_quantity,
+    specifications: row.specifications
   };
 }
 
