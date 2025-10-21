@@ -1,4 +1,6 @@
-// Importaciones de Firebase
+// Config API backend
+import { API_BASE } from './config.js';
+// Importaciones de Firebase (legacy, solo para compatibilidad de UI en esta etapa)
 import { db, auth } from './firebaseconfig.js';
 import { onAuthStateChanged, signOut, signInWithCustomToken, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { collection, addDoc, getDoc, doc, updateDoc, deleteDoc, query, where, serverTimestamp, getDocs, writeBatch, runTransaction, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; // 'where' añadido aquí
@@ -6,6 +8,20 @@ import { collection, addDoc, getDoc, doc, updateDoc, deleteDoc, query, where, se
 let userId = null;
 let isAuthReady = false;
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; // Asegurar que appId está definido
+
+// Helper para llamadas a API con JWT
+async function apiFetch(path, opts = {}) {
+  const token = localStorage.getItem('accessToken');
+  const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const resp = await fetch(`${API_BASE}${path}`, Object.assign({}, opts, { headers }));
+  if (!resp.ok) {
+    let detail = '';
+    try { const j = await resp.json(); detail = j?.error || JSON.stringify(j); } catch {}
+    throw new Error(`HTTP ${resp.status} ${detail}`);
+  }
+  try { return await resp.json(); } catch { return null; }
+}
 
 /**
  * @function showMessageBox
@@ -285,28 +301,17 @@ function showSection(sectionId) {
 
 // --- Funciones para Categorías ---
 async function loadCategoriesForEdit() {
-    // Si isAuthReady no está activo, Firebase no está autenticado o la lógica de admin falló.
-    // Con la nueva lógica, esto solo debería suceder si el usuario no está autenticado.
-    if (!isAuthReady) { 
-        console.log("loadCategoriesForEdit: Usuario no autenticado para cargar categorías.");
-        return;
-    }
+    if (!isAuthReady) { console.log("loadCategoriesForEdit: Usuario no autenticado."); return; }
     try {
-        console.log("loadCategoriesForEdit: Cargando categorías para edición...");
-        const querySnapshot = await getDocs(categoriesCollectionRef);
-        const list = [];
-        querySnapshot.forEach((d) => {
-            const data = d.data();
-            list.push({ id: d.id, name: data?.name || '' });
-        });
-        // Orden alfabético por nombre (insensible a mayúsculas/minúsculas)
+        console.log("loadCategoriesForEdit: Cargando categorías (API)...");
+        const rows = await apiFetch('/categorias');
+        const list = (rows || []).map(r => ({ id: String(r.id), name: r.name }));
         list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
         categoriesForEditCache = list;
         const filterText = (searchCategoryToEditInput?.value || '').trim();
         renderCategoryEditOptions(filterText);
-        console.log("loadCategoriesForEdit: Categorías cargadas y ordenadas.");
     } catch (error) {
-        console.error("loadCategoriesForEdit: Error al cargar categorías:", error);
+        console.error("loadCategoriesForEdit (API):", error.message);
         showMessageBox("Error al cargar categorías.", "error");
     }
 }
@@ -348,54 +353,41 @@ async function populateCategoryEditForm(categoryId) {
         return;
     }
     try {
-        console.log("populateCategoryEditForm: Cargando datos para categoría ID:", categoryId);
-        const categoryDocRef = doc(db, `artifacts/${appId}/public/data/categories`, categoryId);
-        const docSnap = await getDoc(categoryDocRef); 
-        
-        if (docSnap.exists()) {
-            const categoryData = docSnap.data();
-            editedCategoryNameInput.value = categoryData.name;
-            editedCategoryImageUrlInput.value = categoryData.imageUrl;
-            console.log("populateCategoryEditForm: Datos de categoría cargados:", categoryData);
-        } else {
-            console.log("populateCategoryEditForm: Categoría no encontrada para ID:", categoryId);
-            showMessageBox("Categoría no encontrada.", "error");
-        }
+        const c = categoriesForEditCache.find(c => c.id === String(categoryId));
+        if (!c) { showMessageBox("Categoría no encontrada.", "error"); return; }
+        // Para editar imagen necesitaremos otra fuente; por ahora sólo nombre
+        editedCategoryNameInput.value = c.name || '';
+        // Mantener imagen vacía hasta que se edite
+        editedCategoryImageUrlInput.value = '';
     } catch (error) {
-        console.error("populateCategoryEditForm: Error al cargar datos de la categoría:", error);
+        console.error("populateCategoryEditForm (API):", error.message);
         showMessageBox("Error al cargar datos de la categoría.", "error");
     }
 }
 
-async function updateCategoryInFirestore(categoryId, newName, newImageUrl) {
-    if (!db || !userId || !isAuthReady) {
-        console.error("DEBUG: Fallo al actualizar categoría. Estado:", { db: !!db, userId: userId, isAuthReady: isAuthReady });
-        showMessageBox("Error: Usuario no autenticado o no autorizado. No se puede actualizar la categoría. Por favor, intenta cerrar sesión y volver a iniciarla.", 'error');
+async function updateCategoryViaApi(categoryId, newName, newImageUrl) {
+    if (!isAuthReady) {
+        showMessageBox("Usuario no autenticado.", 'error');
         return;
     }
     try {
-        const categoryDocRef = doc(db, `artifacts/${appId}/public/data/categories`, categoryId);
-        await updateDoc(categoryDocRef, {
-            name: newName,
-            imageUrl: newImageUrl
+        await apiFetch(`/categorias/${categoryId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ name: newName, image_url: newImageUrl })
         });
         showMessageBox(`Categoría "${newName}" actualizada exitosamente.`, 'success');
         loadCategoriesForEdit();
         loadCategoriesForProductForms();
         populateCategoryEditForm('');
     } catch (error) {
-        console.error("Error al actualizar la categoría:", error);
-        showMessageBox("Error al actualizar la categoría. Inténtalo de nuevo.", 'error');
+        console.error("updateCategoryViaApi:", error.message);
+        showMessageBox("Error al actualizar la categoría.", 'error');
     }
 }
 
 // Función para eliminar categoría y productos asociados (en cascada)
 async function deleteCategoryAndProducts(categoryId) {
-    if (!db || !userId || !isAuthReady) {
-        console.error("DEBUG: Fallo al eliminar categoría. Estado:", { db: !!db, userId: userId, isAuthReady: isAuthReady });
-        showMessageBox("Error: Usuario no autenticado o no autorizado. No se puede eliminar la categoría. Por favor, intenta cerrar sesión y volver a iniciarla.", 'error');
-        return;
-    }
+    if (!isAuthReady) { showMessageBox("Usuario no autenticado.", 'error'); return; }
 
     const confirmDelete = await new Promise(resolve => {
         const message = "¿Estás seguro de que quieres eliminar esta categoría? Esto eliminará también TODOS los productos asociados a ella. Esta acción es irreversible.";
@@ -446,25 +438,16 @@ async function deleteCategoryAndProducts(categoryId) {
 
     if (confirmDelete) {
         try {
-            const batch = writeBatch(db);
-            // 1. Borrar productos de esa categoría
-            const q = query(productsCollectionRef, where("categoryId", "==", categoryId));
-            const snap = await getDocs(q);
-            snap.forEach(d => batch.delete(d.ref));
-
-            // 2. Borrar la categoría
-            batch.delete(doc(categoriesCollectionRef, categoryId));
-
-            await batch.commit();
-            showMessageBox("Categoría y productos asociados eliminados exitosamente.", 'success');
+            await apiFetch(`/categorias/${categoryId}`, { method: 'DELETE' });
+            showMessageBox("Categoría y productos asociados eliminados (soft-delete).", 'success');
             loadCategoriesForEdit();
             loadCategoriesForProductForms();
             populateCategoryEditForm('');
             loadProductsForEdit();
             loadProductsForStockManagement();
         } catch (error) {
-            console.error("Error al eliminar la categoría y sus productos:", error);
-            showMessageBox("Error al eliminar la categoría y productos. Inténtalo de nuevo.", 'error');
+            console.error("deleteCategoryAndProducts (API):", error.message);
+            showMessageBox("Error al eliminar la categoría.", 'error');
         }
     }
 }
@@ -472,64 +455,41 @@ async function deleteCategoryAndProducts(categoryId) {
 
 // --- Funciones para Productos ---
 async function loadCategoriesForProductForms() {
-    if (!isAuthReady) {
-        console.log("loadCategoriesForProductForms: Usuario no autenticado para cargar categorías.");
-        return;
-    }
+    if (!isAuthReady) { console.log("loadCategoriesForProductForms: Usuario no autenticado."); return; }
     productCategorySelect.innerHTML = '<option value="">-- Selecciona una categoría --</option>';
     editedProductCategorySelect.innerHTML = '<option value="">-- Selecciona una categoría --</option>';
 
     try {
-        console.log("loadCategoriesForProductForms: Cargando categorías para formularios de productos...");
-        const querySnapshot = await getDocs(categoriesCollectionRef);
-        
-        if (querySnapshot.empty) {
-            console.log("loadCategoriesForProductForms: No hay categorías en Firestore. Los selectores de categorías permanecerán vacíos.");
-            productCategorySelect.innerHTML = '<option value="" disabled>-- No hay categorías (crea una primero) --</option>';
-            editedProductCategorySelect.innerHTML = '<option value="" disabled>-- No hay categorías (crea una primero) --</option>';
-        } else {
-            querySnapshot.forEach((doc) => {
-                const category = doc.data();
-                let optionCreate = document.createElement('option');
-                optionCreate.value = doc.id;
-                optionCreate.textContent = category.name;
-                productCategorySelect.appendChild(optionCreate);
+        const rows = await apiFetch('/categorias');
+        (rows || []).forEach(cat => {
+            const opt1 = document.createElement('option');
+            opt1.value = String(cat.id);
+            opt1.textContent = cat.name;
+            productCategorySelect.appendChild(opt1);
 
-                let optionEdit = document.createElement('option');
-                optionEdit.value = doc.id;
-                optionEdit.textContent = category.name;
-                editedProductCategorySelect.appendChild(optionEdit);
-            });
-            console.log("loadCategoriesForProductForms: Categorías cargadas exitosamente para formularios de productos.");
-        }
+            const opt2 = document.createElement('option');
+            opt2.value = String(cat.id);
+            opt2.textContent = cat.name;
+            editedProductCategorySelect.appendChild(opt2);
+        });
     } catch (error) {
-        console.error("loadCategoriesForProductForms: Error al cargar categorías para formularios de productos:", error);
-        showMessageBox("Error al cargar categorías para productos. Revisa la consola para más detalles.", "error");
+        console.error("loadCategoriesForProductForms (API):", error.message);
+        showMessageBox("Error al cargar categorías para productos.", "error");
     }
 }
 
 
 async function loadProductsForEdit() {
-    if (!isAuthReady) {
-        console.log("loadProductsForEdit: Usuario no autenticado para cargar productos.");
-        return;
-    }
+    if (!isAuthReady) { console.log("loadProductsForEdit: Usuario no autenticado."); return; }
     try {
-        console.log("loadProductsForEdit: Cargando productos para edición...");
-        const querySnapshot = await getDocs(productsCollectionRef);
-        const list = [];
-        querySnapshot.forEach((d) => {
-            const data = d.data();
-            list.push({ id: d.id, name: data?.name || '' });
-        });
-        // Orden alfabético por nombre
+        const rows = await apiFetch('/productos');
+        const list = (rows || []).map(p => ({ id: String(p.id), name: p.name, raw: p }));
         list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
         productsForEditCache = list;
         const filterText = (searchProductToEditInput?.value || '').trim();
         renderProductEditOptions(filterText);
-        console.log("loadProductsForEdit: Productos cargados y ordenados.");
     } catch (error) {
-        console.error("loadProductsForEdit: Error al cargar productos:", error);
+        console.error("loadProductsForEdit (API):", error.message);
         showMessageBox("Error al cargar productos.", "error");
     }
 }
@@ -580,21 +540,18 @@ async function populateProductEditForm(productId) {
         return;
     }
     try {
-        console.log("populateProductEditForm: Cargando datos para producto ID:", productId);
-        const productDocRef = doc(db, `artifacts/${appId}/public/data/products`, productId);
-        const docSnap = await getDoc(productDocRef); 
-        
-        if (docSnap.exists()) {
-            const productData = docSnap.data();
-            editedProductNameInput.value = productData.name;
-            editedProductPriceInput.value = productData.price;
-            editedProductImageUrlInput.value = productData.imageUrl;
-            editedProductCategorySelect.value = productData.categoryId || '';
-            editedProductDescriptionInput.value = productData.description || '';
-            editedProductStockInput.value = productData.stock !== undefined ? productData.stock : 0;
-            editedProductComponentsUrlInput.value = productData.componentsUrl || '';
-            editedProductVideoUrlInput.value = productData.videoUrl || '';
-            editedProductStatusSelect.value = productData.status || 'draft';
+        const item = productsForEditCache.find(p => p.id === String(productId));
+        if (item && item.raw) {
+            const r = item.raw;
+            editedProductNameInput.value = r.name || '';
+            editedProductPriceInput.value = r.price != null ? r.price : '';
+            editedProductImageUrlInput.value = r.image_url || r.image_file_path || '';
+            editedProductCategorySelect.value = r.category_id != null ? String(r.category_id) : '';
+            editedProductDescriptionInput.value = r.description || '';
+            editedProductStockInput.value = r.stock_quantity != null ? Number(r.stock_quantity) : 0;
+            editedProductComponentsUrlInput.value = '';
+            editedProductVideoUrlInput.value = '';
+            editedProductStatusSelect.value = 'active';
             // Cargar especificaciones (array u objeto) en formato texto
             if (productData.specifications) {
                 if (Array.isArray(productData.specifications)) {
@@ -614,57 +571,41 @@ async function populateProductEditForm(productId) {
                 editedProductSpecificationsTextarea.value = '';
             }
             editedProductWarrantyInput.value = productData.warranty || '';
-            console.log("populateProductEditForm: Datos de producto cargados:", productData);
+            console.log("populateProductEditForm: Datos (API) cargados:", r);
         } else {
             console.log("populateProductEditForm: Producto no encontrado para ID:", productId);
             showMessageBox("Producto no encontrado.", "error");
         }
     } catch (error) {
-        console.error("populateProductEditForm: Error al cargar datos del producto:", error);
+        console.error("populateProductEditForm (API):", error.message);
         showMessageBox("Error al cargar datos del producto.", "error");
     }
 }
 
-async function updateProductInFirestore(productId, newName, newPrice, newImageUrl, newCategoryId, newDescription, newStock, newComponentsUrl, newVideoUrl, newStatus) {
-    if (!db || !userId || !isAuthReady) {
-        console.error("DEBUG: Fallo al actualizar producto. Estado:", { db: !!db, userId: userId, isAuthReady: isAuthReady });
-        showMessageBox("Error: Usuario no autenticado o no autorizado. No se puede actualizar el producto. Por favor, intenta cerrar sesión y volver a iniciarla.", 'error');
-        return;
-    }
+async function updateProductViaApi(productId, newName, newPrice, newImageUrl, newCategoryId, newDescription, newStock, newComponentsUrl, newVideoUrl, newStatus) {
+    if (!isAuthReady) { showMessageBox("Usuario no autenticado.", 'error'); return; }
     try {
-        const productDocRef = doc(db, `artifacts/${appId}/public/data/products`, productId);
-        let categoryName = '';
-        if (newCategoryId) {
-            const categoryDocRef = doc(db, `artifacts/${appId}/public/data/categories`, newCategoryId);
-            const categorySnap = await getDoc(categoryDocRef);
-            if (categorySnap.exists()) {
-                categoryName = categorySnap.data().name;
-            }
-        }
-
-        await updateDoc(productDocRef, {
-            name: newName,
-            price: newPrice,
-            imageUrl: newImageUrl,
-            categoryId: newCategoryId,
-            categoryName: categoryName,
-            description: newDescription,
-            stock: newStock,
-            componentsUrl: newComponentsUrl,
-            videoUrl: newVideoUrl,
-            status: newStatus,
-            specifications: parseSpecifications(editedProductSpecificationsTextarea?.value),
-            warranty: editedProductWarrantyInput?.value?.trim() || null
+        await apiFetch(`/productos/${productId}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                name: newName,
+                description: newDescription || '',
+                price: Number(newPrice),
+                image_url: newImageUrl,
+                category_id: Number(newCategoryId),
+                stock_quantity: Number.isFinite(Number(newStock)) ? Number(newStock) : 0,
+                specifications: editedProductSpecificationsTextarea?.value || null
+            })
         });
         showMessageBox(`Producto "${newName}" actualizado exitosamente.`, 'success');
         loadProductsForEdit();
         loadProductsForStockManagement();
         populateProductEditForm('');
-    if (editedProductSpecificationsTextarea) editedProductSpecificationsTextarea.value = '';
-    if (editedProductWarrantyInput) editedProductWarrantyInput.value = '';
+        if (editedProductSpecificationsTextarea) editedProductSpecificationsTextarea.value = '';
+        if (editedProductWarrantyInput) editedProductWarrantyInput.value = '';
     } catch (error) {
-        console.error("Error al actualizar el producto:", error);
-        showMessageBox("Error al actualizar el producto. Inténtalo de nuevo.", 'error');
+        console.error("updateProductViaApi:", error.message);
+        showMessageBox("Error al actualizar el producto.", 'error');
     }
 }
 
@@ -680,12 +621,8 @@ function parseSpecifications(raw) {
         });
 }
 
-async function deleteProductFromFirestore(productId) {
-    if (!db || !userId || !isAuthReady) {
-        console.error("DEBUG: Fallo al eliminar producto. Estado:", { db: !!db, userId: userId, isAuthReady: isAuthReady });
-        showMessageBox("Error: Usuario no autenticado o no autorizado. No se puede eliminar el producto. Por favor, intenta cerrar sesión y volver a iniciarla.", 'error');
-        return;
-    }
+async function deleteProductFromApi(productId) {
+    if (!isAuthReady) { showMessageBox("Usuario no autenticado.", 'error'); return; }
     const confirmDelete = await new Promise(resolve => {
         const message = "¿Estás seguro de que quieres eliminar este producto? Esta acción es irreversible.";
         const type = 'warning';
@@ -735,8 +672,7 @@ async function deleteProductFromFirestore(productId) {
 
     if (confirmDelete) {
         try {
-            const productDocRef = doc(db, `artifacts/${appId}/public/data/products`, productId);
-            await deleteDoc(productDocRef);
+            await apiFetch(`/productos/${productId}`, { method: 'DELETE' });
             showMessageBox("Producto eliminado exitosamente.", 'success');
             loadProductsForEdit();
             loadProductsForStockManagement();
@@ -744,7 +680,7 @@ async function deleteProductFromFirestore(productId) {
             if (editedProductSpecificationsTextarea) editedProductSpecificationsTextarea.value = '';
             if (editedProductWarrantyInput) editedProductWarrantyInput.value = '';
         } catch (error) {
-            console.error("Error al eliminar el producto:", error);
+            console.error("deleteProductFromApi:", error.message);
             showMessageBox("Error al eliminar el producto.", 'error');
         }
     }
@@ -753,25 +689,19 @@ async function deleteProductFromFirestore(productId) {
 
 // --- Funciones para Control de Stock con Auditoría (transaccional) ---
 async function loadProductsForStockManagement() {
-    if (!isAuthReady) {
-        console.log("loadProductsForStockManagement: Usuario no autenticado para cargar productos.");
-        return;
-    }
+    if (!isAuthReady) { console.log("loadProductsForStockManagement: Usuario no autenticado."); return; }
     selectProductToManageStock.innerHTML = '<option value="">-- Selecciona un producto --</option>';
     try {
-        console.log("loadProductsForStockManagement: Cargando productos para gestión de stock...");
-        const querySnapshot = await getDocs(productsCollectionRef);
-        querySnapshot.forEach((doc) => {
-            const product = doc.data();
-            const option = document.createElement('option');
-            option.value = doc.id;
-            option.textContent = product.name;
-            option.classList.add('select-option-text'); 
-            selectProductToManageStock.appendChild(option);
+        const rows = await apiFetch('/productos');
+        (rows || []).forEach(p => {
+            const o = document.createElement('option');
+            o.value = String(p.id);
+            o.textContent = p.name;
+            o.classList.add('select-option-text');
+            selectProductToManageStock.appendChild(o);
         });
-        console.log("loadProductsForStockManagement: Productos cargados exitosamente para gestión de stock.");
     } catch (error) {
-        console.error("loadProductsForStockManagement: Error al cargar productos para gestión de stock:", error);
+        console.error("loadProductsForStockManagement (API):", error.message);
         showMessageBox("Error al cargar productos para stock.", "error");
     }
 }
@@ -783,59 +713,36 @@ async function populateStockManagementForm(productId) {
         return;
     }
     try {
-        console.log("populateStockManagementForm: Cargando datos para producto ID:", productId);
-        const productDocRef = doc(db, `artifacts/${appId}/public/data/products`, productId);
-        const docSnap = await getDoc(productDocRef); 
-        
-        if (docSnap.exists()) {
-            const productData = docSnap.data();
-            currentProductStockInput.value = productData.stock !== undefined ? productData.stock : 0;
+        const rows = await apiFetch('/productos');
+        const p = (rows || []).find(r => String(r.id) === String(productId));
+        if (p) {
+            currentProductStockInput.value = p.stock_quantity != null ? Number(p.stock_quantity) : 0;
             stockChangeAmountInput.value = 0;
-            console.log("populateStockManagementForm: Stock del producto cargado:", productData.stock);
         } else {
-            console.log("populateStockManagementForm: Producto no encontrado para gestionar stock.", "error");
             showMessageBox("Producto no encontrado para gestionar stock.", "error");
         }
     } catch (error) {
-        console.error("populateStockManagementForm: Error al cargar datos del producto para stock:", error);
+        console.error("populateStockManagementForm (API):", error.message);
         showMessageBox("Error al cargar datos del producto para stock.", "error");
     }
 }
 
 async function updateProductStockSafe(productId, delta, reason = "ajuste") {
-    if (!db || !userId || !isAuthReady) {
-        console.error("DEBUG: Fallo al actualizar stock. Estado:", { db: !!db, userId: userId, isAuthReady: isAuthReady });
-        showMessageBox("Error: Usuario no autenticado o no autorizado. No se puede actualizar el stock. Por favor, intenta cerrar sesión y volver a iniciarla.", 'error');
-        return;
-    }
-    const pRef = doc(productsCollectionRef, productId);
-    const movementsRef = collection(pRef, "stockMovements");
-
+    if (!isAuthReady) { showMessageBox("Usuario no autenticado.", 'error'); return; }
     try {
-        await runTransaction(db, async (tx) => {
-            const snap = await tx.get(pRef);
-            if (!snap.exists()) throw new Error("Producto no existe.");
-            
-            const current = snap.data().stock || 0;
-            const next = current + delta;
-            
-            if (next < 0) throw new Error("Stock insuficiente.");
-            
-            tx.update(pRef, { stock: next });
-            tx.set(doc(movementsRef), {
-                type: delta >= 0 ? "IN" : "OUT",
-                qty: Math.abs(delta),
-                reason,
-                userId: userId,
-                ts: serverTimestamp()
-            });
+        const current = Number(currentProductStockInput.value || 0);
+        const next = current + Number(delta || 0);
+        if (next < 0) throw new Error('Stock insuficiente');
+        await apiFetch(`/productos/${productId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ stock_quantity: next })
         });
-        showMessageBox("Stock actualizado y auditado exitosamente.", 'success');
+        showMessageBox("Stock actualizado exitosamente.", 'success');
         populateStockManagementForm(productId);
         loadProductsForEdit();
     } catch (error) {
-        console.error("Error al actualizar el stock de forma segura:", error);
-        showMessageBox(`Error al actualizar el stock: ${error.message}`, 'error');
+        console.error("updateProductStockSafe (API):", error.message);
+        showMessageBox(`Error al actualizar el stock: ${error.message}`,'error');
     }
 }
 
@@ -1065,7 +972,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showMessageBox("Ambos campos (nombre y URL de imagen) son requeridos.", "warning");
                 return;
             }
-            await updateCategoryInFirestore(categoryId, newName, newImageUrl);
+            await updateCategoryViaApi(categoryId, newName, newImageUrl);
         });
     }
 
@@ -1114,30 +1021,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            let categoryName = '';
-            if (productCategoryId) {
-                const categoryDocRef = doc(db, `artifacts/${appId}/public/data/categories`, productCategoryId);
-                const categorySnap = await getDoc(categoryDocRef);
-                if (categorySnap.exists()) {
-                    categoryName = categorySnap.data().name;
-                }
-            }
-
-            await addDoc(productsCollectionRef, {
+            await apiFetch('/productos', { method: 'POST', body: JSON.stringify({
                 name: productName,
-                price: productPrice,
-                imageUrl: productImageUrl,
-                categoryId: productCategoryId,
-                categoryName: categoryName,
-                description: productDescription,
-                stock: productStock,
-                componentsUrl: productComponentsUrl,
-                videoUrl: productVideoUrl,
-                status: productStatus,
-                specifications: productSpecifications,
-                warranty: productWarranty,
-                createdAt: serverTimestamp()
-            });
+                description: productDescription || '',
+                price: Number(productPrice),
+                image_url: productImageUrl,
+                category_id: Number(productCategoryId),
+                stock_quantity: Number(productStock)
+            })});
             showMessageBox(`Producto "${productName}" creado exitosamente.`, 'success');
             createProductForm.reset();
             loadProductsForEdit();
@@ -1183,7 +1074,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showMessageBox("Nombre, precio (mayor a 0), URL de imagen, categoría, stock (mayor o igual a 0) y estado son obligatorios.", "warning");
                 return;
             }
-            await updateProductInFirestore(productId, newName, newPrice, newImageUrl, newCategoryId, newDescription, newStock, newComponentsUrl, newVideoUrl, newStatus);
+            await updateProductViaApi(productId, newName, newPrice, newImageUrl, newCategoryId, newDescription, newStock, newComponentsUrl, newVideoUrl, newStatus);
         });
     }
 
@@ -1202,7 +1093,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showMessageBox("Por favor, selecciona un producto para eliminar.", "warning");
                 return;
             }
-            await deleteProductFromFirestore(productId);
+            await deleteProductFromApi(productId);
         });
     }
 

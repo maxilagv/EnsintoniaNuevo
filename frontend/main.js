@@ -1,17 +1,11 @@
-// Importar módulos de Firebase
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, getDocs, query, where, limit, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-// Importar la configuración de Firebase desde tu archivo centralizado
-// Asegúrate de que este archivo 'firebaseconfig.js' exista y contenga tus configuraciones de db y auth.
-import { db, auth, firebaseConfig } from './firebaseconfig.js';
+// Configuración global de la API
+import { API_BASE } from './config.js';
 
 // Variables globales de Firebase (proporcionadas por el entorno Canvas)
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-let app; // 'app' se inicializará aquí usando firebaseConfig
+let app; // (legacy Firebase, no usado al consumir API)
 let userId;
 let categoriesData = []; // Para almacenar las categorías cargadas
 
@@ -1057,7 +1051,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 // Inicializar Firebase cuando el DOM esté completamente cargado
-document.addEventListener('DOMContentLoaded', initFirebase);
+// document.addEventListener('DOMContentLoaded', initFirebase);
 
 // Hacer que las funciones sean accesibles globalmente para eventos onclick en el HTML
 window.showMessageBox = showMessageBox;
@@ -1459,13 +1453,13 @@ window.addEventListener('popstate', () => {
       if (categoriesSectionEl) categoriesSectionEl.style.display = 'none';
       if (categoriesContainerEl) categoriesContainerEl.style.display = 'none';
       categoriesInitialLoadComplete = true;
-      loadProductsByCategory(cat);
+      await loadProductsByCategoryApi(cat);
     } else {
       if (categoriesSectionEl) categoriesSectionEl.style.display = '';
       if (categoriesContainerEl) categoriesContainerEl.style.display = '';
       if (titleEl) titleEl.textContent = 'Todos Nuestros Productos';
-      loadCategories();
-      loadAllProducts();
+      await loadCategoriesApi();
+      await loadAllProductsApi();
     }
   } catch (_) { /* noop */ }
 });
@@ -1640,4 +1634,104 @@ function applyPriceFilter() {
 // Exponer para onclick en HTML (script type=module)
 if (typeof window !== 'undefined') {
   window.applyPriceFilter = applyPriceFilter;
+}
+
+// =====================
+// Capa fetch → API backend
+// =====================
+async function fetchJson(url, opts = {}) {
+  const resp = await fetch(url, opts);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const ct = resp.headers.get('content-type') || '';
+  return ct.includes('application/json') ? resp.json() : null;
+}
+
+async function loadCategoriesApi() {
+  try {
+    showLoading('categories-loading-spinner');
+    const rows = await fetchJson(`${API_BASE}/categorias`);
+    const categoriesContainer = document.getElementById('categories-container');
+    const categoriesSubmenu = document.getElementById('categories-submenu');
+    if (categoriesContainer) categoriesContainer.innerHTML = '';
+    if (categoriesSubmenu) categoriesSubmenu.innerHTML = '';
+
+    (rows || []).forEach((cat) => {
+      const name = cat.name || '';
+      const img = cat.image_url || cat.image_file_path || '';
+
+      if (categoriesContainer) {
+        const card = document.createElement('div');
+        card.className = 'category-card rounded-xl overflow-hidden shadow-md bg-white/5 border border-white/10';
+        card.dataset.categoryName = name;
+        card.dataset.originalImage = img;
+        card.innerHTML = `
+          <a href="catalogo.html?cat=${encodeURIComponent(name)}" class="block">
+            <img src="${img}" alt="${name}" class="w-full h-40 object-cover category-image-animated" onerror="this.onerror=null;this.src='https://placehold.co/600x300/cccccc/333333?text=Categoria'">
+            <div class="p-3 text-center text-white/90 font-semibold">${name}</div>
+          </a>`;
+        categoriesContainer.appendChild(card);
+      }
+
+      if (categoriesSubmenu) {
+        const li = document.createElement('li');
+        li.innerHTML = `<a data-cat="${name}" href="catalogo.html?cat=${encodeURIComponent(name)}" class="text-white/90 hover:text-white">${name}</a>`;
+        categoriesSubmenu.appendChild(li);
+      }
+    });
+  } catch (e) {
+    console.error('loadCategoriesApi error', e);
+  } finally {
+    hideLoading('categories-loading-spinner');
+    categoriesInitialLoadComplete = true;
+    checkAndHideMainLoader();
+  }
+}
+
+function mapApiProduct(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description || '',
+    price: row.price,
+    imageUrl: row.image_url || row.image_file_path || '',
+    categoryName: row.category_name,
+    createdAt: row.created_at ? new Date(row.created_at) : undefined,
+    stock: row.stock_quantity
+  };
+}
+
+async function loadAllProductsApi() {
+  try {
+    showLoading('products-loading-spinner');
+    const rows = await fetchJson(`${API_BASE}/productos`);
+    productsFullCache = (rows || []).map(mapApiProduct);
+    productsCache = productsFullCache.map(p => ({ id: p.id, name: (p.name || '').toLowerCase() }));
+    applySortAndRender();
+  } catch (e) {
+    console.error('loadAllProductsApi error', e);
+  } finally {
+    hideLoading('products-loading-spinner');
+    productsInitialLoadComplete = true;
+    checkAndHideMainLoader();
+  }
+}
+
+async function loadProductsByCategoryApi(categoryName) {
+  try {
+    showLoading('products-loading-spinner');
+    const rows = await fetchJson(`${API_BASE}/productos`);
+    const mapped = (rows || []).map(mapApiProduct);
+    const filtered = mapped.filter(p => (p.categoryName || '').toLowerCase() === String(categoryName || '').toLowerCase());
+    if (typeof window !== 'undefined') window.__filteredList = filtered;
+    productsFullCache = mapped;
+    productsCache = mapped.map(p => ({ id: p.id, name: (p.name || '').toLowerCase() }));
+    applySortAndRender();
+  } catch (e) {
+    console.error('loadProductsByCategoryApi error', e);
+  } finally {
+    hideLoading('products-loading-spinner');
+    productsInitialLoadComplete = true;
+    categoriesInitialLoadComplete = true;
+    checkAndHideMainLoader();
+  }
 }

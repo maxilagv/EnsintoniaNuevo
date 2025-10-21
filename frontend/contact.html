@@ -420,63 +420,35 @@
     </div>
 
     <script type="module">
-        // Importar módulos de Firebase
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        // Importar la configuración de Firebase desde tu archivo centralizado
-        // La ruta './firebaseconfig.js' es relativa a la ubicación de este archivo 'contact.html'
-        import { db as importedDb, auth as importedAuth, firebaseConfig as importedFirebaseConfig } from './firebaseconfig.js';
-
-        // Variables globales de Firebase (ahora obtenidas de la importación)
+        import { API_BASE } from './config.js';
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        let app;
-        let db = importedDb; // Usar la instancia importada
-        let auth = importedAuth; // Usar la instancia importada
-        let firebaseConfig = importedFirebaseConfig; // Usar la configuración importada
-        let userId;
 
         /**
          * @function initFirebase
          * @description Inicializa la aplicación Firebase para esta página.
          */
-        async function initFirebase() {
+        // Carga de categorías (API)
+        async function loadCategories() {
+            const categoriesSubmenu = document.getElementById('categories-submenu');
+            const categoriesLoadingSpinner = document.getElementById('categories-loading-spinner-mobile');
+            if (categoriesSubmenu) categoriesSubmenu.innerHTML = '';
+            if (categoriesLoadingSpinner) categoriesLoadingSpinner.classList.remove('hidden');
             try {
-                // Si la app no ha sido inicializada aún por el import, la inicializamos
-                if (!app) {
-                    app = initializeApp(firebaseConfig);
-                    // Si db y auth no están definidas a través de la importación, las inicializamos aquí
-                    if (!db) db = getFirestore(app);
-                    if (!auth) auth = getAuth(app);
-                }
-
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        // ID de usuario no se muestra en esta vista
-                        loadCategories(); // Cargar categorías una vez autenticado
-                    } else {
-                        userId = null;
-                        // ID de usuario no se muestra en esta vista
-                        loadCategories(); // Intentar cargar categorías incluso si no autenticado (para datos públicos)
-                    }
+                const resp = await fetch(`${API_BASE}/categorias`);
+                const rows = await resp.json();
+                if (categoriesSubmenu) categoriesSubmenu.innerHTML = '';
+                (rows || []).forEach(cat => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<a href="catalogo.html?cat=${encodeURIComponent(cat.name)}" class="text-gray-800 hover:text-blue-600">${cat.name}</a>`;
+                    categoriesSubmenu?.appendChild(li);
                 });
-
-            } catch (error) {
-                console.error("Error al inicializar Firebase en contact.html:", error);
-                showMessageBox("Error al inicializar el servicio de categorías. Por favor, asegúrate de que tu clave API de Firebase sea válida.");
-                // Si hay un error, ocultar el spinner y mostrar un mensaje
-                const categoriesLoadingSpinner = document.getElementById('categories-loading-spinner-mobile');
-                if (categoriesLoadingSpinner) categoriesLoadingSpinner.innerHTML = '<p class="text-center text-gray-600 mt-2">No se pudieron cargar las categorías.</p>';
+            } catch (e) {
+                console.error('Error cargando categorías (API):', e);
+                if (categoriesSubmenu) {
+                    categoriesSubmenu.innerHTML = '<li class="text-gray-600 text-lg py-2 text-center">No se pudieron cargar categorías.</li>';
+                }
+            } finally {
+                if (categoriesLoadingSpinner) categoriesLoadingSpinner.classList.add('hidden');
             }
         }
 
@@ -722,8 +694,8 @@
                 });
             }
 
-            // Inicializar Firebase y cargar categorías al cargar la página
-            initFirebase();
+            // Cargar categorías al cargar la página
+            loadCategories();
         });
     </script>
   <script>
@@ -733,8 +705,7 @@
     };
   </script>
   <script type="module">
-    import { db } from './firebaseconfig.js';
-    import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { API_BASE } from './config.js';
     const appId = (typeof window !== 'undefined' && window.__app_id)
       ? window.__app_id
       : (typeof __app_id !== 'undefined' ? __app_id : 'default-app-id');
@@ -763,23 +734,27 @@
         const subject = (document.getElementById('contact-subject')?.value || '').trim();
         const phone = (document.getElementById('contact-phone')?.value || '').trim();
         const message = (document.getElementById('contact-message')?.value || '').trim();
-        if (!name || !email || !subject || !message){ window.showMessageBox?.('Completá todos los campos.'); return; }
+        if (!name || !email || !message){ window.showMessageBox?.('Completá nombre, email y mensaje.'); return; }
         const emailOk = /.+@.+\..+/.test(email);
         if (!emailOk){ window.showMessageBox?.('Ingresá un email válido.'); return; }
         const btn = document.getElementById('contact-submit');
         btn.disabled = true; btn.textContent = 'Enviando…';
         if (contactStatus) contactStatus.textContent = 'Enviando…';
         try {
-          const col = collection(db, `artifacts/${appId}/public/data/contact_messages`);
-          await addDoc(col, { name, email, phone, subject, message, createdAt: serverTimestamp() });
+          const resp = await fetch(`${API_BASE}/contact`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, phone, subject, message })
+          });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           if (contactStatus) contactStatus.textContent = '';
-          window.showMessageBox?.('¡Gracias! Tu mensaje fue enviado.');
+          window.showMessageBox?.('Mensaje enviado correctamente ✅');
           contactForm.reset();
           contactModal.classList.remove('open');
         } catch (err) {
           console.error('contact submit error', err);
           if (contactStatus) contactStatus.textContent = '';
-          window.showMessageBox?.('No pudimos enviar tu mensaje. Probá de nuevo.');
+          window.showMessageBox?.('Error al enviar el mensaje ❌');
         } finally {
           btn.disabled = false; btn.textContent = 'Enviar';
         }
