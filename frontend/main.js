@@ -1643,7 +1643,7 @@ if (typeof window !== 'undefined') {
 // Capa fetch â†’ API backend
 // =====================
 async function fetchJson(url, opts = {}) {
-  const resp = await fetch(url, opts);
+  const resp = await fetch(url, { cache: 'no-store', ...opts });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const ct = resp.headers.get('content-type') || '';
   return ct.includes('application/json') ? resp.json() : null;
@@ -1652,7 +1652,12 @@ async function fetchJson(url, opts = {}) {
 async function loadCategoriesApi() {
   try {
     showLoading('categories-loading-spinner');
-    const rows = await fetchJson(`${API_BASE}/categorias`);
+    let rows;
+    try {
+      rows = await fetchJson(`${API_BASE}/categorias`);
+    } catch (e1) {
+      rows = await fetchJson(`${API_BASE}/categories`);
+    }
     const categoriesContainer = document.getElementById('categories-container');
     const categoriesSubmenu = document.getElementById('categories-submenu');
     if (categoriesContainer) categoriesContainer.innerHTML = '';
@@ -1707,7 +1712,12 @@ function mapApiProduct(row) {
 async function loadAllProductsApi() {
   try {
     showLoading('products-loading-spinner');
-    const rows = await fetchJson(`${API_BASE}/productos`);
+    let rows;
+    try {
+      rows = await fetchJson(`${API_BASE}/productos`);
+    } catch (e1) {
+      rows = await fetchJson(`${API_BASE}/products`);
+    }
     productsFullCache = (rows || []).map(mapApiProduct);
     productsCache = productsFullCache.map(p => ({ id: p.id, name: (p.name || '').toLowerCase() }));
     applySortAndRender();
@@ -1723,7 +1733,12 @@ async function loadAllProductsApi() {
 async function loadProductsByCategoryApi(categoryName) {
   try {
     showLoading('products-loading-spinner');
-    const rows = await fetchJson(`${API_BASE}/productos`);
+    let rows;
+    try {
+      rows = await fetchJson(`${API_BASE}/productos`);
+    } catch (e1) {
+      rows = await fetchJson(`${API_BASE}/products`);
+    }
     const mapped = (rows || []).map(mapApiProduct);
     const filtered = mapped.filter(p => (p.categoryName || '').toLowerCase() === String(categoryName || '').toLowerCase());
     if (typeof window !== 'undefined') window.__filteredList = filtered;
