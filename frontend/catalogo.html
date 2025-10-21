@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ensintonía - Todo para tu hogar</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Inter","ui-sans-serif","system-ui"] },
+            colors: {
+              brand:{50:"#eef6ff",100:"#dbeafe",200:"#bfdbfe",300:"#93c5fd",400:"#60a5fa",500:"#3b82f6",600:"#2563eb",700:"#1d4ed8",800:"#1e40af",900:"#1e3a8a"},
+              ink:{900:"#0f172a",700:"#334155",500:"#64748b"}
+            },
+            borderRadius:{ xl:"0.75rem", "2xl":"1rem" },
+            boxShadow:{ sm:"0 1px 2px rgba(0,0,0,.06)", md:"0 4px 12px rgba(0,0,0,.10)", lg:"0 10px 24px rgba(0,0,0,.12)" }
+          }
+        }
+      }
+    </script>
+    <!-- Google Fonts: Inter y Orbitron para un toque futurista -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome CDN para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="icon" href="/favicon.ico">
+    <style>
+        /* Paleta y tokens (de index.html para coherencia) */
+        :root{
+          --bg-1: #0f172a; /* deep ink */
+          --bg-2: #071032; /* deep blue */
+          --brand-1: #6ee7b7; /* mint */
+          --brand-2: #7c3aed; /* purple */
+          --accent: linear-gradient(90deg,var(--brand-1),#60a5fa 40%,var(--brand-2));
+          --glass: rgba(255,255,255,0.06);
+          --muted: #94a3b8;
+
+          --futuristic-ink: #e6f0ff; /* Light white/blue for main text */
+          --futuristic-mute: #9fb3d9; /* Muted light blue for secondary text */
+        }
+
+        /* Fondo azul futurista (forzado con !important para evitar override por Tailwind) */
+        body {
+            background: radial-gradient(1200px 600px at 10% 10%, rgba(110,231,183,0.06), transparent 12%),
+                        linear-gradient(180deg, #061229 0%, #072447 30%, #0b3b6b 60%, #081133 100%) !important;
+            color: var(--futuristic-ink) !important;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            min-height: 100vh;
+        }
+
+        /* Ajustes de contraste para textos secundarios */
+        .muted, .text-muted-700 { color: var(--futuristic-mute) !important; }
+        .text-ink-900 { color: var(--futuristic-ink) !important; } /* Ajuste para títulos */
+        .text-ink-700 { color: var(--futuristic-mute) !important; } /* Ajuste para descripciones */
+        .text-ink-500 { color: var(--muted) !important; } /* Ajuste para textos muy sutiles */
+
+
+        /* Header scroll effect (coherencia con index.html) */
+        #main-header.scrolled {
+          background-color: rgba(6, 18, 41, 0.9); /* Slightly darker, more opaque */
+          box-shadow: 0 4px 18px rgba(0,0,0,0.3);
+          border-color: rgba(49, 62, 85, 0.4);
+        }
+
+        /* --- Estilos para el logo y título principal (coherencia con index.html) --- */
+        .logo-wrap {
+          display: flex;
+          align-items: center;
+          gap: 0.9rem; /* Ajustado para mejor spacing */
+          transform-origin: center;
+        }
+        .logo-big {
+          width: 200px; /* Ancho consistente */
+          height: auto;
+          transition: transform .6s cubic-bezier(.2,.9,.2,1), filter .6s;
+          filter: drop-shadow(0 18px 40px rgba(99,102,241,.12));
+          will-change: transform;
+        }
+        @media (max-width: 768px){
+          .logo-big{ width:160px; }
+        }
+        .logo-big:hover{ transform: translateY(-4px) rotate(-2deg) scale(1.02); filter: drop-shadow(0 26px 60px rgba(124,58,237,.14)); }
+
+        .neon-text-logo { /* Renombrado para no chocar con hero de index */
+          font-family: 'Orbitron', Inter, sans-serif;
+          font-weight:700;
+          background: var(--accent);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          letter-spacing: -0.01em;
+          text-shadow:
+            0 4px 18px rgba(96,165,250,0.1), /* Soft blue glow */
+            0 2px 8px rgba(124,58,237,0.08); /* Soft purple glow */
+        }
+        .brand-underline {
+          display:inline-block;
+          height:6px;
+          width:64px;
+          border-radius:999px;
+          background: linear-gradient(90deg,#60a5fa,#7c3aed,#6ee7b7);
+          box-shadow: 0 10px 30px rgba(124,58,237,0.08);
+          transform-origin:left center;
+          animation: underline-slide 3.8s linear infinite alternate;
+          opacity:.95;
+          filter: blur(0.5px);
+          margin-top: 4px; /* Ajuste para espacio con texto */
+        }
+        @keyframes underline-slide {
+          0%{ transform: translateX(-8px) scaleX(.98); filter: blur(.2px) }
+          50%{ transform: translateX(8px) scaleX(1.02); filter: blur(1px) }
+          100%{ transform: translateX(-8px) scaleX(.98); }
+        }
+        /* --- Fin estilos logo y título principal --- */
+
+
+        /* Estilos para las tarjetas de producto (futurista) */
+        .product-card {
+            background: rgba(15, 23, 42, 0.7); /* Fondo oscuro semitransparente */
+            border: 1px solid rgba(49, 62, 85, 0.6); /* Borde sutil y oscuro */
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2); /* Sombra más profunda */
+            transition: transform 0.3s cubic-bezier(.2,.9,.2,1), box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
+            overflow: hidden;
+            position: relative;
+            color: var(--futuristic-ink); /* Texto claro para contraste */
+            border-radius: 1rem; /* rounded-2xl de Tailwind */
+        }
+        /* Forzar color de texto dentro de las tarjetas */
+        .product-card h3, .product-card .text-gray-900, .product-card .text-gray-800 {
+            color: var(--futuristic-ink) !important;
+        }
+        .product-card p, .product-card .text-gray-700, .product-card .text-gray-600 {
+            color: var(--futuristic-mute) !important;
+        }
+        .product-card:hover {
+            transform: translateY(-8px) scale(1.02); /* Efecto más pronunciado al pasar el ratón */
+            box-shadow: 0 18px 40px rgba(0,0,0,0.35); /* Sombra más grande y profunda */
+            border-color: var(--brand-1); /* Borde menta al pasar el ratón */
+        }
+        /* Efecto de brillo sutil en hover */
+        .product-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at center, rgba(110, 231, 183, 0.08) 0%, transparent 70%); /* Brillo menta */
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            pointer-events: none;
+        }
+        .product-card:hover::before {
+            opacity: 1;
+        }
+        .product-card h3 { color: var(--futuristic-ink); } /* Títulos claros */
+        .product-card p { color: var(--futuristic-mute); } /* Descripciones sutiles */
+
+        /* Estilos para los botones (generalizados, igual que index.html) */
+        .btn {
+          transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .btn:hover {
+          transform: translateY(-2px) scale(1.01);
+        }
+        .btn-primary {
+            background-color: var(--brand-500); /* Azul principal actualizado */
+            color: white;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 12px rgba(0,0,0,.15);
+        }
+        .btn-primary:hover {
+            background-color: var(--brand-600);
+            box-shadow: 0 8px 20px rgba(0,0,0,.25);
+        }
+        .btn-outline {
+            border: 1px solid rgba(255,255,255,0.2);
+            color: var(--futuristic-ink);
+            background: transparent;
+        }
+        .btn-outline:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--brand-1);
+        }
+
+
+        /* Estilos para el botón de WhatsApp flotante (futurista) */
+        .btn-whatsapp {
+            background-color: #25D366; /* Verde WhatsApp */
+            transition: background-color 0.3s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.3s ease-in-out;
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            border-radius: 9999px;
+            box-shadow: 0 6px 18px rgba(37,211,102,0.4); /* Sombra verde */
+        }
+        .btn-whatsapp:hover {
+            background-color: #1DA851; /* Verde WhatsApp más oscuro al pasar el ratón */
+            transform: translateY(-3px) scale(1.01);
+            box-shadow: 0 10px 24px rgba(37,211,102,0.6);
+        }
+
+        /* Estilos para los enlaces de navegación */
+        .navbar-link {
+            transition: color 0.3s ease-in-out, transform 0.2s ease-in-out;
+            color: var(--futuristic-ink); /* Texto claro */
+        }
+        .navbar-link:hover {
+            color: var(--brand-1); /* Mint al pasar el ratón */
+            transform: translateY(-2px);
+        }
+
+        /* Hero del Catálogo (títulos y subtítulos) */
+        .hero-catalog-title {
+            color: var(--futuristic-ink);
+            text-shadow: 0 4px 18px rgba(96,165,250,0.1), 0 2px 8px rgba(124,58,237,0.08);
+        }
+        .hero-catalog-subtitle {
+            color: var(--futuristic-mute);
+        }
+        /* Trust badges (igual que en index.html, pero con tonos oscuros) */
+        .trust-badge-item {
+          color: var(--futuristic-mute);
+        }
+        .trust-badge-item i {
+          color: var(--brand-1); /* Iconos menta */
+        }
+        .trust-badge-item .font-semibold {
+          color: var(--futuristic-ink);
+        }
+        .trust-badge-item .text-xs {
+          color: var(--futuristic-mute);
+        }
+
+
+        /* Estilos para el loader futurista (coherencia con index.html) */
+        #futuristic-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #0f172a, #1a202c); /* Fondo oscuro degradado */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+            pointer-events: auto;
+        }
+        #futuristic-loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loader-grid { /* Ajustado para tonos más oscuros */
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            gap: 5px;
+            width: 100px;
+            height: 100px;
+            transform: rotate(45deg);
+        }
+        .loader-grid-item {
+            background-color: rgba(110, 231, 183, 0.1); /* Mint semitransparente */
+            animation: pulse 1.5s infinite ease-in-out alternate;
+        }
+        .loader-grid-item:nth-child(even) { animation-delay: 0.2s; }
+        .loader-grid-item:nth-child(odd) { animation-delay: 0.4s; }
+        @keyframes pulse {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.5;
+                background-color: rgba(110, 231, 183, 0.1);
+            }
+            100% {
+                transform: scale(1.1);
+                opacity: 1;
+                background-color: rgba(110, 231, 183, 0.6); /* Mint más brillante */
+            }
+        }
+        .loader-text {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--brand-1); /* Mint brillante */
+            animation: glow 1.5s infinite alternate;
+        }
+        @keyframes glow {
+            from { text-shadow: 0 0 5px var(--brand-1), 0 0 10px var(--brand-1); }
+            to { text-shadow: 0 0 10px var(--brand-1), 0 0 20px var(--brand-1), 0 0 30px var(--brand-1); }
+        }
+
+        /* Mobile menu button (coherencia con index.html) */
+        #mobile-menu-button{backdrop-filter:saturate(180%) blur(8px); background:rgba(30,64,175,0.7); border-color:rgba(49,62,85,0.4);}
+        #mobile-menu-button:not(.open){box-shadow:0 6px 18px -4px rgba(30,64,175,.35),0 2px 4px rgba(0,0,0,.12);}
+        #mobile-menu-button.open{background:#1e40af;} /* Brand-700 on open */
+        #mobile-menu-button.open .bar:nth-child(1){transform:translateY(7px) rotate(45deg); background-color:white;}
+        #mobile-menu-button.open .bar:nth-child(2){opacity:0;}
+        #mobile-menu-button.open .bar:nth-child(3){transform:translateY(-7px) rotate(-45deg); background-color:white;}
+        #mobile-menu-button .bar { background-color: white; } /* Barras blancas */
+        @media (min-width:640px){
+          #mobile-menu-button{display:none;}
+        }
+        #mobile-menu-button.hide-soft{opacity:.25; transform:scale(.92);}
+
+        /* Mobile nav panel (coherencia con index.html) */
+        #mobile-nav {
+            background: rgba(6, 18, 41, 0.95); /* Fondo oscuro semitransparente */
+            border-left: 1px solid rgba(49, 62, 85, 0.6);
+            color: var(--futuristic-ink);
+        }
+        #mobile-nav a { color: var(--futuristic-ink); }
+        #mobile-nav a:hover { background: rgba(255,255,255,0.1); color: var(--brand-1); }
+        #mobile-nav #mobile-nav-close { color: var(--futuristic-ink); }
+        #mobile-nav #mobile-nav-close:hover { background: rgba(255,255,255,0.1); }
+        #mobile-nav #categories-toggle-button { color: var(--futuristic-ink); }
+        #mobile-nav #categories-toggle-button:hover { background: rgba(255,255,255,0.1); color: var(--brand-1); }
+        #mobile-nav #categories-toggle-icon { color: var(--futuristic-mute); } /* Icono de categorías */
+        #mobile-nav .space-y-1 li a { color: var(--futuristic-mute); } /* Submenú de categorías */
+        #mobile-nav .space-y-1 li a:hover { background: rgba(255,255,255,0.05); color: var(--brand-1); }
+        #mobile-nav .text-ink-500 { color: var(--muted); } /* Footer del móvil */
+
+        /* Categoría badge en imagen de producto */
+        .cat-badge {
+            position: absolute;
+            top: 0.75rem;
+            left: 0.75rem;
+            background: rgba(124, 58, 237, 0.8); /* Púrpura semitransparente */
+            color: white;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            opacity: 0; /* Por defecto oculto */
+            transform: translateY(-10px);
+            transition: opacity 0.3s ease-in-out, transform 0.3s cubic-bezier(.2,.9,.2,1);
+        }
+        .product-card:hover .cat-badge {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Chips de precio con icono */
+        .price-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: linear-gradient(90deg, #7c3aed, #60a5fa); /* Degradado púrpura-azul */
+            color: white;
+            padding: 0.35rem 0.8rem;
+            border-radius: 9999px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        }
+
+        /* Estilo para el botón de componentes */
+        .components-btn {
+          color: var(--brand-1) !important; /* Mint */
+          border: 1px solid rgba(110, 231, 183, 0.4);
+        }
+        .components-btn:hover {
+          background: rgba(110, 231, 183, 0.1);
+        }
+
+        /* --- Mejoras en el modal de detalle de producto (forzar tema oscuro) --- */
+        #pd-overlay .md\:bg-white { /* el modal en sí */
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(20, 31, 49, 0.95) 100%) !important;
+            color: var(--futuristic-ink) !important;
+            border: 1px solid rgba(49, 62, 85, 0.6) !important;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6) !important;
+        }
+        #pd-overlay .border-b { border-color: rgba(49, 62, 85, 0.6) !important; }
+        #pd-overlay .text-gray-900, #pd-overlay .text-xl, #pd-overlay .text-2xl { color: var(--futuristic-ink) !important; } /* Títulos principales */
+        #pd-overlay .text-gray-700, #pd-overlay .text-base, #pd-overlay .leading-6 { color: var(--futuristic-mute) !important; } /* Párrafos y descripciones */
+        #pd-overlay .text-gray-500, #pd-overlay .text-xs { color: var(--muted) !important; } /* Texto de ID/Stock */
+        #pd-overlay #pd-close { color: var(--futuristic-mute) !important; }
+        #pd-overlay #pd-close:hover { background: rgba(255,255,255,0.08) !important; }
+        #pd-overlay .pd-tab { color: var(--futuristic-mute) !important; }
+        #pd-overlay .pd-tab[data-active="true"] {
+            color: var(--brand-1) !important; /* Mint para tab activa */
+            border-bottom: 2px solid var(--brand-1) !important;
+        }
+        #pd-overlay .bg-green-600 { background-color: #25D366 !important; } /* WhatsApp button */
+        #pd-overlay .border { border-color: rgba(49, 62, 85, 0.6) !important; color: var(--futuristic-ink) !important; background: rgba(255,255,255,0.05) !important; }
+        #pd-overlay .border:hover { background: rgba(255,255,255,0.1) !important; border-color: var(--brand-1) !important; }
+        #pd-overlay .bg-gray-50, #pd-overlay .bg-gray-100 { background-color: rgba(255,255,255,0.05) !important; } /* Fondo de imagen */
+        #pd-overlay #pd-thumbs button { border-color: rgba(49, 62, 85, 0.6) !important; background: rgba(255,255,255,0.05) !important; }
+        #pd-overlay #pd-thumbs button:hover, #pd-overlay #pd-thumbs button[data-active="true"] { border-color: var(--brand-1) !important; }
+        #pd-overlay .border-t { border-color: rgba(49, 62, 85, 0.6) !important; }
+        /* --- Fin mejoras modal --- */
+
+        /* Loader para los esqueletos */
+        @keyframes pulse-bg {
+          0%, 100% { background-color: rgba(49, 62, 85, 0.2); }
+          50% { background-color: rgba(49, 62, 85, 0.4); }
+        }
+        .animate-pulse .bg-ink\/10 {
+          animation: pulse-bg 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+          background-color: rgba(49, 62, 85, 0.2) !important; /* Base color for skeleton */
+        }
+
+        /* --- Product Detail Modal Futuristic Theme Override (append) --- */
+        #pd-overlay .md\:bg-white,
+        #pd-overlay .bg-white {
+          background: linear-gradient(135deg, rgba(15,23,42,.97) 0%, rgba(13,32,63,.94) 55%, rgba(20,41,79,.92) 100%) !important;
+          color: var(--futuristic-ink) !important;
+          border: 1px solid rgba(49,62,85,.6) !important;
+          box-shadow: 0 24px 60px -8px rgba(0,0,0,.55) !important;
+        }
+
+        #pd-overlay h1,#pd-overlay h2,#pd-overlay h3,#pd-overlay h4,#pd-overlay h5,#pd-overlay h6,
+        #pd-overlay .text-gray-900,#pd-overlay .text-gray-800,#pd-overlay .font-semibold,#pd-overlay .font-bold {
+          color: var(--futuristic-ink) !important;
+        }
+
+        #pd-overlay p,
+        #pd-overlay li,
+        #pd-overlay .text-gray-700,
+        #pd-overlay .text-gray-600,
+        #pd-overlay .leading-6,
+        #pd-overlay .text-base {
+          color: var(--futuristic-mute) !important;
+        }
+
+        #pd-overlay .text-gray-500,
+        #pd-overlay .text-xs,
+        #pd-overlay small {
+          color: var(--muted) !important;
+        }
+
+        #pd-overlay .border,
+        #pd-overlay .border-b,
+        #pd-overlay .border-t,
+        #pd-overlay .border-l,
+        #pd-overlay .border-r,
+        #pd-overlay .border-gray-200,
+        #pd-overlay .border-gray-300 {
+          border-color: rgba(49,62,85,.55) !important;
+        }
+
+        #pd-overlay .bg-gray-50,
+        #pd-overlay .bg-gray-100,
+        #pd-overlay .bg-gray-200 {
+          background: rgba(255,255,255,0.04) !important;
+        }
+
+        #pd-overlay .pd-tab {
+          color: var(--futuristic-mute) !important;
+          background: transparent !important;
+          border-bottom: 2px solid transparent !important;
+          transition: color .25s, border-color .25s;
+        }
+        #pd-overlay .pd-tab[data-active="true"] {
+          color: var(--brand-1) !important;
+          border-bottom-color: var(--brand-1) !important;
+        }
+
+        #pd-overlay #pd-thumbs button {
+          background: rgba(255,255,255,0.05) !important;
+          border: 1px solid rgba(49,62,85,.6) !important;
+          transition: border-color .25s, background .25s;
+        }
+        #pd-overlay #pd-thumbs button:hover,
+        #pd-overlay #pd-thumbs button[data-active="true"] {
+          border-color: var(--brand-1) !important;
+          box-shadow: 0 0 0 1px var(--brand-1) inset !important;
+        }
+
+        #pd-overlay #pd-close {
+          color: var(--futuristic-mute) !important;
+          transition: background .25s, color .25s;
+        }
+        #pd-overlay #pd-close:hover {
+          background: rgba(255,255,255,0.08) !important;
+          color: var(--futuristic-ink) !important;
+        }
+
+        #pd-overlay #pd-add {
+          background: rgba(255,255,255,0.06) !important;
+          color: var(--futuristic-ink) !important;
+          border: 1px solid rgba(110,231,183,0.25) !important;
+          transition: background .3s, border-color .3s, transform .3s;
+        }
+        #pd-overlay #pd-add:hover {
+          background: rgba(110,231,183,0.12) !important;
+          border-color: var(--brand-1) !important;
+          transform: translateY(-2px);
+        }
+
+        #pd-overlay #pd-whatsapp {
+          background: linear-gradient(90deg,#25D366,#128C7E) !important;
+          box-shadow: 0 6px 22px -4px rgba(37,211,102,.45) !important;
+          border: 1px solid rgba(255,255,255,0.08) !important;
+        }
+        #pd-overlay #pd-whatsapp:hover {
+          filter: brightness(1.05);
+          box-shadow: 0 10px 28px -6px rgba(37,211,102,.55) !important;
+        }
+
+        #pd-overlay .bg-green-600 { background: linear-gradient(90deg,#25D366,#128C7E) !important; }
+
+        #pd-overlay #pd-badges .bg-green-100,
+        #pd-overlay #pd-badges .bg-blue-100,
+        #pd-overlay #pd-badges .bg-yellow-100,
+        #pd-overlay #pd-badges .bg-red-100 {
+          background: rgba(255,255,255,0.08) !important;
+          border: 1px solid rgba(255,255,255,0.14) !important;
+          color: var(--futuristic-ink) !important;
+        }
+
+        #pd-overlay a, #pd-overlay button { outline: none; }
+        #pd-overlay a:focus-visible,
+        #pd-overlay button:focus-visible {
+          outline: 2px solid var(--brand-1) !important;
+          outline-offset: 2px !important;
+          border-radius: 4px;
+        }
+
+        #pd-overlay .glass,
+        #pd-overlay .backdrop-blur {
+          background: rgba(255,255,255,0.04) !important;
+          backdrop-filter: blur(18px) saturate(140%) !important;
+        }
+
+        #pd-overlay .shadow,
+        #pd-overlay .shadow-lg,
+        #pd-overlay .shadow-xl {
+          box-shadow: 0 18px 48px -12px rgba(0,0,0,.55) !important;
+        }
+        
+    </style>
+</head>
+<body class="font-inter text-[15px] lg:text-base antialiased">
+
+    <!-- Header y Navegación -->
+    <header id="main-header" class="sticky top-0 z-50 bg-white/80 backdrop-blur glass border-b border-gray-100">
+        <div class="container mx-auto px-4 h-20 flex items-center justify-between transition-all duration-300">
+            <a class="flex items-center gap-4 logo-wrap" href="index.html">
+                <img class="logo-big" src="https://i.postimg.cc/YSDhn3jJ/Chat-GPT-Image-31-ago-2025-03-26-38-p-m.png" alt="Ensintonía logo" loading="lazy" decoding="async">
+                <div>
+                  <div class="neon-text-logo text-2xl leading-tight" id="logo-text">Ensintonía</div>
+                  <div class="text-sm muted -mt-1">Importadora directa • Electrónica & Hogar</div>
+                  <div class="mt-2 brand-underline" id="logo-underline"></div>
+                </div>
+            </a>
+
+            <nav class="hidden md:flex items-center gap-6">
+                <a href="index.html#quienes-somos" class="navbar-link text-sm font-medium">Quiénes somos</a>
+                <a href="index.html#propuesta-valor" class="navbar-link text-sm font-medium">Propuesta</a>
+                <a href="#catalogo-productos" class="navbar-link text-sm font-medium">Catálogo</a>
+                <a href="contact.html" class="navbar-link text-sm font-medium">Contacto</a>
+                <a href="https://wa.me/5491159914197" target="_blank" rel="noopener" class="ml-4 px-4 py-2 rounded-full bg-green-600 text-white text-sm shadow-sm hover:bg-green-700 transition btn">WhatsApp</a>
+            </nav>
+
+            <!-- mobile right controls -->
+            <div class="md:hidden flex items-center gap-2">
+                <button id="mobile-search-toggle" class="p-2 rounded-lg text-ink-900 hover:bg-white/10 btn">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+                </button>
+                <button id="mobile-menu-button" class="sm:hidden z-50 p-2 rounded-md focus:outline-none" aria-expanded="false" aria-controls="mobile-nav">
+                    <span class="bar w-7 h-0.5 bg-white mb-1 rounded transition-all duration-300"></span>
+                    <span class="bar w-7 h-0.5 bg-white mb-1 rounded transition-all duration-300"></span>
+                    <span class="bar w-7 h-0.5 bg-white rounded transition-all duration-300"></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile search (hidden on md+) -->
+    <div id="mobile-search" class="md:hidden px-4 py-3 hidden">
+        <div class="relative">
+            <input id="search-input-mobile" type="search" placeholder="Buscar… (Ctrl+K)" autocomplete="off"
+                   class="w-full rounded-2xl border border-white/20 px-4 py-2.5 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-brand-100/30" />
+            <ul id="search-results-mobile" role="listbox"
+                class="absolute mt-1 w-full bg-gray-900 border border-gray-700 rounded-xl shadow-md hidden overflow-hidden z-50 text-white"></ul>
+        </div>
+    </div>
+
+    <!-- PANEL MENÚ MÓVIL -->
+    <nav id="mobile-nav"
+         class="sm:hidden fixed top-0 right-0 h-full w-72 max-w-[80%] shadow-xl border-l z-[55] transform translate-x-full hidden transition-transform duration-300 ease-out flex flex-col"
+         aria-hidden="true" inert>
+      <div class="flex items-center justify-between px-4 h-16 border-b border-white/20">
+        <span class="font-semibold text-futuristic-ink">Menú</span>
+        <button id="mobile-nav-close" class="p-2 rounded hover:bg-white/10 text-futuristic-ink" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="flex-1 overflow-y-auto px-4 py-4">
+        <ul class="space-y-2">
+          <li>
+            <a href="index.html#quienes-somos" class="block py-2 font-medium hover:text-brand-1">Quiénes somos</a>
+          </li>
+          <li>
+            <a href="index.html#propuesta-valor" class="block py-2 font-medium hover:text-brand-1">Propuesta</a>
+          </li>
+          <li>
+            <a id="catalog-link-mobile" href="#catalogo-productos" class="block py-2 font-medium hover:text-brand-1">Catálogo</a>
+          </li>
+          <li>
+            <button id="categories-toggle-button"
+                    class="w-full flex items-center justify-between py-2 font-medium hover:text-brand-1">
+              Categorías
+              <i id="categories-toggle-icon"
+                 class="fa-solid fa-chevron-down text-xs transition-transform"></i>
+            </button>
+            <ul id="categories-submenu" class="mt-1 ml-3 space-y-1 hidden"></ul>
+          </li>
+          <li>
+            <a href="contact.html" class="block py-2 font-medium hover:text-brand-1">Contacto</a>
+          </li>
+        </ul>
+      </div>
+      <div class="px-4 py-3 border-t border-white/20 text-xs text-futuristic-mute">
+        © 2025 Ensintonía
+      </div>
+    </nav>
+
+    <!-- Hero del Catálogo -->
+    <section class="py-16 md:py-24">
+      <div class="container mx-auto px-4 text-center">
+        <h1 class="hero-catalog-title text-5xl font-extrabold leading-tight mb-4 animate-fade-in-down">Explora Nuestro Catálogo</h1>
+        <p class="hero-catalog-subtitle text-lg leading-relaxed max-w-2xl mx-auto mb-6 animate-fade-in-up">
+          Descubre una cuidadosa selección de electrónica y productos para el hogar.
+          Calidad, innovación y funcionalidad en cada detalle.
+        </p>
+
+        <div class="flex items-center justify-center gap-6 text-sm text-futuristic-mute animate-fade-in-up">
+          <div class="inline-flex items-center gap-2 trust-badge-item">
+            <i class="fa-regular fa-star text-base"></i>
+            <div class="text-left">
+              <div class="font-semibold">4.9</div>
+              <div class="text-xs">Valoraciones</div>
+            </div>
+          </div>
+          <div class="inline-flex items-center gap-2 trust-badge-item">
+            <i class="fa-solid fa-truck-fast text-base"></i>
+            <div class="text-left">
+              <div class="font-semibold">Envío Rápido</div>
+              <div class="text-xs">A todo el país</div>
+            </div>
+          </div>
+          <div class="inline-flex items-center gap-2 trust-badge-item">
+            <i class="fa-regular fa-shield text-base"></i>
+            <div class="text-left">
+              <div class="font-semibold">Garantía</div>
+              <div class="text-xs">y Soporte</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sección de Categorías -->
+    <section id="productos" class="py-16 sm:py-20 bg-white/5 backdrop-blur-sm border-t border-b border-white/10">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl sm:text-4xl font-bold text-center mb-12 sm:mb-16 hero-catalog-title animate-fade-in-down">Nuestras Categorías</h2>
+            <div id="categories-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Skeletons: 6 items para categorías -->
+                <div class="product-card animate-pulse">
+                  <div class="aspect-[4/3] bg-white/10 rounded-t-2xl"></div>
+                  <div class="p-4 space-y-3">
+                    <div class="h-5 bg-white/10 rounded"></div>
+                    <div class="h-4 bg-white/10 rounded w-10/12"></div>
+                    <div class="h-8 bg-white/10 rounded w-5/12 ml-auto"></div>
+                  </div>
+                </div>
+                <div class="product-card animate-pulse"><div class="aspect-[4/3] bg-white/10 rounded-t-2xl"></div><div class="p-4 space-y-3"><div class="h-5 bg-white/10 rounded"></div><div class="h-4 bg-white/10 rounded w-10/12"></div><div class="h-8 bg-white/10 rounded w-5/12 ml-auto"></div></div></div>
+                <div class="product-card animate-pulse"><div class="aspect-[4/3] bg-white/10 rounded-t-2xl"></div><div class="p-4 space-y-3"><div class="h-5 bg-white/10 rounded"></div><div class="h-4 bg-white/10 rounded w-10/12"></div><div class="h-8 bg-white/10 rounded w-5/12 ml-auto"></div></div></div>
+                <div class="product-card animate-pulse"><div class="aspect-[4/3] bg-white/10 rounded-t-2xl"></div><div class="p-4 space-y-3"><div class="h-5 bg-white/10 rounded"></div><div class="h-4 bg-white/10 rounded w-10/12"></div><div class="h-8 bg-white/10 rounded w-5/12 ml-auto"></div></div></div>
+                <div class="product-card animate-pulse"><div class="aspect-[4/3] bg-white/10 rounded-t-2xl"></div><div class="p-4 space-y-3"><div class="h-5 bg-white/10 rounded"></div><div class="h-4 bg-white/10 rounded w-10/12"></div><div class="h-8 bg-white/10 rounded w-5/12 ml-auto"></div></div></div>
+                <div class="product-card animate-pulse"><div class="aspect-[4/3] bg-white/10 rounded-t-2xl"></div><div class="p-4 space-y-3"><div class="h-5 bg-white/10 rounded"></div><div class="h-4 bg-white/10 rounded w-10/12"></div><div class="h-8 bg-white/10 rounded w-5/12 ml-auto"></div></div></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Nueva Sección para Productos (Catálogo General) -->
+    <section id="catalogo-productos" class="py-16 sm:py-20">
+        <div class="container mx-auto px-4">
+            <h2 id="category-title" class="text-3xl sm:text-4xl font-bold text-center mb-12 sm:mb-16 hero-catalog-title animate-fade-in-down">Todos Nuestros Productos</h2>
+
+            <div class="flex flex-wrap items-center justify-end gap-3 mb-6">
+              <label for="product-sort" class="text-sm font-medium text-futuristic-mute">Ordenar:</label>
+              <select id="product-sort"
+                      class="text-sm rounded-xl border border-white/20 px-3 py-2 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-brand-100/30">
+                <option value="recent" selected>Más recientes</option>
+                <option value="old">Más viejos</option>
+                <option value="az">A → Z</option>
+                <option value="za">Z → A</option>
+              </select>
+            </div>
+
+            <!-- Loader productos (añadido) -->
+            <div id="products-inline-spinner" class="w-full flex justify-center py-8 hidden">
+              <div class="animate-spin h-8 w-8 border-4 border-brand-100 border-t-transparent rounded-full"></div>
+            </div>
+
+            <!-- Filtro por rango de precio -->
+            <div id="price-filter" class="flex flex-wrap items-center gap-3 mb-6">
+              <input id="min-price" type="number" min="0" step="0.01" placeholder="Precio mínimo"
+                     class="px-3 py-2 rounded-lg bg-gray-800/70 text-white w-40 focus:outline-none focus:ring-2 focus:ring-brand-100/30 border border-white/10" />
+              <input id="max-price" type="number" min="0" step="0.01" placeholder="Precio máximo"
+                     class="px-3 py-2 rounded-lg bg-gray-800/70 text-white w-40 focus:outline-none focus:ring-2 focus:ring-brand-100/30 border border-white/10" />
+              <button onclick="applyPriceFilter()"
+                      class="px-4 py-2 rounded-xl bg-brand-600 text-white hover:bg-brand-700 shadow-sm">
+                Filtrar
+              </button>
+            </div>
+
+            <div id="contenedor-productos" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Skeletons: 8 items para productos -->
+                <div class="product-card animate-pulse">
+                  <div class="aspect-[4/3] bg-white/10 rounded-t-2xl"></div>
+                  <div class="p-4 space-y-3">
+                    <div class="h-5 bg-white/10 rounded"></div>
+                    <div class="h-4 bg-white/10 rounded w-10/12"></div>
+                    <div class="h-8 bg-white/10 rounded w-5/12 ml-auto"></div>
+                  </div>
+                </div>
+                <div class="product-card animate-pulse"><div class="aspect-[4/3] bg-white/10 rounded-t-2xl"></div><div class="p-4 space-y-3"><div class="h-5 bg-white/10 rounded"></div><div class="h-4 bg-white/10 rounded w-10/12"></div><div class="h-8 bg-white/10 rounded w-5/12 ml-auto"></div></div></div>
+                <div class="product-card animate-pulse"><div class="aspect-[4/3] bg-white/10 rounded-t-2xl"></div><div class="p-4 space-y-3"><div class="h-5 bg-white/10 rounded"></div><div class="h-4 bg-white/10 rounded w-10/12"></div><div class="h-8 bg-white/10 rounded w-5/12 ml-auto"></div></div></div>
+                <div class="product-card animate-pulse"><div class="aspect-[4/3] bg-white/10 rounded-t-2xl"></div><div class="p-4 space-y-3"><div class="h-5 bg-white/10 rounded"></div><div class="h-4 bg-white/10 rounded w-10/12"></div><div class="h-8 bg-white/10 rounded w-5/12 ml-auto"></div></div></div>
+                <div class="product-card animate-pulse"><div class="aspect-[4/3] bg-white/10 rounded-t-2xl"></div><div class="p-4 space-y-3"><div class="h-5 bg-white/10 rounded"></div><div class="h-4 bg-white/10 rounded w-10/12"></div><div class="h-8 bg-white/10 rounded w-5/12 ml-auto"></div></div></div>
+                <div class="product-card animate-pulse"><div class="aspect-[4/3] bg-white/10 rounded-t-2xl"></div><div class="p-4 space-y-3"><div class="h-5 bg-white/10 rounded"></div><div class="h-4 bg-white/10 rounded w-10/12"></div><div class="h-8 bg-white/10 rounded w-5/12 ml-auto"></div></div></div>
+                <div class="product-card animate-pulse"><div class="aspect-[4/3] bg-white/10 rounded-t-2xl"></div><div class="p-4 space-y-3"><div class="h-5 bg-white/10 rounded"></div><div class="h-4 bg-white/10 rounded w-10/12"></div><div class="h-8 bg-white/10 rounded w-5/12 ml-auto"></div></div></div>
+                <div class="product-card animate-pulse"><div class="aspect-[4/3] bg-white/10 rounded-t-2xl"></div><div class="p-4 space-y-3"><div class="h-5 bg-white/10 rounded"></div><div class="h-4 bg-white/10 rounded w-10/12"></div><div class="h-8 bg-white/10 rounded w-5/12 ml-auto"></div></div></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-8 sm:py-10 shadow-md">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-sm sm:text-lg text-futuristic-ink">&copy; 2025 Ensintonía. Todos los derechos reservados.</p>
+            <p class="text-xs sm:text-sm mt-2 text-futuristic-mute">Diseñado con <span class="text-red-500">&hearts;</span> para tu hogar.</p>
+            <!-- ID de usuario retirado por seguridad -->
+            <!-- Site Creator retirado (informaci3n interna innecesaria) -->
+        </div>
+    </footer>
+
+    <!-- Botón de WhatsApp flotante -->
+    <div class="fixed bottom-6 left-6 z-50">
+        <a href="https://wa.me/5491159914197" target="_blank" rel="noopener noreferrer" class="btn-whatsapp text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition duration-300">
+            <i class="fab fa-whatsapp"></i>
+        </a>
+    </div>
+
+    <!-- Modal para la imagen en pantalla completa (zoom) -->
+    <div id="image-fullscreen-modal" class="image-modal-overlay">
+  
+    </div>
+
+    <!-- PRODUCT DETAIL MODAL -->
+    <div id="pd-overlay" class="fixed inset-0 z-[110] hidden" aria-hidden="true">
+      <div class="absolute inset-0 bg-black/50" data-close></div>
+
+      <div class="absolute inset-0 md:inset-auto md:top-6 md:bottom-6 md:left-1/2 md:-translate-x-1/2 md:w-[min(1100px,96vw)]
+                  bg-white rounded-none md:rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-4 py-3 border-b">
+          <h2 id="pd-title" class="text-lg font-semibold text-futuristic-ink">Nombre del producto</h2>
+          <button id="pd-close" class="p-2 rounded hover:bg-white/10" aria-label="Cerrar" data-close>✕</button>
+        </div>
+
+        <!-- Content -->
+        <div class="flex-1 overflow-auto">
+          <div class="grid md:grid-cols-2 gap-6 p-4">
+            <!-- Galería -->
+            <div>
+              <div class="aspect-square bg-gray-50 rounded-xl overflow-hidden">
+                <img id="pd-image" src="" alt="" class="w-full h-full object-contain">
+              </div>
+              <div id="pd-thumbs" class="mt-3 flex gap-2 overflow-x-auto"></div>
+            </div>
+
+            <!-- Info -->
+            <div class="space-y-3">
+              <div class="text-2xl font-bold text-futuristic-ink">$ <span id="pd-price">0</span></div>
+              <div id="pd-badges" class="flex gap-2 flex-wrap"></div>
+
+              <!-- Tabs -->
+              <div class="mt-4">
+                <div class="flex gap-2 border-b">
+                  <button class="pd-tab px-3 py-2 text-sm font-semibold" data-tab="desc">Descripción</button>
+                  <button class="pd-tab px-3 py-2 text-sm font-semibold" data-tab="specs">Especificaciones</button>
+                  <button class="pd-tab px-3 py-2 text-sm font-semibold" data-tab="warranty">Garantía</button>
+                </div>
+                <div class="mt-3">
+                  <div id="pd-pane-desc" class="pd-pane text-sm leading-6 text-futuristic-mute"></div>
+                  <div id="pd-pane-specs" class="pd-pane hidden text-sm leading-6 text-futuristic-mute"></div>
+                  <div id="pd-pane-warranty" class="pd-pane hidden text-sm leading-6 text-futuristic-mute"></div>
+                </div>
+              </div>
+
+              <!-- CTA -->
+              <div class="pt-2 flex flex-wrap gap-3">
+                <a id="pd-whatsapp" href="#" target="_blank" rel="noopener" class="px-4 py-2 rounded-xl bg-green-600 text-white btn">Consultar por WhatsApp</a>
+                <button id="pd-add" class="px-4 py-2 rounded-xl border btn">Agregar al carrito</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Productos similares -->
+          <div id="similar-products" class="p-4 pt-0">
+            <h3 class="text-base md:text-lg font-semibold text-futuristic-ink mb-3">Productos similares</h3>
+            <div id="similar-products-container" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-4 py-3 border-t text-xs text-futuristic-mute">
+          ID: <span id="pd-id"></span> • Stock: <span id="pd-stock">–</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Enlace al archivo JavaScript externo -->
+    <script src="main.js" type="module"></script>
+
+    <!-- Overlays de loaders (nuevos) -->
+    <!-- Loader de CATEGORÍAS -->
+    <div id="categories-loading-spinner" class="hidden fixed inset-0 z-[60] grid place-items-center bg-white/5 backdrop-blur-sm">
+      <div class="rounded-2xl border border-white/20 bg-gray-900/80 shadow-lg p-5 text-center text-futuristic-ink">
+        <div class="animate-spin h-6 w-6 mx-auto mb-3 rounded-full border-2 border-white/30 border-t-brand-1"></div>
+        <p class="text-sm font-medium">Cargando categorías…</p>
+      </div>
+    </div>
+
+    <!-- Loader de PRODUCTOS -->
+    <div id="products-loading-spinner" class="hidden fixed inset-0 z-[60] grid place-items-center bg-white/5 backdrop-blur-sm">
+      <div class="rounded-2xl border border-white/20 bg-gray-900/80 shadow-lg p-5 text-center text-futuristic-ink">
+        <div class="animate-spin h-6 w-6 mx-auto mb-3 rounded-full border-2 border-white/30 border-t-brand-1"></div>
+        <p class="text-sm font-medium">Cargando productos…</p>
+      </div>
+    </div>
+
+    <!-- Loader futurista global -->
+    <div id="futuristic-loader" class="hidden fixed inset-0 z-[70] grid place-items-center bg-gradient-to-b from-white/5 to-slate-50/5">
+      <div class="text-center">
+        <div class="animate-spin h-8 w-8 mx-auto mb-4 rounded-full border-2 border-white/30 border-t-brand-1"></div>
+        <h3 class="text-base font-semibold text-futuristic-ink">Preparando catálogo…</h3>
+        <p class="text-sm text-futuristic-mute mt-1">Un segundo, por favor</p>
+      </div>
+    </div>
+
+    <!-- Ejemplo dentro de tu loop de categorías -->
+    <section class="categoria-bloque" id="cat-${slug}">
+      <!-- productos ... -->
+    </section>
+
+    <script type="module">
+      // ...existing code de carga/render productos...
+        setTimeout(()=>{
+          if(location.hash.length > 1){
+            const el = document.getElementById(location.hash.slice(1));
+            if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+          }
+        },60);
+    </script>
+    
+    <!-- Forzar que la página siempre arranque arriba del todo -->
+    <script>
+      (function () {
+        const toTop = () => window.scrollTo(0, 0);
+
+        if ('scrollRestoration' in history) {
+          history.scrollRestoration = 'manual';
+        }
+
+        /* Mejora transición imágenes de categorías */
+        .category-image-animated {
+          transition: opacity .6s ease, transform 1s ease;
+        }
+        .category-image-animated.fade-out {
+          opacity: 0;
+          transform: scale(1.05);
+        }
+        .category-image-animated.fade-in {
+          opacity: 1;
+          transform: scale(1);
+        }
+
+        // Al cargar
+        window.addEventListener('load', toTop, { once: true });
+
+        // Si vuelve desde el BFCache (ej: atrás/adelante en Safari/Firefox)
+        window.addEventListener('pageshow', function (e) {
+          if (e.persisted) toTop();
+        });
+
+        // Tick extra por compatibilidad
+        setTimeout(toTop, 0);
+      })();
+    </script>
+</body>
+</html>

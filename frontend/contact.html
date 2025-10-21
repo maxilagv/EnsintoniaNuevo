@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contacto - Ensintonía</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome CDN para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script>window.__app_id = 'default-app-id';</script>
+    <style>
+        /* Estilos base para el cuerpo y la fuente */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* Un gris muy claro, casi blanco */
+            color: #374151; /* Color de texto general más oscuro para mejor contraste */
+        }
+
+        /* Estilos para los botones primarios */
+        .btn-primary {
+            background-color: #0d6efd; /* Azul vibrante */
+            transition: background-color 0.3s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.3s ease-in-out;
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15); /* Sombra inicial más pronunciada */
+            border-radius: 0.5rem; /* rounded-lg de Tailwind */
+        }
+        .btn-primary:hover {
+            background-color: #0b5ed7; /* Azul ligeramente más oscuro al pasar el ratón */
+            transform: translateY(-3px) scale(1.01); /* Efecto de "levantar" y crecer ligeramente */
+            box-shadow: 0 12px 20px rgba(0, 0, 0, 0.3); /* Sombra más intensa al pasar el ratón */
+        }
+
+        /* Estilos para el botón de WhatsApp flotante */
+        .btn-whatsapp {
+            background-color: #25D366; /* Verde WhatsApp */
+            transition: background-color 0.3s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.3s ease-in-out;
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+            /* Asegura que el botón sea un círculo perfecto */
+            width: 56px; /* 56px = w-14 en Tailwind */
+            height: 56px; /* 56px = h-14 en Tailwind */
+            display: flex; /* Para centrar el ícono */
+            align-items: center; /* Para centrar el ícono */
+            justify-content: center; /* Para centrar el ícono */
+            font-size: 2rem; /* Tamaño del ícono de Font Awesome */
+            border-radius: 9999px; /* rounded-full de Tailwind */
+        }
+        .btn-whatsapp:hover {
+            background-color: #1DA851; /* Verde WhatsApp más oscuro al pasar el ratón */
+            transform: translateY(-3px) scale(1.01);
+            box-shadow: 0 12px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Estilos para los enlaces de navegación */
+        .navbar-link {
+            transition: color 0.3s ease-in-out, transform 0.2s ease-in-out;
+        }
+        .navbar-link:hover {
+            color: #0d6efd; /* Azul al pasar el ratón */
+            transform: translateY(-2px); /* Pequeño desplazamiento hacia arriba */
+        }
+
+        /* Sombra interior para el footer */
+        .shadow-inner-top {
+            box-shadow: inset 0 8px 10px -5px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Estilos específicos para las tarjetas de contacto del nuevo diseño */
+        .new-contact-card {
+            background-color: #3f51b5; /* Azul oscuro */
+            color: white;
+            border-radius: 1rem; /* rounded-2xl */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between; /* Distribuye el espacio */
+            padding: 2rem; /* Ajustar según sea necesario */
+            text-align: center;
+        }
+
+        .new-contact-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .new-contact-card .icon {
+            font-size: 3.5rem; /* Tamaño del icono grande */
+            margin-bottom: 1.5rem;
+            color: #e0f2fe; /* Azul muy claro */
+        }
+
+        .new-contact-card h3 {
+            font-size: 1.875rem; /* text-3xl */
+            font-weight: 700; /* font-bold */
+            margin-bottom: 0.75rem;
+        }
+
+        .new-contact-card p {
+            font-size: 1.125rem; /* text-lg */
+            margin-bottom: 1.5rem;
+            flex-grow: 1; /* Permite que el párrafo ocupe el espacio disponible */
+        }
+
+        .new-contact-card .card-button {
+            background-color: #ff4081; /* Un color rosa vibrante */
+            color: white;
+            padding: 0.75rem 1.5rem; /* py-3 px-6 */
+            border-radius: 0.5rem; /* rounded-lg */
+            font-weight: 700; /* font-bold */
+            transition: background-color 0.3s ease-in-out, transform 0.2s ease-in-out;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .new-contact-card .card-button:hover {
+            background-color: #e00057;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Estilos para el hero de la página de contacto */
+        .contact-hero {
+            background-image: url('https://placehold.co/1920x400/3f51b5/ffffff?text=Contacto+Ensinton%C3%ADa'); /* Imagen de fondo similar a la captura */
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            min-height: 250px; /* Altura mínima para el hero */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1rem;
+        }
+
+        .contact-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5); /* Overlay oscuro */
+            z-index: 1;
+        }
+
+        .contact-hero > * {
+            z-index: 2; /* Asegura que el contenido esté por encima del overlay */
+        }
+
+        /* --- Estilos para la animación del botón de hamburguesa --- */
+        #mobile-menu-button span {
+            display: block;
+            width: 24px;
+            height: 3px;
+            background-color: #374151;
+            border-radius: 2px;
+            transition: all 0.3s ease-in-out;
+        }
+
+        #mobile-menu-button span:nth-child(2) {
+            margin: 5px 0;
+        }
+
+        #mobile-menu-button.open span:nth-child(1) {
+            transform: translateY(8px) rotate(45deg);
+        }
+
+        #mobile-menu-button.open span:nth-child(2) {
+            opacity: 0;
+        }
+
+        #mobile-menu-button.open span:nth-child(3) {
+            transform: translateY(-8px) rotate(-45deg);
+        }
+        /* --- Fin de los estilos del botón de hamburguesa --- */
+
+        /* Sombra interior para el footer */
+        .shadow-inner-top {
+            box-shadow: inset 0 8px 10px -5px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Estilos para el modal de imagen en pantalla completa (añadidos para contact.html) */
+        .image-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85); /* Fondo oscuro semitransparente */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000; /* Asegura que esté por encima de todo lo demás */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+
+        .image-modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .image-modal-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-modal-content img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain; /* Asegura que la imagen se ajuste sin recortarse */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5); /* Sombra para la imagen */
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background-color: rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 9999px; /* rounded-full */
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        .image-modal-close:hover {
+            background-color: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Header y Navegación (replicado de index.html para consistencia) -->
+    <header class="bg-white shadow-xl py-4">
+        <div class="container mx-auto px-4 flex justify-between items-center">
+            <!-- Logo y Nombre de la marca -->
+            <div class="flex items-center">
+                <img src="https://i.postimg.cc/GtWS4w0z/Captura-de-pantalla-2025-08-21-134638.png" alt="Ensintonía Logo" class="h-20 sm:h-24 w-auto mr-4">
+                <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900">Ensintonía</h1>
+            </div>
+
+            <!-- Botón de Hamburguesa para móvil -->
+            <button id="mobile-menu-button" class="sm:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 relative z-50" aria-expanded="false">
+                <span class="block w-6 h-0.5 bg-gray-700 transition-all duration-300 ease-in-out"></span>
+                <span class="block w-6 h-0.5 bg-gray-700 my-1 transition-all duration-300 ease-in-out"></span>
+                <span class="block w-6 h-0.5 bg-gray-700 transition-all duration-300 ease-in-out"></span>
+            </button>
+
+            <!-- Menú de Navegación para escritorio -->
+            <nav id="desktop-nav" class="hidden sm:flex items-center">
+                <ul class="flex space-x-8">
+                    <li><a href="catalogo.html" class="navbar-link text-xl font-medium text-gray-700 hover:text-blue-600">Catálogo</a></li>
+                    <li><a href="catalogo.html" class="navbar-link text-xl font-medium text-gray-700 hover:text-blue-600">Categorías</a></li>
+                    <li><a href="contact.html" class="navbar-link text-xl font-medium text-gray-700 hover:text-blue-600">Contacto</a></li>
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Menú de Navegación para móvil (oculto por defecto) -->
+        <nav id="mobile-nav" class="hidden fixed inset-0 bg-white z-40 p-6 flex flex-col items-start space-y-6 transform translate-x-full transition-transform duration-300 ease-in-out">
+            <ul class="flex flex-col space-y-6 w-full mt-10">
+                <li><a href="catalogo.html" class="navbar-link text-2xl font-semibold text-gray-800 hover:text-blue-600 block py-2">Catálogo</a></li>
+                <li><a href="contact.html" class="navbar-link text-2xl font-semibold text-gray-800 hover:text-blue-600 block py-2">Contacto</a></li>
+                <li class="relative w-full">
+                    <button id="categories-toggle-button" class="text-2xl font-semibold text-gray-800 hover:text-blue-600 block py-2 w-full text-left flex justify-between items-center">
+                        <span>Categorías</span>
+                        <i class="fas fa-chevron-down text-lg transition-transform duration-300" id="categories-toggle-icon"></i>
+                    </button>
+                    <ul id="categories-submenu" class="hidden flex-col space-y-3 pl-4 pt-2 bg-gray-50 rounded-lg mt-2 shadow-inner">
+                        <!-- Se mostrará un spinner mientras se cargan las categorías -->
+                        <li id="categories-loading-spinner-mobile" class="text-gray-600 text-lg py-2 text-center">
+                            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+                            <p class="mt-2">Cargando categorías...</p>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Hero Section para Contacto -->
+    <section class="contact-hero py-16 sm:py-20">
+        <h2 class="text-4xl sm:text-5xl font-bold text-center mb-4 sm:mb-6 z-10">Contáctanos</h2>
+        <p class="text-lg sm:text-xl text-center max-w-2xl mx-auto z-10">¿Tienes alguna pregunta, sugerencia o necesitas asistencia? ¡Estamos aquí para ayudarte!</p>
+    </section>
+
+    <!-- Sección principal de Contacto con 4 tarjetas -->
+    <section class="py-16 sm:py-20 bg-white">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10">
+                <!-- Tarjeta 1: Llámanos -->
+                <div class="new-contact-card">
+                    <i class="fas fa-phone-alt icon"></i>
+                    <h3 class="text-3xl font-bold">Llámanos</h3>
+                    <p class="text-lg">Habla directamente con nuestro equipo de soporte.</p>
+                    <a href="tel:+541137725766" class="card-button">Llamar Ahora</a>
+                </div>
+
+                <!-- Tarjeta 2: Envíanos un Email -->
+                <div class="new-contact-card">
+                    <i class="fas fa-envelope icon"></i>
+                    <h3 class="text-3xl font-bold">Envíanos un Email</h3>
+                    <p class="text-lg">Envíanos tus consultas y te responderemos a la brevedad.</p>
+                    <button id="open-contact-form" type="button" class="card-button">Enviar Mensaje</button>
+                </div>
+
+                <!-- Tarjeta 3: Mapa de Google Maps -->
+                <div class="new-contact-card">
+                    <i class="fas fa-map-marker-alt icon"></i>
+                    <h3 class="text-3xl font-bold">Visítanos</h3>
+                    <p class="text-lg">Encuéntranos en Sarratea 2602, Argentina.</p>
+                    <div class="w-full h-48 mt-4 rounded-lg overflow-hidden">
+                        <iframe 
+                            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3277.477098404855!2d-58.2618608236422!3d-34.78308977287748!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95a32e5a2d8a2f7d%3A0xbfe2f1d5b0e5b0e5!2sSarratea%202602%2C%20Quilmes%20Oeste%2C%20Provincia%20de%20Buenos%20Aires%2C%20Argentina!5e0!3m2!1ses!2sus!4v1712345678901!5m2!1ses!2sus" 
+                            width="100%" 
+                            height="100%" 
+                            style="border:0;" 
+                            allowfullscreen="" 
+                            loading="lazy" 
+                            referrerpolicy="no-referrer-when-downgrade">
+                        </iframe>
+                    </div>
+                </div>
+
+                <!-- Tarjeta 4: WhatsApp (mantenida) -->
+                <div class="new-contact-card">
+                    <i class="fab fa-whatsapp icon"></i>
+                    <h3 class="text-3xl font-bold">WhatsApp</h3>
+                    <p class="text-lg">Chatea con nosotros directamente por WhatsApp.</p>
+                    <a href="https://wa.me/5491159914197" target="_blank" class="card-button">Enviar Mensaje</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-8 sm:py-10 shadow-inner-top">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-sm sm:text-lg">&copy; 2025 Ensintonía. Todos los derechos reservados.</p>
+            <p class="text-xs sm:text-sm mt-2 text-gray-400">Diseñado con <span class="text-red-500">&hearts;</span> para tu hogar.</p>
+            <!-- El ID de usuario no es relevante en la página de contacto estática, pero se mantiene por consistencia -->
+            
+        </div>
+    </footer>
+
+    <!-- Botón de WhatsApp flotante -->
+    <div class="fixed bottom-6 left-6 z-50">
+        <a href="https://wa.me/5491159914197" target="_blank" rel="noopener noreferrer" class="btn-whatsapp text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition duration-300">
+            <i class="fab fa-whatsapp"></i>
+        </a>
+    </div>
+
+    <!-- Modal para la imagen en pantalla completa (añadido para contact.html) -->
+    <div id="image-fullscreen-modal" class="image-modal-overlay">
+        <div class="image-modal-content">
+            <img id="fullscreen-image" src="" alt="Imagen en pantalla completa">
+            <button id="close-image-modal" class="image-modal-close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Script JavaScript para la funcionalidad del menú móvil y carga de categorías -->
+    <!-- Modal: Formulario de Contacto interno -->
+    <div id="contact-form-modal" class="image-modal-overlay">
+        <div class="image-modal-content">
+            <div class="bg-white w-full max-w-xl rounded-xl shadow-xl p-6 sm:p-8 relative">
+                <button id="close-contact-form" type="button" class="absolute top-3 right-3 text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+                <h3 class="text-2xl font-bold mb-2 text-gray-900">Escríbenos</h3>
+                <p class="text-gray-600 mb-6">Dejanos tu consulta y nos pondremos en contacto.</p>
+                <form id="contact-form" class="space-y-4">
+                    <div>
+                        <label for="contact-name" class="block text-sm font-medium text-gray-700">Nombre</label>
+                        <input id="contact-name" name="name" type="text" required class="mt-1 w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Tu nombre" />
+                    </div>
+                    <div>
+                        <label for="contact-email" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input id="contact-email" name="email" type="email" required class="mt-1 w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="tunombre@correo.com" />
+                    </div>
+                    <div>
+                        <label for="contact-phone" class="block text-sm font-medium text-gray-700">Número telefónico (opcional)</label>
+                        <input id="contact-phone" name="phone" type="tel" class="mt-1 w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: +54 9 11 1234 5678" />
+                    </div>
+                    <div>
+                        <label for="contact-subject" class="block text-sm font-medium text-gray-700">Asunto</label>
+                        <input id="contact-subject" name="subject" type="text" required class="mt-1 w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="¿Sobre qué es tu mensaje?" />
+                    </div>
+                    <div>
+                        <label for="contact-message" class="block text-sm font-medium text-gray-700">Mensaje</label>
+                        <textarea id="contact-message" name="message" rows="5" required class="mt-1 w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Escribe tu consulta…"></textarea>
+                    </div>
+                    <div class="flex items-center gap-3 pt-2">
+                        <button id="contact-submit" type="submit" class="px-4 py-2 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-700">Enviar</button>
+                        <button type="button" class="px-4 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200" onclick="document.getElementById('contact-form-modal').classList.remove('open')">Cancelar</button>
+                        <span id="contact-status" class="text-sm text-gray-500"></span>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Importar módulos de Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Importar la configuración de Firebase desde tu archivo centralizado
+        // La ruta './firebaseconfig.js' es relativa a la ubicación de este archivo 'contact.html'
+        import { db as importedDb, auth as importedAuth, firebaseConfig as importedFirebaseConfig } from './firebaseconfig.js';
+
+        // Variables globales de Firebase (ahora obtenidas de la importación)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app;
+        let db = importedDb; // Usar la instancia importada
+        let auth = importedAuth; // Usar la instancia importada
+        let firebaseConfig = importedFirebaseConfig; // Usar la configuración importada
+        let userId;
+
+        /**
+         * @function initFirebase
+         * @description Inicializa la aplicación Firebase para esta página.
+         */
+        async function initFirebase() {
+            try {
+                // Si la app no ha sido inicializada aún por el import, la inicializamos
+                if (!app) {
+                    app = initializeApp(firebaseConfig);
+                    // Si db y auth no están definidas a través de la importación, las inicializamos aquí
+                    if (!db) db = getFirestore(app);
+                    if (!auth) auth = getAuth(app);
+                }
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        // ID de usuario no se muestra en esta vista
+                        loadCategories(); // Cargar categorías una vez autenticado
+                    } else {
+                        userId = null;
+                        // ID de usuario no se muestra en esta vista
+                        loadCategories(); // Intentar cargar categorías incluso si no autenticado (para datos públicos)
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error al inicializar Firebase en contact.html:", error);
+                showMessageBox("Error al inicializar el servicio de categorías. Por favor, asegúrate de que tu clave API de Firebase sea válida.");
+                // Si hay un error, ocultar el spinner y mostrar un mensaje
+                const categoriesLoadingSpinner = document.getElementById('categories-loading-spinner-mobile');
+                if (categoriesLoadingSpinner) categoriesLoadingSpinner.innerHTML = '<p class="text-center text-gray-600 mt-2">No se pudieron cargar las categorías.</p>';
+            }
+        }
+
+
+        /**
+         * @function showMessageBox
+         * @description Muestra un cuadro de mensaje personalizado en lugar de la alerta del navegador.
+         * @param {string} message - El mensaje a mostrar.
+         */
+        window.showMessageBox = function(message) {
+            const messageBox = document.createElement('div');
+            messageBox.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            messageBox.innerHTML = `
+                <div class="bg-white p-8 rounded-lg shadow-xl text-center max-w-sm mx-auto">
+                    <p class="text-xl font-semibold text-gray-800 mb-4">${message}</p>
+                    <button onclick="this.parentNode.parentNode.remove()" class="btn-primary text-white font-bold py-2 px-5 rounded-md">Cerrar</button>
+                </div>
+            `;
+            document.body.appendChild(messageBox);
+        };
+
+
+        /**
+         * @function loadCategories
+         * @description Carga las categorías desde Firestore y las renderiza en el submenú móvil.
+         */
+        async function loadCategories() {
+            if (!db) {
+                console.error("Firestore no inicializado en contact.html. No se pueden cargar categorías.");
+                const categoriesLoadingSpinner = document.getElementById('categories-loading-spinner-mobile');
+                if (categoriesLoadingSpinner) categoriesLoadingSpinner.innerHTML = '<p class="text-center text-gray-600 mt-2">Error: Firestore no disponible.</p>';
+                return;
+            }
+
+            const categoriesSubmenu = document.getElementById('categories-submenu');
+            const categoriesLoadingSpinner = document.getElementById('categories-loading-spinner-mobile');
+
+            // Limpiar contenido previo del spinner
+            if (categoriesLoadingSpinner) {
+                categoriesLoadingSpinner.innerHTML = `
+                    <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+                    <p class="mt-2">Cargando categorías...</p>
+                `;
+                categoriesLoadingSpinner.classList.remove('hidden');
+            }
+
+
+            const categoriesCol = collection(db, `artifacts/${appId}/public/data/categories`);
+
+            onSnapshot(categoriesCol, (snapshot) => {
+                categoriesSubmenu.innerHTML = ''; // Limpiar categorías existentes
+
+                if (snapshot.empty) {
+                    categoriesSubmenu.innerHTML = '<li class="text-gray-600 text-lg py-2">No hay categorías.</li>';
+                } else {
+                    snapshot.forEach(doc => {
+                        const category = { id: doc.id, ...doc.data() };
+                        const submenuItem = `
+                            <li>
+                                <a href="/catalogo.html?cat=${encodeURIComponent(category.name)}" onclick="goToCategory('${category.name}'); closeMobileMenu(); return false;" class="block py-2 text-xl text-gray-700 hover:text-blue-600 transition duration-200">
+                                    ${category.name}
+                                </a>
+                            </li>
+                        `;
+                        categoriesSubmenu.innerHTML += submenuItem;
+                    });
+                }
+                // Ocultar spinner una vez que las categorías han sido cargadas o si no hay ninguna
+                if (categoriesLoadingSpinner) categoriesLoadingSpinner.classList.add('hidden');
+            }, (error) => {
+                console.error("Error al obtener categorías en contact.html:", error);
+                // Asegurarse de que el spinner se oculte y mostrar mensaje de error
+                if (categoriesLoadingSpinner) categoriesLoadingSpinner.innerHTML = '<p class="text-center text-gray-600 mt-2">Error al cargar categorías.</p>';
+                showMessageBox("Error al cargar las categorías en el menú.");
+            });
+        }
+
+        /**
+         * @function goToCategory
+         * @description Redirige a index.html y carga productos por categoría.
+         * @param {string} categoryName - El nombre de la categoría para filtrar.
+         */
+        window.goToCategory = function(categoryName) {
+            // Guardar la categoría seleccionada en sessionStorage o un parámetro de URL
+            // para que index.html pueda leerla y cargar los productos correspondientes.
+            sessionStorage.setItem('selectedCategory', categoryName);
+            window.location.href = 'catalogo.html#catalogo-productos'; // Redirigir a la página principal
+        };
+
+        /**
+         * @function openMobileMenu
+         * @description Abre el menú de navegación móvil y anima el botón de hamburguesa a una 'X'.
+         */
+        window.openMobileMenu = function() {
+            const mobileNav = document.getElementById('mobile-nav');
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+
+            mobileNav.classList.remove('translate-x-full');
+            mobileNav.classList.add('translate-x-0');
+            mobileNav.classList.remove('hidden');
+            mobileMenuButton.classList.add('open');
+            mobileMenuButton.setAttribute('aria-expanded', 'true');
+        }
+
+        /**
+         * @function closeMobileMenu
+         * @description Cierra el menú de navegación móvil y anima la 'X' de vuelta a hamburguesa.
+         */
+        window.closeMobileMenu = function() {
+            const mobileNav = document.getElementById('mobile-nav');
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+
+            mobileNav.classList.remove('translate-x-0');
+            mobileNav.classList.add('translate-x-full');
+
+            mobileNav.addEventListener('transitionend', function handler() {
+                mobileNav.classList.add('hidden');
+                mobileNav.removeEventListener('transitionend', handler);
+            }, { once: true });
+
+            mobileMenuButton.classList.remove('open');
+            mobileMenuButton.setAttribute('aria-expanded', 'false');
+
+            closeCategoriesSubmenu();
+        }
+
+        /**
+         * @function toggleCategoriesSubmenu
+         * @description Alterna la visibilidad del submenú de categorías.
+         */
+        function toggleCategoriesSubmenu() {
+            const categoriesSubmenu = document.getElementById('categories-submenu');
+            const categoriesToggleIcon = document.getElementById('categories-toggle-icon');
+            categoriesSubmenu.classList.toggle('hidden');
+            categoriesToggleIcon.classList.toggle('fa-chevron-down');
+            categoriesToggleIcon.classList.toggle('fa-chevron-up');
+        }
+
+        /**
+         * @function closeCategoriesSubmenu
+         * @description Cierra el submenú de categorías.
+         */
+        function closeCategoriesSubmenu() {
+            const categoriesSubmenu = document.getElementById('categories-submenu');
+            const categoriesToggleIcon = document.getElementById('categories-toggle-icon');
+            if (!categoriesSubmenu.classList.contains('hidden')) {
+                categoriesSubmenu.classList.add('hidden');
+                categoriesToggleIcon.classList.remove('fa-chevron-up');
+                categoriesToggleIcon.classList.add('fa-chevron-down');
+            }
+        }
+
+        /**
+         * @function openFullscreenImage
+         * @description Abre un modal para mostrar la imagen del producto en pantalla completa.
+         * @param {string} imageUrl - La URL de la imagen a mostrar.
+         * @param {string} altText - El texto alternativo para la imagen.
+         */
+        window.openFullscreenImage = function(imageUrl, altText) {
+            const modal = document.getElementById('image-fullscreen-modal');
+            const image = document.getElementById('fullscreen-image');
+
+            // Agrega un manejador de errores a la imagen para detectar problemas de carga
+            image.onerror = function() {
+                console.error("Error al cargar la imagen en pantalla completa:", imageUrl);
+                image.src = 'https://placehold.co/600x400/FF0000/FFFFFF?text=Error+Carga+Imagen'; // Imagen de fallback
+                image.alt = 'Error al cargar la imagen';
+                showMessageBox("No se pudo cargar la imagen en pantalla completa. Por favor, inténtalo de nuevo.");
+            };
+
+            image.src = imageUrl;
+            image.alt = altText;
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden'; // Evita el scroll del cuerpo
+        }
+
+        /**
+         * @function closeFullscreenImage
+         * @description Cierra el modal de imagen en pantalla completa.
+         */
+        window.closeFullscreenImage = function() {
+            const modal = document.getElementById('image-fullscreen-modal');
+            modal.classList.remove('open');
+            document.body.style.overflow = ''; // Restaura el scroll del cuerpo
+
+            // Limpiar el manejador de errores de la imagen para futuras aperturas
+            const image = document.getElementById('fullscreen-image');
+            image.onerror = null;
+        }
+
+
+        // Lógica del menú de hamburguesa y submenús (Listeners)
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileNav = document.getElementById('mobile-nav');
+            const categoriesToggleButton = document.getElementById('categories-toggle-button');
+            const closeImageModalButton = document.getElementById('close-image-modal');
+            const imageFullscreenModal = document.getElementById('image-fullscreen-modal');
+
+            mobileMenuButton.addEventListener('click', function(event) {
+                event.stopPropagation();
+                if (mobileNav.classList.contains('translate-x-0')) {
+                    closeMobileMenu();
+                } else {
+                    openMobileMenu();
+                }
+            });
+
+            categoriesToggleButton.addEventListener('click', function(event) {
+                event.stopPropagation();
+                toggleCategoriesSubmenu();
+            });
+
+            document.body.addEventListener('click', function(event) {
+                if (!mobileNav.contains(event.target) && !mobileMenuButton.contains(event.target)) {
+                    closeMobileMenu();
+                }
+                const categoriesSubmenu = document.getElementById('categories-submenu');
+                if (!categoriesSubmenu.classList.contains('hidden') &&
+                    !categoriesSubmenu.contains(event.target) &&
+                    !categoriesToggleButton.contains(event.target)) {
+                    closeCategoriesSubmenu();
+                }
+            });
+
+            mobileNav.querySelectorAll('a[href]').forEach(link => {
+                link.addEventListener('click', () => {
+                    closeMobileMenu();
+                });
+            });
+
+            // Cerrar modal de imagen al hacer clic en el botón de cerrar
+            if (closeImageModalButton) {
+                closeImageModalButton.addEventListener('click', closeFullscreenImage);
+            }
+
+            // Cerrar modal de imagen al hacer clic fuera de la imagen (en el overlay)
+            if (imageFullscreenModal) {
+                imageFullscreenModal.addEventListener('click', function(event) {
+                    if (event.target === imageFullscreenModal) { // Solo si el click es directamente en el overlay
+                        closeFullscreenImage();
+                    }
+                });
+            }
+
+            // Inicializar Firebase y cargar categorías al cargar la página
+            initFirebase();
+        });
+    </script>
+  <script>
+    // Asegurar que la navegacin por categor3a filtre solo la seleccionada en el cat31logo
+    window.goToCategory = function(categoryName) {
+      window.location.href = `/catalogo.html?cat=${encodeURIComponent(categoryName)}`;
+    };
+  </script>
+  <script type="module">
+    import { db } from './firebaseconfig.js';
+    import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    const appId = (typeof window !== 'undefined' && window.__app_id)
+      ? window.__app_id
+      : (typeof __app_id !== 'undefined' ? __app_id : 'default-app-id');
+
+    const contactModal = document.getElementById('contact-form-modal');
+    const openContactBtn = document.getElementById('open-contact-form');
+    const closeContactBtn = document.getElementById('close-contact-form');
+    const contactForm = document.getElementById('contact-form');
+    const contactStatus = document.getElementById('contact-status');
+
+    if (openContactBtn && contactModal){
+      openContactBtn.addEventListener('click', ()=> contactModal.classList.add('open'));
+    }
+    if (closeContactBtn && contactModal){
+      closeContactBtn.addEventListener('click', ()=> contactModal.classList.remove('open'));
+    }
+    if (contactModal){
+      contactModal.addEventListener('click', (e)=>{ if(e.target === contactModal) contactModal.classList.remove('open'); });
+    }
+
+    if (contactForm){
+      contactForm.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const name = (document.getElementById('contact-name')?.value || '').trim();
+        const email = (document.getElementById('contact-email')?.value || '').trim();
+        const subject = (document.getElementById('contact-subject')?.value || '').trim();
+        const phone = (document.getElementById('contact-phone')?.value || '').trim();
+        const message = (document.getElementById('contact-message')?.value || '').trim();
+        if (!name || !email || !subject || !message){ window.showMessageBox?.('Completá todos los campos.'); return; }
+        const emailOk = /.+@.+\..+/.test(email);
+        if (!emailOk){ window.showMessageBox?.('Ingresá un email válido.'); return; }
+        const btn = document.getElementById('contact-submit');
+        btn.disabled = true; btn.textContent = 'Enviando…';
+        if (contactStatus) contactStatus.textContent = 'Enviando…';
+        try {
+          const col = collection(db, `artifacts/${appId}/public/data/contact_messages`);
+          await addDoc(col, { name, email, phone, subject, message, createdAt: serverTimestamp() });
+          if (contactStatus) contactStatus.textContent = '';
+          window.showMessageBox?.('¡Gracias! Tu mensaje fue enviado.');
+          contactForm.reset();
+          contactModal.classList.remove('open');
+        } catch (err) {
+          console.error('contact submit error', err);
+          if (contactStatus) contactStatus.textContent = '';
+          window.showMessageBox?.('No pudimos enviar tu mensaje. Probá de nuevo.');
+        } finally {
+          btn.disabled = false; btn.textContent = 'Enviar';
+        }
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "mIXnF5TTeY60ULLbfwgx",
+    "name": "Ruben",
+    "phone": "54911111111",
+    "message": "Esto es una prueba",
+    "subject": "Consulta",
+    "email": "rubenaguilarwod@admifarmgroup.com",
+    "createdAt": {
+      "_seconds": 1758639853,
+      "_nanoseconds": 932000000
+    }
+  }
+]

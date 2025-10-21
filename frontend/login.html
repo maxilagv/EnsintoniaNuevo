@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ensintonía - Login Futurista</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos generales del cuerpo y fuente */
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%); /* Fondo oscuro futurista */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Evita barras de desplazamiento por animaciones */
+            position: relative; /* Necesario para posicionar el canvas */
+        }
+
+        /* Canvas para la animación de fondo */
+        #backgroundCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1; /* Detrás del formulario de login */
+        }
+
+        /* Contenedor principal del login */
+        .login-container {
+            background: rgba(255, 255, 255, 0.05); /* Fondo semitransparente */
+            backdrop-filter: blur(10px); /* Efecto de desenfoque */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem; /* Bordes más redondeados */
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); /* Sombra intensa */
+            padding: 3rem;
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transform: scale(0.9); /* Inicia un poco más pequeño */
+            opacity: 0; /* Inicia invisible */
+            animation: fadeInScale 1s ease-out forwards; /* Animación de entrada */
+            z-index: 2; /* Encima del canvas */
+        }
+
+        /* Animación de entrada del contenedor */
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* Título del formulario */
+        .login-title {
+            color: #e2e8f0; /* Gris claro */
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 2rem;
+            text-shadow: 0 0 15px rgba(0, 255, 255, 0.5); /* Resplandor cian */
+        }
+
+        /* Estilos para los campos de entrada */
+        .input-field {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.75rem;
+            color: #e2e8f0;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            width: 100%;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        .input-field::placeholder {
+            color: #a0aec0; /* Gris más oscuro para el placeholder */
+        }
+        .input-field:focus {
+            border-color: #0ea5e9; /* Azul cian al enfocar */
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.5); /* Resplandor al enfocar */
+        }
+
+        /* Estilos para el botón de submit */
+        .submit-button {
+            background: linear-gradient(90deg, #0ea5e9 0%, #22d3ee 100%); /* Gradiente azul-cian */
+            color: white;
+            font-weight: 700;
+            padding: 1rem 2.5rem;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(14, 165, 233, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+        .submit-button:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(14, 165, 233, 0.6);
+        }
+        .submit-button:active {
+            transform: translateY(0);
+            box-shadow: 0 3px 10px rgba(14, 165, 233, 0.4);
+        }
+
+        /* Animación de "Loading..." */
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #0ea5e9; /* Color del spinner */
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Animación de Acceso Denegado (shake) */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+            20%, 40%, 60%, 80% { transform: translateX(10px); }
+        }
+        .animate-shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        /* Animación de Acceso Exitoso (bounce) */
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-30px); }
+            60% { transform: translateY(-15px); }
+        }
+        .animate-bounce {
+            animation: bounce 1s ease-in-out;
+        }
+
+        /* Estilos para la caja de mensaje personalizada */
+        .message-box-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.7); /* Fondo más oscuro para el overlay */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .message-box-overlay.show {
+            opacity: 1;
+        }
+        .message-box-content {
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%); /* Fondo oscuro */
+            color: #e2e8f0;
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            transform: translateY(-20px) scale(0.9);
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+        }
+        .message-box-overlay.show .message-box-content {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+        .message-box-content p {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+        .message-box-content button {
+            background-color: #0ea5e9;
+            color: white;
+            font-weight: 700;
+            padding: 0.75rem 2rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.3s ease;
+        }
+        .message-box-content button:hover {
+            background-color: #0284c7;
+        }
+
+        /* Estilos para el mensaje de error/éxito dentro del formulario */
+        .feedback-message {
+            margin-top: 1.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.5s ease-out;
+        }
+        .feedback-message.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .feedback-message.success {
+            color: #22c55e; /* Verde para éxito */
+            text-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
+        }
+        .feedback-message.error {
+            color: #ef4444; /* Rojo para error */
+            text-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Canvas para la animación de fondo -->
+    <canvas id="backgroundCanvas"></canvas>
+
+    <div class="login-container">
+        <h2 class="login-title">Acceso al Sistema</h2>
+        <form id="loginForm">
+            <input type="text" id="username" placeholder="Correo Electrónico" class="input-field" required>
+            <input type="password" id="password" placeholder="Contraseña" class="input-field" required>
+            <button type="submit" class="submit-button w-full">
+                <span id="buttonText">Iniciar Sesión</span>
+                <span id="loadingIndicator" class="hidden">
+                    <span class="loading-spinner"></span> Cargando...
+                </span>
+            </button>
+            <p id="feedbackMessage" class="feedback-message"></p>
+        </form>
+    </div>
+
+    <!-- Enlace al archivo JavaScript externo -->
+    <script src="login.js" type="module"></script>
+</body>
+</html>

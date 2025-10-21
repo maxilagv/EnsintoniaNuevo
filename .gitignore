@@ -1,0 +1,29 @@
+﻿# General
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+
+# Node
+node_modules/
+backend/server/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env and secrets
+.env
+*.env
+backend/server/.env
+backend/server/scripts/serviceAccount.json
+
+# Build artifacts
+dist/
+build/
+out/
+coverage/
+
+# IDE
+.vscode/
+.idea/

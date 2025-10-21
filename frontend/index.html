@@ -1,0 +1,1236 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ensintonía — Importadora directa de electrónica y hogar</title>
+
+  <!-- Tailwind (CDN, rápido para prototipo) -->
+  <script>
+    // Asegura el objeto global antes de asignar la configuración
+    window.tailwind = window.tailwind || {};
+    window.tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f5f8ff',
+              100: '#e6eeff',
+              300: '#7da3ff',
+              500: '#1e40af',
+              700: '#17307a'
+            }
+          },
+          boxShadow: {
+            soft: '0 6px 20px rgba(16,24,40,.08)',
+            card: '0 10px 30px rgba(16,24,40,.06)'
+          },
+          fontFamily: {
+            inter: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* Paleta y tokens */
+    :root{
+      --bg-1: #0f172a; /* deep ink */
+      --bg-2: #071032; /* deep blue */
+      --brand-1: #6ee7b7; /* mint */
+      --brand-2: #7c3aed; /* purple */
+      --accent: linear-gradient(90deg,var(--brand-1),#60a5fa 40%,var(--brand-2));
+      --glass: rgba(255,255,255,0.06);
+      --muted: #94a3b8;
+
+      --futuristic-ink: #e6f0ff; /* Light white/blue for main text */
+      --futuristic-mute: #9fb3d9; /* Muted light blue for secondary text */
+    }
+
+    /* Fondo azul futurista (forzado con !important para evitar override por Tailwind) */
+    body {
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(110,231,183,0.06), transparent 12%),
+                  linear-gradient(180deg, #061229 0%, #072447 30%, #0b3b6b 60%, #081133 100%) !important;
+      color: var(--futuristic-ink) !important;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      min-height: 100vh;
+    }
+
+    /* Ajustes de contraste para textos secundarios */
+    .muted, .text-muted-700 { color: var(--futuristic-mute) !important; }
+    .text-ink { color: var(--futuristic-ink) !important; }
+
+    /* Header / logo: mucho más grande y animado */
+    .logo-wrap {
+      display:flex;
+      align-items:center;
+      gap:.15rem;
+      transform-origin:center;
+    }
+    .logo-big {
+      width: 146px;
+      height:auto;
+      transition: transform .6s cubic-bezier(.2,.9,.2,1), filter .6s;
+      filter: drop-shadow(0 18px 40px rgba(99,102,241,.12));
+      will-change: transform;
+    }
+    @media (max-width: 768px){
+      .logo-big{ width: 76px; }
+    }
+    .logo-big:hover{ transform: translateY(-4px) rotate(-2deg) scale(1.02); filter: drop-shadow(0 26px 60px rgba(124,58,237,.14)); }
+
+    /* Header scroll effect */
+    #main-header.scrolled {
+      background-color: rgba(6, 18, 41, 0.9); /* Slightly darker, more opaque */
+      box-shadow: 0 4px 18px rgba(0,0,0,0.3);
+      border-color: rgba(49, 62, 85, 0.4);
+    }
+
+
+    /* Futuristic heading style - Refined */
+    .neon-text {
+      font-family: 'Orbitron', Inter, sans-serif;
+      font-weight:700;
+      background: var(--accent);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: -0.01em;
+      /* Removed aggressive text-shadow from here */
+    }
+
+    /* Subtle, unified glow for neon-text */
+    .hero-title-shadow { /* New class for the subtle shadow */
+      text-shadow:
+        0 4px 18px rgba(96,165,250,0.1), /* Soft blue glow */
+        0 2px 8px rgba(124,58,237,0.08); /* Soft purple glow */
+    }
+
+    /* Animated gradient underline for brand */
+    .brand-underline{
+      display:inline-block;
+      height:6px;
+      width:64px;
+      border-radius:999px;
+      background: linear-gradient(90deg,#60a5fa,#7c3aed,#6ee7b7);
+      box-shadow: 0 10px 30px rgba(124,58,237,0.08);
+      transform-origin:left center;
+      animation: underline-slide 3.8s linear infinite alternate; /* Added alternate */
+      opacity:.95;
+      filter: blur(0.5px); /* Subtle blur */
+    }
+    @keyframes underline-slide {
+      0%{ transform: translateX(-8px) scaleX(.98); filter: blur(.2px) }
+      50%{ transform: translateX(8px) scaleX(1.02); filter: blur(1px) } /* Increased blur at 50% */
+      100%{ transform: translateX(-8px) scaleX(.98); }
+    }
+
+    /* Subtle floating decorative shapes */
+    .hero-deco {
+      position:absolute; right:-6rem; top:-6rem; width:36rem; height:36rem; opacity:.06; pointer-events:none; filter: blur(18px); transform: rotate(18deg);
+      animation: slow-rotate 40s linear infinite; /* New animation */
+    }
+    @keyframes slow-rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Button glow / micro-animations */
+    .btn {
+      transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .btn:hover {
+      transform: translateY(-2px) scale(1.01);
+    }
+    .btn-glow {
+      position:relative;
+      overflow:hidden;
+      transition: transform .22s ease, box-shadow .22s ease;
+    }
+    .btn-glow::after{
+      content:'';
+      position:absolute;
+      inset: -50%;
+      background: radial-gradient(circle at 10% 10%, rgba(126,34,206,0.12), transparent 20%),
+                  radial-gradient(circle at 80% 80%, rgba(96,165,250,0.08), transparent 20%);
+      opacity:0;
+      transition: opacity .35s ease;
+      pointer-events:none;
+    }
+    .btn-glow:hover::after{ opacity:1; }
+
+    /* Slight entrance animations */
+    .fade-up-init { opacity:0; transform: translateY(18px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.9,.2,1); }
+    .fade-up-init.show { opacity:1; transform: translateY(0); }
+
+    /* Futuristic card animations & polish */
+    .card-polish {
+      position: relative;
+      overflow: hidden;
+      transform-style: preserve-3d;
+      will-change: transform, box-shadow;
+      transition: transform .35s cubic-bezier(.2,.9,.2,1), box-shadow .35s ease, filter .35s ease;
+      backface-visibility: hidden;
+    }
+
+    /* initial invisible state for scroll reveal */
+    .card-polish.reveal-init { opacity: 0; transform: translateY(18px) scale(.995); filter: blur(6px) saturate(.9); }
+
+    /* when in viewport */
+    .card-polish.in-view {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0) saturate(1);
+      box-shadow: 0 22px 50px rgba(12,18,32,0.18);
+    }
+
+    /* subtle holographic sheen */
+    .card-polish::before{
+      content: "";
+      position: absolute;
+      inset: -40% -30% auto -30%;
+      height: 140%;
+      background: linear-gradient(120deg, rgba(124,58,237,0.06), rgba(96,165,250,0.06) 35%, rgba(110,231,183,0.04) 60%, transparent 70%);
+      transform: translateX(-30%) rotate(-12deg);
+      transition: transform .8s cubic-bezier(.2,.9,.2,1), opacity .6s ease;
+      pointer-events: none;
+      opacity: 0.95;
+      mix-blend-mode: screen;
+    }
+
+    .card-polish:hover::before { transform: translateX(0) rotate(-8deg); opacity: 1; }
+
+    /* fine grain shimmer on hover */
+    .card-polish .shimmer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(90deg, rgba(255,255,255,0.00) 0%, rgba(255,255,255,0.04) 45%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 55%, rgba(255,255,255,0.00) 100%);
+      transform: translateX(-120%);
+      transition: transform .9s cubic-bezier(.2,.9,.2,1);
+      mix-blend-mode: overlay;
+      opacity: .9;
+    }
+    .card-polish:hover .shimmer { transform: translateX(120%); }
+
+    /* 3D tilt microinteraction (will be driven by JS mousemove) */
+    .card-polish.tilt {
+      transition: transform .12s linear;
+      transform-origin: center center;
+    }
+
+    /* tiny floating animation to make grid lively (only subtle on non-hover) */
+    @keyframes float-slight {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+      100% { transform: translateY(0px); }
+    }
+    .card-polish.float-subtle { animation: float-slight 6.8s ease-in-out infinite both; opacity: .999; }
+
+    /* card content contrast helpers (already added earlier, keep) */
+    .card-polish h3, .card-polish p, .card-polish a { color: inherit; }
+
+    /* small responsive tweak: reduce intensity on small screens */
+    @media (max-width: 640px){
+      .card-polish::before { opacity: .6; transform: translateX(-20%) rotate(-10deg); }
+      .card-polish.float-subtle { animation: none; }
+    }
+
+    /* Make text inside light/white cards readable on the dark futuristic page */
+    .bg-white, .bg-white\/60 {
+      color: var(--futuristic-ink); /* texto principal claro para legibilidad */
+    }
+
+    /* Muted text inside cards: slightly lighter but still dark */
+    .bg-white .muted, .bg-white\/60 .muted {
+      color: var(--futuristic-mute);
+    }
+
+    /* Links/buttons inside cards: accent color (brand) */
+    .bg-white a, .bg-white\/60 a {
+      color: var(--brand-1); /* brand-1 (mint) */
+      text-decoration: none;
+    }
+
+    /* Headings inside cards slightly stronger */
+    .bg-white h2, .bg-white h3, .bg-white h4,
+    .bg-white\/60 h2, .bg-white\/60 h3, .bg-white\/60 h4 {
+      color: var(--futuristic-ink);
+    }
+
+    /* Ensure components inherit color unless explicitly overridden */
+    .bg-white * , .bg-white\/60 * { color: inherit; }
+
+
+    /* Mobile-first polish: centrar y hacer estético en pantallas pequeñas */
+    @media (max-width: 640px) {
+      /* Container: padding cómodo y ancho completo */
+      .site-container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+        max-width: 100%;
+        margin: 0 auto;
+      }
+
+      /* Header: mayor altura, logo más grande visualmente centrado */
+      #main-header .site-container { height: 72px; gap: 0.5rem; }
+      .logo-big { width: 115px !important; height: auto; }
+      .logo-wrap { gap: 0.6rem; align-items: center; }
+
+      /* Títulos: menor tamaño pero con mayor contraste y centrado */
+      #hero-title { font-size: 1.6rem; line-height: 1.05; text-align: center; }
+      #hero-sub, #hero-detail { font-size: 0.98rem; text-align: center; }
+
+      /* Hero CTAs: apilados y full width para tocar fácil con el pulgar */
+      #hero-ctas { flex-direction: column; gap: 0.75rem; align-items: stretch; }
+      #hero-ctas .btn { width: 100%; display: inline-flex; justify-content: center; }
+
+      /* Accent line centrado y más sutil */
+      .accent-line { margin: 0.6rem auto 1rem auto; width: 48px; height: 3px; }
+
+      /* Ocultar decoraciones pesadas para no competir con el contenido */
+      .hero-deco { display: none !important; }
+
+      /* Cards: full width, centradas y con menos blur/tilt para rendimiento.
+         Mantener padding interno y bordes suaves. */
+      .card-polish, .product-card {
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        border-radius: 1rem !important;
+        box-shadow: 0 8px 24px rgba(2,6,23,0.08) !important;
+      }
+      .card-polish.reveal-init { transform: translateY(10px) scale(0.999) !important; filter: none !important; }
+      .card-polish.tilt { transition: none; transform: none !important; } /* desactivar tilt en móvil */
+
+      /* Grid de categorías / productos: una columna con gap */
+      #categories-container, #contenedor-productos {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      /* Centrar texto en tarjetas para estética móvil */
+      .product-card .p-6, .product-card .p-4 { text-align: left; } /* mantener left para legibilidad */
+      .product-card h3 { font-size: 1.05rem; }
+      .product-card p { font-size: 0.95rem; }
+
+      /* Botones pequeños dentro de cards: full width y mayor toque */
+      .product-card .btn, .product-card a { width: 100%; display: inline-flex; justify-content: center; }
+
+      /* Nav móvil: mejorar espaciado y centrar elementos */
+      #mobile-nav { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
+      #mobile-nav a { padding: 0.75rem 1rem; border-radius: 0.75rem; }
+
+      /* Input search móvil: full width y mayor hit area */
+      #search-input-mobile { width: 100%; padding-left: 1rem; padding-right: 1rem; border-radius: 12px; }
+
+      /* Reducir animaciones al mínimo para ahorro de CPU en móviles */
+      .card-polish::before, .card-polish .shimmer { display: none; }
+      .card-polish.float-subtle { animation: none; }
+
+      /* Ajustes tipográficos para legibilidad */
+      body { -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+      .muted { opacity: 0.9; }
+    }
+
+    /* Hamburguesa -> X */
+    #mobile-menu-button .bar{transition:transform .35s ease, opacity .25s ease;}
+    #mobile-menu-button.open .bar:nth-child(1){transform:translateY(6px) rotate(45deg);}
+    #mobile-menu-button.open .bar:nth-child(2){opacity:0;}
+    #mobile-menu-button.open .bar:nth-child(3){transform:translateY(-6px) rotate(-45deg);}
+
+    /* Panel móvil */
+    #mobile-nav{position:fixed; inset:0; z-index:40; display:none;}
+    #mobile-nav[data-state="opening"],
+    #mobile-nav[data-state="open"]{display:block;}
+    #mobile-nav .mn-overlay{position:absolute; inset:0; background:rgba(15,23,42,.55); backdrop-filter:blur(4px); opacity:0; transition:opacity .35s;}
+    #mobile-nav[data-state="open"] .mn-overlay{opacity:1;}
+    #mobile-nav .mn-panel{
+      position:absolute; top:0; right:0; height:100%; width:18rem; max-width:100%;
+      background:#ffffff; padding:1.25rem 1.25rem 2.5rem; overflow-y:auto;
+      box-shadow: -8px 0 28px -4px rgba(15,23,42,.25);
+      transform:translateX(100%); transition:transform .38s cubic-bezier(.22,.9,.22,1);
+      display:flex; flex-direction:column; gap:1rem;
+    }
+    body.dark #mobile-nav .mn-panel{background:#0f172a; color:#e2e8f0;}
+    #mobile-nav[data-state="open"] .mn-panel{transform:translateX(0);}
+
+    #mobile-nav a{display:block; padding:.6rem .75rem; border-radius:.75rem; font-size:.95rem; font-weight:500; color:#0f172a;}
+    #mobile-nav a:hover{background:#f1f5f9;}
+    body.dark #mobile-nav a{color:#e2e8f0;}
+    body.dark #mobile-nav a:hover{background:#1e293b;}
+
+    #mobile-nav h6{font-size:.68rem; letter-spacing:.08em; font-weight:600; text-transform:uppercase; color:#64748b; margin:.25rem .25rem .15rem;}
+    body.dark #mobile-nav h6{color:#64748b;}
+
+    /* Reduce panel en pantallas muy bajas */
+    @media (max-height:560px){
+      #mobile-nav .mn-panel{padding-bottom:4rem;}
+    }
+
+    /* Nuevos estilos para las tarjetas de "Quiénes somos" */
+    .card-modern {
+      background: rgba(15, 23, 42, 0.7); /* Dark, slightly transparent ink color */
+      border: 1px solid rgba(49, 62, 85, 0.6); /* Darker, subtle border */
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2); /* Stronger shadow */
+      transition: all 0.3s ease-in-out;
+      overflow: hidden;
+      position: relative;
+      color: var(--futuristic-ink); /* Light text for contrast */
+    }
+
+    .card-modern:hover {
+      transform: translateY(-8px) scale(1.01);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.3);
+      border-color: var(--brand-1); /* Mint border on hover */
+    }
+
+    .card-modern::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at center, rgba(110,231,183,0.1) 0%, transparent 70%); /* Mint light effect */
+      opacity: 0;
+      transition: opacity 0.5s ease-in-out;
+      pointer-events: none;
+    }
+
+    .card-modern:hover::before {
+      opacity: 1;
+    }
+
+    .card-modern h3 {
+      color: var(--brand-1); /* Mint color for titles */
+    }
+
+    .card-modern p {
+      color: var(--futuristic-mute); /* Muted light blue for readability */
+    }
+
+    /* Estilos para las tarjetas de "Propuesta de valor" y "Logística" */
+    .value-card {
+      background: rgba(15, 23, 42, 0.7); /* Dark, slightly transparent ink color */
+      border: 1px solid rgba(49, 62, 85, 0.6); /* Darker, subtle border */
+      box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+      transition: all 0.3s ease-in-out;
+      color: var(--futuristic-ink); /* Light text for contrast */
+    }
+
+    .value-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.25);
+      border-color: var(--brand-2); /* Purple border on hover */
+    }
+
+    .value-card svg {
+      color: var(--brand-1); /* Mint for icons */
+    }
+
+    .value-card strong {
+      color: var(--futuristic-ink); /* Light text for important elements */
+    }
+
+    .value-card div:last-child {
+      color: var(--futuristic-mute); /* Muted light blue for descriptions */
+    }
+
+    /* Estilos para las categorías y otras tarjetas pequeñas */
+    .category-tag {
+      background-color: rgba(255, 255, 255, 0.1); /* Light translucent white */
+      border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle light border */
+      color: var(--futuristic-ink); /* Light text for contrast */
+      transition: all 0.2s ease-in-out;
+    }
+
+    .category-tag:hover {
+      background-color: rgba(255, 255, 255, 0.2); /* Slightly more opaque white on hover */
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    /* Override Tailwind bg-white/60 for sections to use custom dark transparent background */
+    .section.bg-white\/60 {
+      background: rgba(15, 23, 42, 0.45) !important; /* Lighter dark transparent for sections */
+      border-top: 1px solid rgba(49, 62, 85, 0.3);
+      border-bottom: 1px solid rgba(49, 62, 85, 0.3);
+    }
+  </style>
+</head>
+
+<body class="font-inter text-[15px] lg:text-base text-ink antialiased bg-gradient-to-b from-white to-brand-50">
+  <header id="main-header" class="sticky top-0 z-50 bg-white/80 backdrop-blur glass border-b border-gray-100">
+    <div class="site-container flex items-center justify-between h-24">
+      <a class="flex items-center gap-4 logo-wrap" href="#">
+        <img class="logo-big" src="https://i.postimg.cc/YSDhn3jJ/Chat-GPT-Image-31-ago-2025-03-26-38-p-m.png" alt="Ensintonía logo" loading="lazy" decoding="async">
+        <div>
+          <div class="neon-text hero-title-shadow text-2xl leading-tight">Ensintonía</div>
+          <div class="text-sm muted -mt-1">Importadora directa • Electrónica & Hogar</div>
+          <div class="mt-2 brand-underline"></div>
+        </div>
+      </a>
+
+      <nav class="hidden md:flex items-center gap-6">
+        <a href="#quienes-somos" class="text-sm text-ink hover:text-brand-700 transition">Quiénes somos</a>
+        <a href="#propuesta-valor" class="text-sm text-ink hover:text-brand-700 transition">Propuesta</a>
+        <a id="catalog-link-header" href="/catalogo.html" class="text-sm text-ink hover:text-brand-700 transition">Catálogo</a>
+        <a href="#contacto" class="text-sm text-ink hover:text-brand-700 transition">Contacto</a>
+        <a href="https://wa.me/5491159914197" target="_blank" rel="noopener" class="ml-4 px-4 py-2 rounded-full bg-green-600 text-white text-sm shadow-sm hover:bg-green-700 transition btn">WhatsApp</a>
+      </nav>
+
+      <!-- mobile right controls -->
+      <div class="md:hidden flex items-center gap-2">
+        <button id="mobile-search-toggle" class="p-2 rounded-lg text-ink hover:bg-gray-100 btn">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+        </button>
+        <button id="mobile-menu-button" class="sm:hidden z-50 p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none btn" aria-expanded="false" aria-controls="mobile-nav">
+          <span class="bar block w-7 h-0.5 bg-gray-900 mb-1 rounded transition-all duration-300"></span>
+          <span class="bar block w-7 h-0.5 bg-gray-900 mb-1 rounded transition-all duration-300"></span>
+          <span class="bar block w-7 h-0.5 bg-gray-900 rounded transition-all duration-300"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile search (hidden on md+) -->
+  <div id="mobile-search" class="md:hidden px-4 py-3 hidden">
+    <div class="relative">
+      <input id="search-input-mobile" type="search" placeholder="Buscar… (Ctrl+K)" autocomplete="off"
+             class="w-full rounded-2xl border border-gray-200 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-300" />
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <section id="hero-intro" class="section py-20 relative overflow-visible">
+    <div class="hero-deco">
+      <svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+        <defs>
+          <linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#60a5fa"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+        </defs>
+        <circle cx="300" cy="300" r="300" fill="url(#g1)"></circle>
+      </svg>
+    </div>
+
+    <div class="site-container text-center">
+      <div class="mx-auto max-w-3xl">
+        <div class="accent-line mx-auto mb-6 fade-up-init" id="hero-accent"></div>
+        <h1 class="title text-4xl sm:text-5xl font-extrabold text-ink leading-tight mb-4 fade-up-init neon-text hero-title-shadow" id="hero-title">
+          Somos <span class="brand">Ensintonía</span>
+        </h1>
+        <p class="subtitle text-lg muted mb-8 fade-up-init" id="hero-sub">
+          Importadora directa de electrónica y soluciones para el hogar. Calidad, stock real y soporte local para que tu proyecto llegue sin sorpresas.
+        </p>
+
+        <div class="flex items-center justify-center gap-4 flex-wrap fade-up-init" id="hero-ctas">
+          <a id="hero-catalog-btn" href="/catalogo.html" class="btn btn-glow bg-brand-500 hover:bg-brand-600 text-white px-6 py-3 rounded-2xl shadow-sm card-polish btn-glow">
+            Ver catálogo
+          </a>
+          <a href="https://wa.me/5491159914197" target="_blank" rel="noopener" class="btn btn-outline border border-gray-200 px-5 py-3 rounded-2xl text-ink hover:bg-gray-50 card-polish">
+            Escribinos por WhatsApp
+          </a>
+        </div>
+
+        <p class="mt-8 text-sm muted fade-up-init" id="hero-detail">
+          Desde componentes electrónicos hasta soluciones para el hogar: trabajamos con fabricantes internacionales para ofrecer productos confiables, entrega eficiente y respaldo local.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUIENES SOMOS -->
+  <section id="quienes-somos" class="section py-16">
+    <div class="site-container">
+      <div class="grid lg:grid-cols-2 gap-8 items-center">
+        <div>
+          <h2 class="section-title text-2xl font-bold mb-4">Quiénes somos</h2>
+          <p class="text-muted-700 mb-4">En Ensintonía nacimos con una idea simple: acercar tecnología confiable al mejor precio posible, sin dolores de cabeza. Operamos desde Sarratea, Quilmes Oeste, combinando importación directa, selección de marcas y un servicio posventa que responde.</p>
+          <p class="text-muted-700">Nuestra propuesta mezcla <strong>stock real</strong>, <strong>asesoría honesta</strong> y <strong>logística simple</strong>. Si buscás electrónica para uso personal o para tu negocio, queremos que encuentres lo esencial: buen producto, buen precio y buena atención.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="p-6 rounded-2xl shadow-sm card-modern">
+            <h3 class="font-semibold mb-2">Importación & distribución</h3>
+            <p class="text-sm text-muted-700">Líneas de audio, hogar y accesorios con lotes escalables.</p>
+          </div>
+          <div class="p-6 rounded-2xl shadow-sm card-modern">
+            <h3 class="font-semibold mb-2">Asesoría de compra</h3>
+            <p class="text-sm text-muted-700">Te ayudamos a elegir con datos reales y expectativas claras.</p>
+          </div>
+          <div class="p-6 rounded-2xl shadow-sm card-modern">
+            <h3 class="font-semibold mb-2">Posventa</h3>
+            <p class="text-sm text-muted-700">Soporte humano y gestión de garantías.</p>
+          </div>
+          <div class="p-6 rounded-2xl shadow-sm card-modern">
+            <h3 class="font-semibold mb-2">Alianzas B2B</h3>
+            <p class="text-sm text-muted-700">Precios por volumen y reposición programada.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROPUESTA DE VALOR -->
+  <section id="propuesta-valor" class="section py-12 bg-white/60">
+    <div class="site-container">
+      <h2 class="section-title text-2xl font-bold mb-6">Nuestra propuesta de valor</h2>
+      <ul class="grid sm:grid-cols-2 gap-4">
+        <li class="p-4 rounded-2xl shadow-sm flex items-start gap-3 value-card">
+          <svg class="w-6 h-6 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <div>
+            <strong>Importadora directa</strong>
+            <div class="text-sm text-muted-700">Menos intermediarios, mejor precio.</div>
+          </div>
+        </li>
+        <li class="p-4 rounded-2xl shadow-sm flex items-start gap-3 value-card">
+          <svg class="w-6 h-6 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M6 7v10"/></svg>
+          <div>
+            <strong>Curaduría de marcas</strong>
+            <div class="text-sm text-muted-700">Probamos y elegimos lo mejor.</div>
+          </div>
+        </li>
+        <li class="p-4 rounded-2xl shadow-sm flex items-start gap-3 value-card">
+          <svg class="w-6 h-6 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M5 10v10"/></svg>
+          <div>
+            <strong>Stock actualizado</strong>
+            <div class="text-sm text-muted-700">Inventario vivo y entregas ágiles.</div>
+          </div>
+        </li>
+        <li class="p-4 rounded-2xl shadow-sm flex items-start gap-3 value-card">
+          <svg class="w-6 h-6 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 8a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
+          <div>
+            <strong>Soporte cercano</strong>
+            <div class="text-sm text-muted-700">Acompañamos antes y después de la compra.</div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- CATEGORÍAS -->
+  <section id="categorias" class="section py-16">
+    <div class="site-container">
+      <h2 class="section-title text-2xl font-bold mb-6">Categorías</h2>
+
+      <!-- NUEVO: Selector rápido para ir directo a una categoría -->
+      <div class="mb-5 flex flex-wrap items-center gap-3" id="category-jump-wrap">
+        <label for="category-jump" class="text-sm font-medium">Ir directo:</label>
+        <select id="category-jump"
+                class="text-sm bg-white/10 border border-white/20 rounded-lg px-3 py-2
+                       focus:outline-none focus:ring-2 focus:ring-brand-300 min-w-[230px]">
+          <option value="">Seleccioná una categoría…</option>
+        </select>
+        <button id="category-jump-clear"
+                class="text-xs px-3 py-2 rounded-lg border border-white/20 text-ink hover:bg-white/10 transition"
+                type="button" hidden>Limpiar</button>
+      </div>
+      <!-- FIN NUEVO -->
+
+      <!-- Reemplazado: lista dinámica -->
+      <ul id="categories-list" class="flex flex-wrap gap-3"></ul>
+      <p class="note text-sm text-muted-700 mt-4">El catálogo se actualiza seguido.</p>
+    </div>
+  </section>
+
+  <!-- LOGÍSTICA -->
+  <section id="logistica" class="section py-12 bg-white/60">
+    <div class="site-container">
+      <h2 class="section-title text-2xl font-bold mb-4">Logística y cobertura</h2>
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="p-4 rounded-2xl shadow-sm value-card">
+          <h4 class="font-semibold mb-2">Envíos</h4>
+          <p class="text-sm text-muted-700">Correo y transporte; mensajería en AMBA. Costos y tiempos según destino y peso.</p>
+        </div>
+        <div class="p-4 rounded-2xl shadow-sm value-card">
+          <h4 class="font-semibold mb-2">Pagos</h4>
+          <p class="text-sm text-muted-700">Efectivo, transferencia y medios electrónicos. Consultá por promociones.</p>
+        </div>
+        <div class="p-4 rounded-2xl shadow-sm value-card">
+          <h4 class="font-semibold mb-2">Facturación</h4>
+          <p class="text-sm text-muted-700">Emitimos comprobantes según normativa vigente.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GARANTÍA -->
+  <section id="garantia" class="section py-12">
+    <div class="site-container">
+      <h2 class="section-title text-2xl font-bold mb-4">Garantías y cambios</h2>
+      <p class="text-muted-700 mb-4">Todos los productos cuentan con garantía del fabricante o del importador según el caso. Si recibís algo con falla de origen, avisanos dentro de los plazos para gestionar el cambio o la reparación.</p>
+      <ul class="list-disc pl-5 text-muted-700">
+        <li>Probamos y verificamos funcionamiento básico antes de despachar cuando corresponde.</li>
+        <li>Guardá packaging, accesorios y comprobante de compra para agilizar cualquier gestión.</li>
+        <li>Te asistimos para diagnosticar y resolver rápido.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- CÓMO COMPRAR -->
+  <section id="como-comprar" class="section py-12 bg-white/60">
+    <div class="site-container">
+      <h2 class="section-title text-2xl font-bold mb-4">Cómo comprar</h2>
+      <ol class="list-decimal pl-5 text-muted-700 space-y-2">
+        <li>Entrá al <a class="text-brand-500 underline" href="/catalogo.html">catálogo</a> y elegí tu producto.</li>
+        <li>Consultanos disponibilidad y medio de pago.</li>
+        <li>Coordinamos envío o retiro.</li>
+        <li>Recibís y probás. Si necesitás ayuda, estamos.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" class="section py-12">
+    <div class="site-container">
+      <h2 class="section-title text-2xl font-bold mb-4">Preguntas frecuentes</h2>
+      <details class="mb-3">
+        <summary>¿Tienen stock real?</summary>
+        <p class="text-muted-700">Actualizamos el inventario a diario. Si algo varía, te avisamos antes de cerrar la compra.</p>
+      </details>
+      <details class="mb-3">
+        <summary>¿Hacen precios por cantidad?</summary>
+        <p class="text-muted-700">Sí. Para comercios y revendedores tenemos escalas por volumen. Pedí tu lista.</p>
+      </details>
+      <details class="mb-3">
+        <summary>¿Cuánto tarda el envío?</summary>
+        <p class="text-muted-700">Depende del destino y del operador. En AMBA suele ser más ágil. Te pasamos estimado al momento de comprar.</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- CONTACTO -->
+  <section id="contacto" class="section py-12 bg-white/60">
+    <div class="site-container">
+      <h2 class="section-title text-2xl font-bold mb-4">Contacto</h2>
+      <address class="not-italic text-muted-700">
+        <strong>Base de operaciones:</strong> Sarratea, Quilmes Oeste, Buenos Aires<br>
+        <strong>WhatsApp:</strong> <a class="text-brand-500 underline" href="https://wa.me/5491159914197" target="_blank" rel="noopener">+54 9 11 5991‑4197</a><br>
+        <strong>Horarios:</strong> a coordinar (consultar disponibilidad)
+      </address>
+
+      <div class="mt-6 flex gap-3">
+        <a href="/catalogo.html" class="btn btn-primary bg-brand-500 hover:bg-brand-600 text-white px-5 py-3 rounded-2xl shadow-sm card-hover">Ir al catálogo</a>
+        <a href="https://wa.me/5491159914197" target="_blank" rel="noopener" class="btn btn-outline border border-gray-200 px-5 py-3 rounded-2xl">Escribir por WhatsApp</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- CIERRE -->
+  <section id="cierre" class="section py-12">
+    <div class="site-container text-center">
+      <h2 class="section-title text-2xl font-bold mb-4">Tecnología que suma, sin complicaciones</h2>
+      <p class="text-muted-700 mb-6">Ese es nuestro norte. Si buscás precio, garantía y una atención que responde, estamos en la misma sintonía.</p>
+      <a href="/catalogo.html" class="btn btn-primary bg-brand-500 hover:bg-brand-600 text-white px-6 py-3 rounded-2xl shadow-sm card-hover">Ver catálogo</a>
+    </div>
+  </section>
+
+  <!-- Schema.org JSON-LD (mantener) -->
+  <!-- ==========================
+Schema.org — Organization (ajustá datos si cambia el teléfono o agregás redes)
+========================== -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Ensintonía",
+  "description": "Importadora y distribuidora de electrónica y productos para el hogar. Atención mayorista y minorista desde Quilmes Oeste.",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Sarratea",
+    "addressLocality": "Quilmes Oeste",
+    "addressRegion": "Buenos Aires",
+    "addressCountry": "AR"
+  },
+  "telephone": "+54 9 11 5991 4197",
+  "url": "https://tusitio.com/",
+  "contactPoint": [{
+    "@type": "ContactPoint",
+    "contactType": "customer support",
+    "telephone": "+54 9 11 5991 4197",
+    "areaServed": "AR"
+  }]
+}
+</script>
+
+  <!-- Small script to orchestrate hero entrance and small interactivity (delegado a main.js para la lógica pesada) -->
+  <script>
+    // secuencia visual del hero (simple y ligera)
+    (function(){
+      const ids = ['hero-title','hero-sub','hero-ctas','hero-detail'];
+      let delay = 60;
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if(el){
+          el.classList.add('fade-in-up');
+          setTimeout(()=> el.classList.add('show'), delay);
+          delay += 160;
+        }
+      });
+
+      // mobile search toggle simple
+      const searchToggle = document.getElementById('mobile-search-toggle');
+      const mobileSearch = document.getElementById('mobile-search');
+      if(searchToggle && mobileSearch){
+        searchToggle.addEventListener('click', ()=> mobileSearch.classList.toggle('hidden'));
+      }
+
+      // hamburger -> simple X animation (main.js better manages aria/focus)
+      const mobileBtn = document.getElementById('mobile-menu-button');
+      if(mobileBtn){
+        mobileBtn.addEventListener('click', ()=> mobileBtn.classList.toggle('open'));
+      }
+    })();
+
+    // Add a scroll listener to the header for a dynamic shadow
+    window.addEventListener('scroll', () => {
+      const header = document.getElementById('main-header');
+      if (header) {
+        if (window.scrollY > 50) { // Adjust scroll threshold as needed
+          header.classList.add('scrolled');
+        } else {
+          header.classList.remove('scrolled');
+        }
+      }
+    });
+  </script>
+
+  <script>
+    /* Insert inside your existing DOMContentLoaded (o after it) to initialize card animations.
+       This code is defensive: it won't recreate observers if they exist. */
+    (function initCardAnimationsModule(){
+      // create observer if not present
+      if (!window.cardRevealObserver) {
+        try {
+          window.cardRevealObserver = new IntersectionObserver((entries, obs) => {
+            entries.forEach(entry => {
+              const el = entry.target;
+              if (entry.isIntersecting) {
+                el.classList.add('in-view');
+                el.classList.remove('reveal-init');
+                // add small floating only for non-hovered state
+                el.classList.add('float-subtle');
+                // unobserve so it animates only once
+                obs.unobserve(el);
+              }
+            });
+          }, { threshold: 0.14 });
+        } catch (err) {
+          window.cardRevealObserver = null;
+          console.warn('cardRevealObserver not available', err);
+        }
+      }
+
+      // helper: attach tilt handlers to a card
+      function attachTilt(card) {
+        if (!card) return;
+        let rect = null;
+        const strength = 12; // degrees max
+        function onMove(e){
+          rect = rect || card.getBoundingClientRect();
+          const clientX = (e.touches ? e.touches[0].clientX : e.clientX);
+          const clientY = (e.touches ? e.touches[0].clientY : e.clientY);
+          const px = (clientX - rect.left) / rect.width;
+          const py = (clientY - rect.top) / rect.height;
+          const rotY = (px - 0.5) * strength; // rotateY
+          const rotX = (0.5 - py) * (strength * 0.65); // rotateX (less)
+          card.style.transform = `perspective(900px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(1.01)`;
+        }
+        function onLeave(){
+          card.style.transform = '';
+        }
+        card.addEventListener('mousemove', onMove);
+        card.addEventListener('touchmove', onMove, { passive: true });
+        card.addEventListener('mouseleave', onLeave);
+        card.addEventListener('touchend', onLeave);
+        // mark as having tilt to avoid double attach
+        card.dataset.tiltAttached = '1';
+      }
+
+      // function to initialize cards present in DOM now (and future ones if you call again)
+      function observeCards(root = document) {
+        const cards = Array.from(root.querySelectorAll('.card-polish, .card-modern, .value-card')); // Incluir las nuevas clases
+        cards.forEach(card => {
+          // ensure initial reveal state
+          if (!card.classList.contains('reveal-init') && !card.classList.contains('in-view')) {
+            card.classList.add('reveal-init');
+          }
+          // ensure shimmer element exists for card-polish (optional for other types)
+          if (card.classList.contains('card-polish') && !card.querySelector('.shimmer')) {
+            const sh = document.createElement('div');
+            sh.className = 'shimmer';
+            card.appendChild(sh);
+          }
+          // observe for reveal
+          if (window.cardRevealObserver) window.cardRevealObserver.observe(card);
+          // attach tilt if not attached and on wide screens (only for card-polish for now)
+          if (card.classList.contains('card-polish') && !card.dataset.tiltAttached && window.innerWidth > 768) {
+            card.classList.add('tilt');
+            attachTilt(card);
+          }
+        });
+      }
+
+      // expose for other modules
+      window.observeCards = observeCards;
+
+      // run on DOMContentLoaded if ready, otherwise wait
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        observeCards();
+      } else {
+        document.addEventListener('DOMContentLoaded', () => observeCards());
+      }
+
+      // re-run observeCards when new content is inserted (optional: you can call window.observeCards() after generating cards)
+      // small MutationObserver to auto-detect added cards (lightweight)
+      try {
+        const mo = new MutationObserver((mutations) => {
+          let added = false;
+          mutations.forEach(m => {
+            if (m.addedNodes && m.addedNodes.length) {
+              m.addedNodes.forEach(n => {
+                if (n.nodeType === 1 && n.matches && (n.matches('.card-polish') || n.matches('.card-modern') || n.matches('.value-card'))) added = true;
+                if (n.nodeType === 1) {
+                  // also check descendants
+                  if (n.querySelector && (n.querySelector('.card-polish') || n.querySelector('.card-modern') || n.querySelector('.value-card'))) added = true;
+                }
+              });
+            }
+          });
+          if (added) observeCards();
+        });
+        mo.observe(document.body, { childList: true, subtree: true });
+      } catch (e) {
+        // noop if MutationObserver not allowed
+      }
+    })();
+  </script>
+
+  <div id="mobile-nav" aria-hidden="true">
+    <button class="mn-overlay" data-close="1" aria-label="Cerrar menú"></button>
+    <nav class="mn-panel" role="dialog" aria-modal="true" aria-label="Menú móvil">
+      <div class="flex items-center justify-between mb-1">
+        <span class="font-semibold text-lg">Menú</span>
+        <button id="mobile-menu-close" class="p-2 rounded-md hover:bg-gray-100" aria-label="Cerrar">
+          <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M6 18L18 6"/>
+          </svg>
+        </button>
+      </div>
+
+      <div>
+        <h6>Navegación</h6>
+        <a href="#quienes-somos" data-link>Quiénes somos</a>
+        <a href="#propuesta-valor" data-link>Propuesta</a>
+        <a href="/catalogo.html" data-link>Catálogo</a>
+        <a href="#contacto" data-link>Contacto</a>
+        <a href="contact.html" data-link>Contacto (página)</a>
+      </div>
+
+      <div>
+        <h6>Categorías</h6>
+        <ul id="mobile-cats" class="space-y-1"></ul>
+      </div>
+
+      <div class="mt-2">
+        <h6>Acción</h6>
+        <a href="https://wa.me/5491159914197" target="_blank" rel="noopener">WhatsApp</a>
+      </div>
+    </nav>
+  </div>
+
+  <script>
+    (function mobileMenu(){
+      const btn = document.getElementById('mobile-menu-button');
+      const panelWrap = document.getElementById('mobile-nav');
+      const closeBtn = document.getElementById('mobile-menu-close');
+      let lastFocused = null;
+
+      if(!btn || !panelWrap) return;
+
+      // syncCategories eliminado: ahora las categorías se inyectan en vivo desde Firestore
+
+      function trapFocus(e){
+        if(e.key !== 'Tab') return;
+        const focusables = panelWrap.querySelectorAll('a,button,[tabindex]:not([tabindex="-1"])');
+        if(!focusables.length) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length-1];
+        if(e.shiftKey && document.activeElement === first){
+          e.preventDefault(); last.focus();
+        } else if(!e.shiftKey && document.activeElement === last){
+          e.preventDefault(); first.focus();
+        }
+      }
+
+      function open(){
+        lastFocused = document.activeElement;
+        btn.classList.add('open');
+        btn.setAttribute('aria-expanded','true');
+        panelWrap.dataset.state = 'opening';
+        panelWrap.removeAttribute('aria-hidden');
+        requestAnimationFrame(()=> {
+          panelWrap.dataset.state = 'open';
+          const firstLink = panelWrap.querySelector('a,button');
+          if(firstLink) firstLink.focus();
+        });
+        document.addEventListener('keydown', escHandler);
+        document.addEventListener('keydown', trapFocus, true);
+        disableScroll();
+      }
+
+      function close(){
+        btn.classList.remove('open');
+        btn.setAttribute('aria-expanded','false');
+        panelWrap.dataset.state = 'closing';
+        panelWrap.setAttribute('aria-hidden','true');
+        setTimeout(()=>{
+          if(panelWrap.dataset.state === 'closing'){
+            delete panelWrap.dataset.state;
+            panelWrap.style.display = '';
+          }
+        }, 380);
+        document.removeEventListener('keydown', escHandler);
+        document.removeEventListener('keydown', trapFocus, true);
+        enableScroll();
+        if(lastFocused) lastFocused.focus();
+      }
+
+      function escHandler(e){
+        if(e.key === 'Escape') close();
+      }
+
+      function toggle(){
+        const openNow = panelWrap.dataset.state === 'open' || panelWrap.dataset.state === 'opening';
+        openNow ? close() : open();
+      }
+
+      btn.addEventListener('click', toggle);
+      closeBtn && closeBtn.addEventListener('click', close);
+      panelWrap.addEventListener('click', e=>{
+        if(e.target.dataset.close) close();
+        if(e.target.matches('[data-link]')) close();
+      });
+
+      window.addEventListener('resize', ()=>{
+        if(window.innerWidth >= 768){
+          if(panelWrap.dataset.state === 'open') close();
+        }
+      });
+
+      let scrollY = 0;
+      function disableScroll(){
+        scrollY = window.scrollY;
+        document.body.style.position='fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.left='0'; document.body.style.right='0';
+        document.body.style.width='100%';
+      }
+      function enableScroll(){
+        document.body.style.position='';
+        document.body.style.top='';
+        document.body.style.left=''; document.body.style.right='';
+        document.body.style.width='';
+        window.scrollTo(0, scrollY);
+      }
+    })();
+  </script>
+
+  <!-- Carga dinámica de categorías (Firestore) -->
+  <script type="module">
+    console.log('BUILD ID:', '2025-08-31_15:40');
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { db as importedDb, auth as importedAuth, firebaseConfig as importedFirebaseConfig } from './firebaseconfig.js';
+
+    console.log('[CATS] init block (home)');
+
+    const app  = initializeApp(importedFirebaseConfig);
+    const db   = importedDb || getFirestore(app);
+    const auth = importedAuth || getAuth(app);
+    const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+
+    const $home   = document.getElementById('categories-list');   // chips en portada
+    const $mobile = document.getElementById('mobile-cats');       // menú hamburguesa
+    const $select = document.getElementById('category-jump');     // "Ir directo"
+    const $clear  = document.getElementById('category-jump-clear');
+
+    // REEMPLAZO slugify previo por la versión solicitada
+    function slugify(s=''){
+      return String(s)
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')   // quitar tildes
+        .toLowerCase().trim()
+        .replace(/[^\w\s-]/g,'')                          // quitar símbolos raros
+        .replace(/\s+/g,'-')                              // espacios -> guion
+        .replace(/-+/g,'-');                              // colapsar guiones
+    }
+
+    function render(categories){
+      console.log('[CATS] render count:', categories.length);
+      if ($home)   $home.innerHTML = '';
+      if ($mobile) $mobile.innerHTML = '';
+      if ($select) $select.innerHTML = '<option value="">Seleccioná una categoría…</option>';
+
+      if (!categories.length){
+        if ($home) $home.innerHTML = '<li class="px-3 py-2 rounded-full category-tag opacity-70">Sin categorías</li>';
+        if ($clear) $clear.hidden = true;
+        return;
+      }
+
+      const fragHome = document.createDocumentFragment();
+      const fragMob  = document.createDocumentFragment();
+
+      categories.forEach(c=>{
+        const name = c.name || c.nombre || 'Categoría';
+        const slug = c.slug ? String(c.slug) : slugify(name);
+        const icon = c.icon || c.iconUrl;
+
+        if ($home){
+          const li = document.createElement('li');
+          li.className = 'px-3 py-2 rounded-full category-tag';
+          li.innerHTML = `<a href=\"catalogo.html?cat=${'${encodeURIComponent(name)}'}\" class=\"flex items-center gap-1\" data-cat=\"${'${slug}'}\">
+            ${icon ? `<img src="${icon}" class="w-4 h-4 object-contain" alt="">` : ''}
+            <span>${name}</span>
+          </a>`;
+          fragHome.appendChild(li);
+        }
+
+        if ($mobile){
+          const liM = document.createElement('li');
+          liM.innerHTML = `<a data-cat=\"${'${slug}'}\" href=\"catalogo.html?cat=${'${encodeURIComponent(name)}'}\"
+              class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 text-sm">
+              ${icon ? `<img src="${icon}" class="w-4 h-4 object-contain" alt="">` : ''}
+              <span>${name}</span>
+          </a>`;
+          fragMob.appendChild(liM);
+        }
+
+        if ($select){
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          $select.appendChild(opt);
+        }
+      });
+
+      if ($home)   $home.appendChild(fragHome);
+      if ($mobile) $mobile.appendChild(fragMob);
+
+      if ($clear){
+        $clear.hidden = !$select || !$select.value;
+      }
+    }
+
+    // Delegación click móvil para cerrar y navegar
+    (function wireMobileNav(){
+      if (!$mobile) return;
+      $mobile.addEventListener('click', e=>{
+        const a = e.target.closest('a[data-cat]');
+        if(!a) return;
+        console.log('[CATS] mobile nav ->', a.dataset.cat);
+        // cerrar usando overlay existente para mantener animaciones
+        const overlay = document.querySelector('#mobile-nav .mn-overlay');
+        if (overlay) overlay.click();
+        // navegación natural
+      });
+    })();
+
+    // Select jump + clear
+    if ($select){
+      $select.addEventListener('change', ()=>{
+        if ($select.value){
+          if ($clear) $clear.hidden = false;
+          window.location.href = `catalogo.html?cat=${encodeURIComponent($select.value)}`;
+        } else {
+          if ($clear) $clear.hidden = true;
+        }
+      });
+    }
+    if ($clear){
+      $clear.addEventListener('click', ()=>{
+        if ($select){
+          $select.value = '';
+          $clear.hidden = true;
+        }
+      });
+    }
+
+    // Auth + snapshot
+    signInAnonymously(auth).catch(err=>{
+      console.warn('[CATS] anon sign-in failed (continuing read-only)', err?.code);
+    });
+
+    onAuthStateChanged(auth, ()=>{
+      console.log('[CATS] auth ready, subscribing');
+      const colRef = collection(db, `artifacts/${appId}/public/data/categories`);
+      onSnapshot(colRef, (snap)=>{
+        const rows = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+        const act = rows.filter(x => x.active === true || x.active === 'true' || x.active === 1);
+        render(act.length ? act : rows);
+      }, err=>{
+        console.error('[CATS] snapshot error', err);
+        render([]);
+      });
+    });
+
+    // --- fuerza href correcto en todos los links de categorías (home + hamburguesa) ---
+    function fixCategoryLinks(){
+      const roots = [
+        document.getElementById('categories-list'),
+        document.getElementById('mobile-cats')
+      ];
+      roots.forEach(root=>{
+        if(!root) return;
+        root.querySelectorAll('a').forEach(a=>{
+          const catName = (a.querySelector('span')?.textContent || a.textContent || '').trim();
+          if(!catName) return;
+          const want = `catalogo.html?cat=${encodeURIComponent(catName)}`;
+          a.setAttribute('href', want);
+          if(!a.__catPatched){
+            a.addEventListener('click', e=>{
+              const current = a.getAttribute('href') || '';
+              if(!current.includes('?cat=')){
+                e.preventDefault();
+                location.href = want;
+              }
+            }, { capture:true });
+            a.__catPatched = 1;
+          }
+        });
+      });
+    }
+
+    // ejecutar ahora
+    fixCategoryLinks();
+
+    // observar cambios para re-fijar (re-renders / snapshots)
+    new MutationObserver(()=>fixCategoryLinks())
+      .observe(document.body, { subtree:true, childList:true });
+
+  </script>
+
+  <!-- catalogo.html (agregá esto antes de filtrar productos por categoría, por ejemplo antes de loadProductsByCategory)
+const urlParams = new URLSearchParams(window.location.search);
+const category = urlParams.get('category') || urlParams.get('cat'); // retrocompatibilidad
+
+// Luego usá la constante category para filtrar productos por su slug
+// Ejemplo de uso:
+if (category) {
+  // filtrar productos por slug === category
+  loadProductsByCategory(category);
+} else {
+-->
+</body>
+</html>
+
+
+

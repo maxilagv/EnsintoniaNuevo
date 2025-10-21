@@ -1,0 +1,45 @@
+{
+  "name": "servidor-muebleria",
+  "version": "1.0.0",
+  "description": "Servidor seguro para aplicación de mueblería",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest --detectOpenHandles",
+    "dev": "nodemon index.js",
+    "migrate": "node scripts/migrate.js",
+    "gen-hash": "node scripts/gen-hash.js",
+    "set-admin-password": "node scripts/set-admin-password.js"
+  },
+  "keywords": [
+    "express",
+    "seguridad",
+    "jwt",
+    "api"
+  ],
+  "author": "Tu Nombre",
+  "license": "ISC",
+  "dependencies": {
+    "@sendgrid/mail": "^7.7.0",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1",
+    "express-validator": "^7.1.0",
+    "firebase-admin": "^13.5.0",
+    "helmet": "^7.1.0",
+    "hpp": "^0.2.3",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^7.0.6",
+    "pdfkit": "^0.13.0",
+    "pg": "^8.11.5",
+    "xss-clean": "^0.1.4"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.4",
+    "supertest": "^7.0.0"
+  }
+}

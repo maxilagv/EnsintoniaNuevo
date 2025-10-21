@@ -1,0 +1,92 @@
+[
+  {
+    "id": "2W9X72IBHvX7XuMFtdJs",
+    "name": "celulares ",
+    "imageUrl": "https://i.postimg.cc/TPcVm8bQ/Chat-GPT-Image-21-ago-2025-02-23-24-p-m.png",
+    "createdAt": {
+      "_seconds": 1755797034,
+      "_nanoseconds": 705000000
+    }
+  },
+  {
+    "id": "72W4eVs1eOOUiEsYTLT9",
+    "name": "Insumos Impresoras",
+    "imageUrl": "https://www.mercadolibre.com.ar/resma-autor-a4-multifuncion-de-500-hojas-de-80g-color-blanco-de-5-unidades-por-pack/p/MLA29233229#polycard_client=search_best-seller-categories&tracking_id=0e18a7f0-629f-4934-b608-a31c0ee2e442&wid=MLA2070920726&sid=search&gid=1&pid=1",
+    "createdAt": {
+      "_seconds": 1758640860,
+      "_nanoseconds": 665000000
+    }
+  },
+  {
+    "id": "8cooLiDbCJ1ABwUdXeNF",
+    "name": "hogar",
+    "createdAt": {
+      "_seconds": 1754777288,
+      "_nanoseconds": 32000000
+    },
+    "imageUrl": "https://i.postimg.cc/qqt3fFFq/Chat-GPT-Image-11-sept-2025-02-44-13-p-m.png"
+  },
+  {
+    "id": "EAWuAdIzqJnatJbv4xCn",
+    "name": "tv",
+    "imageUrl": "https://i.postimg.cc/281JNGgf/Gemini-Generated-Image-bcd8mdbcd8mdbcd8.png",
+    "createdAt": {
+      "_seconds": 1756919153,
+      "_nanoseconds": 931000000
+    }
+  },
+  {
+    "id": "QsADIC70byEC5uk9pFEY",
+    "imageUrl": "https://i.postimg.cc/bNMcMV4D/Chat-GPT-Image-15-sept-2025-11-23-27-p-m.png",
+    "createdAt": {
+      "_seconds": 1757989458,
+      "_nanoseconds": 920000000
+    },
+    "name": "cosmeticos, perfumes y accesorios"
+  },
+  {
+    "id": "WNQeP8W0dbUf5WSHNu6s",
+    "name": "Aires acondicionados",
+    "imageUrl": "https://i.postimg.cc/Qx1qHB6t/Chat-GPT-Image-11-sept-2025-02-50-07-p-m.png",
+    "createdAt": {
+      "_seconds": 1757613027,
+      "_nanoseconds": 244000000
+    }
+  },
+  {
+    "id": "dKX6IyuZMpYBZUW2yj0z",
+    "name": "Entretenimiento",
+    "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSEFOmNqFHXRKQCaRYzhGHnGruqy_5hPtfC_w&s",
+    "createdAt": {
+      "_seconds": 1754777417,
+      "_nanoseconds": 359000000
+    }
+  },
+  {
+    "id": "fmMREwmBIfSKgvQ9USwz",
+    "name": "electronica",
+    "imageUrl": "https://mercado.com.ar/wp-content/uploads/2021/11/electro%CC%81nicos-1.jpg",
+    "createdAt": {
+      "_seconds": 1754777171,
+      "_nanoseconds": 509000000
+    }
+  },
+  {
+    "id": "lHzLepvKMjjVHYZfysY1",
+    "name": "herramientas",
+    "imageUrl": "https://i.postimg.cc/43kn1XTW/Chat-GPT-Image-11-sept-2025-12-33-21-a-m.png",
+    "createdAt": {
+      "_seconds": 1757561631,
+      "_nanoseconds": 438000000
+    }
+  },
+  {
+    "id": "tZRlkAHyeJmq0VQ0Wwrh",
+    "name": "electrohogar",
+    "imageUrl": "https://i.postimg.cc/y8fvJr46/Chat-GPT-Image-11-sept-2025-12-26-07-a-m.png",
+    "createdAt": {
+      "_seconds": 1757561197,
+      "_nanoseconds": 803000000
+    }
+  }
+]
