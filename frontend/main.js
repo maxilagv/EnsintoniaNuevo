@@ -1,4 +1,4 @@
-// Configuración global de la API
+﻿// ConfiguraciÃ³n global de la API
 import { API_BASE } from './config.js';
 
 // Variables globales de Firebase (proporcionadas por el entorno Canvas)
@@ -7,16 +7,16 @@ const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial
 
 let app; // (legacy Firebase, no usado al consumir API)
 let userId;
-let categoriesData = []; // Para almacenar las categorías cargadas
+let categoriesData = []; // Para almacenar las categorÃ­as cargadas
 
 // Nuevas variables de estado para controlar la carga inicial
 let categoriesInitialLoadComplete = false;
 let productsInitialLoadComplete = false;
 
-// Variable global para almacenar los intervalos de animación de las categorías
+// Variable global para almacenar los intervalos de animaciÃ³n de las categorÃ­as
 let categoryAnimationIntervals = {};
 
-// Nuevo: cache global de productos (id + nombre en minúsculas) para búsqueda/sugerencias
+// Nuevo: cache global de productos (id + nombre en minÃºsculas) para bÃºsqueda/sugerencias
 let productsCache = [];
 // Unsubscribe handler para listener activo de productos (onSnapshot)
 let unsubscribeProducts = null;
@@ -28,8 +28,8 @@ window.productsFullCache = productsFullCache;
 
 /**
  * @function checkAndHideMainLoader
- * @description Verifica si todas las cargas iniciales (categorías y productos) han finalizado
- * y oculta el loader principal si es así.
+ * @description Verifica si todas las cargas iniciales (categorÃ­as y productos) han finalizado
+ * y oculta el loader principal si es asÃ­.
  */
 function checkAndHideMainLoader() {
     console.log("checkAndHideMainLoader - called."); // Log de inicio
@@ -46,27 +46,27 @@ function checkAndHideMainLoader() {
 
 /**
  * @function initFirebase
- * @description Inicializa la aplicación Firebase y configura la autenticación.
- * Maneja el inicio de sesión con token personalizado o de forma anónima.
- * También escucha los cambios en el estado de autenticación para cargar las categorías.
+ * @description Inicializa la aplicaciÃ³n Firebase y configura la autenticaciÃ³n.
+ * Maneja el inicio de sesiÃ³n con token personalizado o de forma anÃ³nima.
+ * TambiÃ©n escucha los cambios en el estado de autenticaciÃ³n para cargar las categorÃ­as.
  */
 async function initFirebase() {
-    console.log("initFirebase - Iniciando inicialización de Firebase...");
+    console.log("initFirebase - Iniciando inicializaciÃ³n de Firebase...");
     try {
-        // 'app' ahora se inicializa aquí usando la firebaseConfig importada
+        // 'app' ahora se inicializa aquÃ­ usando la firebaseConfig importada
         app = initializeApp(firebaseConfig);
         // 'db' y 'auth' ya vienen importados de firebaseconfig.js
 
-        // Iniciar sesión con token personalizado si está disponible, de lo contrario, de forma anónima
+        // Iniciar sesiÃ³n con token personalizado si estÃ¡ disponible, de lo contrario, de forma anÃ³nima
         if (initialAuthToken) {
-            console.log("initFirebase - Intentando iniciar sesión con token personalizado.");
+            console.log("initFirebase - Intentando iniciar sesiÃ³n con token personalizado.");
             await signInWithCustomToken(auth, initialAuthToken);
         } else {
-            console.log("initFirebase - Intentando iniciar sesión anónimamente.");
+            console.log("initFirebase - Intentando iniciar sesiÃ³n anÃ³nimamente.");
             await signInAnonymously(auth);
         }
 
-        // Escuchar cambios en el estado de autenticación
+        // Escuchar cambios en el estado de autenticaciÃ³n
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 userId = user.uid;
@@ -76,55 +76,55 @@ async function initFirebase() {
                     userIdDisplay.textContent = `ID de Usuario: ${userId}`;
                 }
 
-                // Si la URL trae ?cat=Nombre: mostrar solo esa categoría y ocultar categorías
+                // Si la URL trae ?cat=Nombre: mostrar solo esa categorÃ­a y ocultar categorÃ­as
                 try {
                   const u = new URL(window.location.href);
                   const cat = u.searchParams.get('cat') || u.searchParams.get('category');
                   if (cat) {
-                    console.log("initFirebase - Parámetro cat= detectado:", cat, " -> solo productos de esa categoría, ocultando categorías.");
+                    console.log("initFirebase - ParÃ¡metro cat= detectado:", cat, " -> solo productos de esa categorÃ­a, ocultando categorÃ­as.");
 
-                    // Ocultar sección/caja de categorías
+                    // Ocultar secciÃ³n/caja de categorÃ­as
                     const categoriesSection = document.getElementById('productos');
                     if (categoriesSection) categoriesSection.style.display = 'none';
                     const categoriesContainer = document.getElementById('categories-container');
                     if (categoriesContainer) categoriesContainer.style.display = 'none';
 
-                    // Título dinámico arriba de productos
+                    // TÃ­tulo dinÃ¡mico arriba de productos
                     const titleEl = document.getElementById('category-title');
                     if (titleEl) titleEl.textContent = `Mostrando productos de: ${cat}`;
 
-                    // Marcar categorías como completas para el loader global
+                    // Marcar categorÃ­as como completas para el loader global
                     categoriesInitialLoadComplete = true;
 
                     // Cargar productos filtrados y salir de esta rama
                     loadProductsByCategory(cat);
-                    return; // Evitar que se ejecuten loadCategories/loadAllProducts más abajo
+                    return; // Evitar que se ejecuten loadCategories/loadAllProducts mÃ¡s abajo
                   }
                 } catch (e) {
-                  console.warn('initFirebase - No se pudo leer parámetro cat, seguimos flujo normal.', e);
+                  console.warn('initFirebase - No se pudo leer parÃ¡metro cat, seguimos flujo normal.', e);
                 }
 
 
-                // Cargar categorías y productos después de la autenticación
-                console.log("initFirebase - Llamando a loadCategories y a la carga de productos adecuada según URL.");
+                // Cargar categorÃ­as y productos despuÃ©s de la autenticaciÃ³n
+                console.log("initFirebase - Llamando a loadCategories y a la carga de productos adecuada segÃºn URL.");
                 loadCategories();
                 // Si la URL trae ?cat=Nombre, abrir la carga filtrada; si no, cargar todos.
                 try {
                   const u = new URL(window.location.href);
                   const cat = u.searchParams.get('cat') || u.searchParams.get('category');
                   if (cat) {
-                    console.log("initFirebase - Parámetro cat detectado en URL:", cat, " -> llamando a loadProductsByCategory.");
+                    console.log("initFirebase - ParÃ¡metro cat detectado en URL:", cat, " -> llamando a loadProductsByCategory.");
                     loadProductsByCategory(cat);
                   } else {
-                    console.log("initFirebase - Sin parámetro cat en URL -> llamando a loadAllProducts.");
+                    console.log("initFirebase - Sin parÃ¡metro cat en URL -> llamando a loadAllProducts.");
                     loadAllProducts();
                   }
                 } catch (e) {
-                  console.warn('initFirebase - error leyendo URL para parámetro cat, cargando todos los productos', e);
+                  console.warn('initFirebase - error leyendo URL para parÃ¡metro cat, cargando todos los productos', e);
                   loadAllProducts();
                 }
             } else {
-                console.log("initFirebase - Ningún usuario ha iniciado sesión. Marcando cargas como completas.");
+                console.log("initFirebase - NingÃºn usuario ha iniciado sesiÃ³n. Marcando cargas como completas.");
                 userId = null;
                 const userIdDisplay = document.getElementById('user-id-display');
                 if (userIdDisplay) {
@@ -139,8 +139,8 @@ async function initFirebase() {
 
     } catch (error) {
         console.error("initFirebase - Error al inicializar Firebase:", error);
-        showMessageBox("Error al inicializar la aplicación. Por favor, inténtalo de nuevo más tarde.");
-        // Asegurar que el loader se oculte incluso si hay un error de inicialización de Firebase
+        showMessageBox("Error al inicializar la aplicaciÃ³n. Por favor, intÃ©ntalo de nuevo mÃ¡s tarde.");
+        // Asegurar que el loader se oculte incluso si hay un error de inicializaciÃ³n de Firebase
         categoriesInitialLoadComplete = true;
         productsInitialLoadComplete = true;
         checkAndHideMainLoader();
@@ -149,7 +149,7 @@ async function initFirebase() {
 
 /**
  * @function showLoading
- * @description Muestra un spinner de carga específico.
+ * @description Muestra un spinner de carga especÃ­fico.
  * @param {string} spinnerId - El ID del elemento del spinner a mostrar.
  */
 function showLoading(spinnerId) {
@@ -158,14 +158,14 @@ function showLoading(spinnerId) {
     if (loader) { // Asegurarse de que el loader existe
         loader.classList.remove('hidden');
         if (spinnerId === 'futuristic-loader') {
-            document.body.style.overflow = 'hidden'; // Evita el scroll solo para el loader de página completa
+            document.body.style.overflow = 'hidden'; // Evita el scroll solo para el loader de pÃ¡gina completa
         }
     }
 }
 
 /**
  * @function hideLoading
- * @description Oculta un spinner de carga específico.
+ * @description Oculta un spinner de carga especÃ­fico.
  * @param {string} spinnerId - El ID del elemento del spinner a ocultar.
  */
 function hideLoading(spinnerId) {
@@ -173,17 +173,17 @@ function hideLoading(spinnerId) {
     const loader = document.getElementById(spinnerId);
     if (loader) { // Asegurarse de que el loader existe
         if (spinnerId === 'futuristic-loader') {
-            loader.style.opacity = '0'; // Inicia la transición
+            loader.style.opacity = '0'; // Inicia la transiciÃ³n
             loader.style.pointerEvents = 'none'; // Deshabilita los eventos del puntero inmediatamente
             console.log("hideLoading - Futuristic loader: opacity set to 0, pointer-events set to none.");
 
-            // Eliminar el elemento del DOM después de la transición
+            // Eliminar el elemento del DOM despuÃ©s de la transiciÃ³n
             setTimeout(() => {
-                loader.classList.add('hidden'); // Añade la clase 'hidden' después de la transición
-                // loader.remove(); // Elimina el loader del DOM después de la transición
+                loader.classList.add('hidden'); // AÃ±ade la clase 'hidden' despuÃ©s de la transiciÃ³n
+                // loader.remove(); // Elimina el loader del DOM despuÃ©s de la transiciÃ³n
                 document.body.style.overflow = ''; // Restaura el scroll
                 console.log("hideLoading - Futuristic loader: 'hidden' class added after timeout.");
-            }, 500); // 500ms coincide con la duración de la transición CSS
+            }, 500); // 500ms coincide con la duraciÃ³n de la transiciÃ³n CSS
         } else {
             loader.classList.add('hidden');
         }
@@ -192,14 +192,14 @@ function hideLoading(spinnerId) {
 
 /**
  * @function loadCategories
- * @description Carga las categorías desde Firestore en tiempo real y las renderiza en la página
- * y en el submenú de categorías del menú móvil. También carga una muestra de imágenes de productos
- * para cada categoría para la animación.
+ * @description Carga las categorÃ­as desde Firestore en tiempo real y las renderiza en la pÃ¡gina
+ * y en el submenÃº de categorÃ­as del menÃº mÃ³vil. TambiÃ©n carga una muestra de imÃ¡genes de productos
+ * para cada categorÃ­a para la animaciÃ³n.
  */
 async function loadCategories() {
-    console.log("loadCategories - Iniciando carga de categorías.");
+    console.log("loadCategories - Iniciando carga de categorÃ­as.");
     if (!db) {
-        console.error("loadCategories - Firestore no inicializado. No se pueden cargar categorías.");
+        console.error("loadCategories - Firestore no inicializado. No se pueden cargar categorÃ­as.");
         categoriesInitialLoadComplete = true;
         checkAndHideMainLoader();
         return;
@@ -209,32 +209,32 @@ async function loadCategories() {
     const categoriesCol = collection(db, `artifacts/${appId}/public/data/categories`);
 
     onSnapshot(categoriesCol, async (snapshot) => {
-        console.log("loadCategories - onSnapshot recibido. Número de categorías:", snapshot.size);
-        categoriesData = []; // Limpiar datos de categorías anteriores
+        console.log("loadCategories - onSnapshot recibido. NÃºmero de categorÃ­as:", snapshot.size);
+        categoriesData = []; // Limpiar datos de categorÃ­as anteriores
         const categoriesContainer = document.getElementById('categories-container');
         const categoriesSubmenu = document.getElementById('categories-submenu');
 
         if (categoriesContainer) {
-            categoriesContainer.innerHTML = ''; // Limpiar categorías existentes en la sección principal
+            categoriesContainer.innerHTML = ''; // Limpiar categorÃ­as existentes en la secciÃ³n principal
         } else {
             console.warn('loadCategories - elemento #categories-container no encontrado en el DOM.');
         }
         if (categoriesSubmenu) {
-            categoriesSubmenu.innerHTML = ''; // Limpiar categorías existentes en el submenú
+            categoriesSubmenu.innerHTML = ''; // Limpiar categorÃ­as existentes en el submenÃº
         } else {
             console.warn('loadCategories - elemento #categories-submenu no encontrado en el DOM.');
         }
 
         if (snapshot.empty) {
-            console.log("loadCategories - No hay categorías en Firestore.");
+            console.log("loadCategories - No hay categorÃ­as en Firestore.");
             if (categoriesContainer) {
-                categoriesContainer.innerHTML = '<p class="text-center text-futuristic-mute col-span-full">No hay categorías disponibles en este momento.</p>';
+                categoriesContainer.innerHTML = '<p class="text-center text-futuristic-mute col-span-full">No hay categorÃ­as disponibles en este momento.</p>';
             }
             if (categoriesSubmenu) {
-                categoriesSubmenu.innerHTML = '<li class="text-futuristic-mute text-base py-2">No hay categorías.</li>';
+                categoriesSubmenu.innerHTML = '<li class="text-futuristic-mute text-base py-2">No hay categorÃ­as.</li>';
             }
         } else {
-            const categoryPromises = snapshot.docs.map(async doc => { // Procesar cada categoría asíncronamente
+            const categoryPromises = snapshot.docs.map(async doc => { // Procesar cada categorÃ­a asÃ­ncronamente
                 const category = { id: doc.id, ...doc.data() };
 
                 // Sub-consulta: intentar primero con categoryName, fallback a category
@@ -267,15 +267,15 @@ async function loadCategories() {
                 return category;
             });
 
-            // Esperar a que todas las sub-consultas de imágenes de productos se completen
+            // Esperar a que todas las sub-consultas de imÃ¡genes de productos se completen
             const loadedCategories = await Promise.all(categoryPromises);
 
             loadedCategories.forEach(category => {
-                // Crear el elemento de la tarjeta de categoría
+                // Crear el elemento de la tarjeta de categorÃ­a
                 const categoryCardDiv = document.createElement('div');
                 // Usar class category-card para no interferir con product-card
                 categoryCardDiv.className = "category-card group rounded-2xl flex flex-col"; // Clases del product-card para aplicar estilos futuristas
-                // Apuntar a la página de catálogo con parámetro ?cat=para navegación cross-page
+                // Apuntar a la pÃ¡gina de catÃ¡logo con parÃ¡metro ?cat=para navegaciÃ³n cross-page
                 categoryCardDiv.addEventListener('click', (e) => {
                     e.preventDefault();
                     goToCategory(category.name);
@@ -297,14 +297,14 @@ async function loadCategories() {
                     </div>
                     <div class="p-6 sm:p-7">
                         <h3 class="text-xl sm:text-2xl font-semibold mb-2 line-clamp-2 text-futuristic-ink">${category.name}</h3>
-                        <p class="text-base text-futuristic-mute mb-4 line-clamp-2">${category.description || 'Descripción no disponible.'}</p>
-                        <button class="px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm focus:ring-2 focus:ring-brand-500/30 active:translate-y-px w-full btn">Ver Categoría</button>
+                        <p class="text-base text-futuristic-mute mb-4 line-clamp-2">${category.description || 'DescripciÃ³n no disponible.'}</p>
+                        <button class="px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm focus:ring-2 focus:ring-brand-500/30 active:translate-y-px w-full btn">Ver CategorÃ­a</button>
                     </div>
                 `;
                  
-                 // Añadir listeners directamente a la tarjeta creada para la animación en PC
+                 // AÃ±adir listeners directamente a la tarjeta creada para la animaciÃ³n en PC
                  categoryCardDiv.addEventListener('mouseenter', () => startCategoryImageAnimation(categoryCardDiv));
-                 categoryCardDiv.addEventListener('mouseleave', () => stopCategoryImageAnimation(categoryCardDiv)); // <--- Cambiado aquí
+                 categoryCardDiv.addEventListener('mouseleave', () => stopCategoryImageAnimation(categoryCardDiv)); // <--- Cambiado aquÃ­
 
                  if (categoriesContainer) {
                     categoriesContainer.appendChild(categoryCardDiv);
@@ -312,7 +312,7 @@ async function loadCategories() {
                     console.warn('loadCategories - no se puede append; #categories-container ausente.');
                  }
 
-                // Renderizar en el submenú móvil: link directo a catalogo.html?cat=
+                // Renderizar en el submenÃº mÃ³vil: link directo a catalogo.html?cat=
                 const submenuItem = `
                     <li>
                         <a href="/catalogo.html?cat=${encodeURIComponent(category.name)}"
@@ -327,32 +327,32 @@ async function loadCategories() {
                 if (categoriesSubmenu) {
                     categoriesSubmenu.innerHTML += submenuItem;
                 } else {
-                    console.warn('loadCategories - submenú de categorías ausente; salto render en mobile submenu.');
+                    console.warn('loadCategories - submenÃº de categorÃ­as ausente; salto render en mobile submenu.');
                 }
             });
         }
-        hideLoading('categories-loading-spinner'); // Oculta el loader de categorías
-        categoriesInitialLoadComplete = true; // Marcar categorías como cargadas
+        hideLoading('categories-loading-spinner'); // Oculta el loader de categorÃ­as
+        categoriesInitialLoadComplete = true; // Marcar categorÃ­as como cargadas
         checkAndHideMainLoader(); // Verificar si el loader principal puede ocultarse
     }, (error) => {
-        console.error("loadCategories - Error al obtener categorías:", error);
-        showMessageBox("Error al cargar las categorías. Por favor, inténtalo de nuevo.");
-        hideLoading('categories-loading-spinner'); // Oculta el loader de categorías incluso si hay un error
-        categoriesInitialLoadComplete = true; // Marcar categorías como cargadas incluso con error
+        console.error("loadCategories - Error al obtener categorÃ­as:", error);
+        showMessageBox("Error al cargar las categorÃ­as. Por favor, intÃ©ntalo de nuevo.");
+        hideLoading('categories-loading-spinner'); // Oculta el loader de categorÃ­as incluso si hay un error
+        categoriesInitialLoadComplete = true; // Marcar categorÃ­as como cargadas incluso con error
         checkAndHideMainLoader(); // Verificar si el loader principal puede ocultarse
     });
 }
 
 /**
  * @function addCategory
- * @description Añade una nueva categoría a Firestore. Esta función sería utilizada por un panel de administración.
- * @param {string} name - Nombre de la categoría.
- * @param {string} description - Descripción de la categoría.
- * @param {string} imageUrl - URL de la imagen de la categoría (debería provenir de Cloud Storage).
+ * @description AÃ±ade una nueva categorÃ­a a Firestore. Esta funciÃ³n serÃ­a utilizada por un panel de administraciÃ³n.
+ * @param {string} name - Nombre de la categorÃ­a.
+ * @param {string} description - DescripciÃ³n de la categorÃ­a.
+ * @param {string} imageUrl - URL de la imagen de la categorÃ­a (deberÃ­a provenir de Cloud Storage).
  */
 async function addCategory(name, description, imageUrl) {
     if (!db || !userId) {
-        showMessageBox("Error: Firebase o usuario no autenticado. No se puede añadir la categoría.");
+        showMessageBox("Error: Firebase o usuario no autenticado. No se puede aÃ±adir la categorÃ­a.");
         return;
     }
     try {
@@ -362,29 +362,29 @@ async function addCategory(name, description, imageUrl) {
             imageUrl: imageUrl,
             createdAt: new Date()
         });
-        console.log("Categoría añadida con ID: ", newCategoryRef.id);
-        showMessageBox(`Categoría "${name}" añadida con éxito.`);
+        console.log("CategorÃ­a aÃ±adida con ID: ", newCategoryRef.id);
+        showMessageBox(`CategorÃ­a "${name}" aÃ±adida con Ã©xito.`);
     }
     catch (e) {
-        console.error("Error al añadir la categoría: ", e);
-        showMessageBox("Error al añadir la categoría. Inténtalo de nuevo.");
+        console.error("Error al aÃ±adir la categorÃ­a: ", e);
+        showMessageBox("Error al aÃ±adir la categorÃ­a. IntÃ©ntalo de nuevo.");
     }
 }
 
 /**
  * @function addProduct
- * @description Añade un nuevo producto a Firestore. Esta función sería utilizada por un panel de administración.
+ * @description AÃ±ade un nuevo producto a Firestore. Esta funciÃ³n serÃ­a utilizada por un panel de administraciÃ³n.
  * @param {string} name - Nombre del producto.
  * @param {number} price - Precio del producto.
- * @param {string} imageUrl - URL de la imagen del producto (debería provenir de Cloud Storage).
- * @param {string} categoryName - Nombre de la categoría a la que pertenece el producto.
- * @param {string} description - Descripción del producto.
- * @param {string} [componentsUrl] - URL opcional a la página de componentes del producto.
+ * @param {string} imageUrl - URL de la imagen del producto (deberÃ­a provenir de Cloud Storage).
+ * @param {string} categoryName - Nombre de la categorÃ­a a la que pertenece el producto.
+ * @param {string} description - DescripciÃ³n del producto.
+ * @param {string} [componentsUrl] - URL opcional a la pÃ¡gina de componentes del producto.
  * @param {string} [videoUrl] - URL opcional de un video para el producto (ej. YouTube embed URL o link directo a .mp4).
  */
 async function addProduct(name, price, imageUrl, categoryName, description, componentsUrl = null, videoUrl = null) {
     if (!db || !userId) {
-        showMessageBox("Error: Firebase o usuario no autenticado. No se puede añadir el producto.");
+        showMessageBox("Error: Firebase o usuario no autenticado. No se puede aÃ±adir el producto.");
         return;
     }
     try {
@@ -392,18 +392,18 @@ async function addProduct(name, price, imageUrl, categoryName, description, comp
             name: name,
             price: price,
             imageUrl: imageUrl,
-            category: categoryName, // Se guarda el nombre de la categoría
+            category: categoryName, // Se guarda el nombre de la categorÃ­a
             description: description,
             componentsUrl: componentsUrl,
-            videoUrl: videoUrl, // ¡Nuevo campo para el link de video!
+            videoUrl: videoUrl, // Â¡Nuevo campo para el link de video!
             createdAt: new Date()
         });
-        console.log("Producto añadido con ID: ", newProductRef.id);
-        showMessageBox(`Producto "${name}" añadido con éxito.`);
+        console.log("Producto aÃ±adido con ID: ", newProductRef.id);
+        showMessageBox(`Producto "${name}" aÃ±adido con Ã©xito.`);
     }
     catch (e) {
-        console.error("Error al añadir el producto: ", e);
-        showMessageBox("Error al añadir el producto. Inténtalo de nuevo.");
+        console.error("Error al aÃ±adir el producto: ", e);
+        showMessageBox("Error al aÃ±adir el producto. IntÃ©ntalo de nuevo.");
     }
 }
 
@@ -415,7 +415,7 @@ async function loadAllProducts() {
     console.log("loadAllProducts - Iniciando carga de todos los productos.");
     if (!db) {
         console.error("loadAllProducts - Firestore no inicializado. No se pueden cargar productos.");
-        productsInitialLoadComplete = true; // Marcar como cargado incluso si Firestore no está listo
+        productsInitialLoadComplete = true; // Marcar como cargado incluso si Firestore no estÃ¡ listo
         checkAndHideMainLoader();
         return;
     }
@@ -441,25 +441,25 @@ async function loadAllProducts() {
         const productsColRef = collection(db, `artifacts/${appId}/public/data/products`);
         // Asignar el unsubscribe devuelto por onSnapshot para poder cancelarlo luego
         unsubscribeProducts = onSnapshot(productsColRef, (snapshot) => {
-            console.log("loadAllProducts - onSnapshot recibido. Número de productos:", snapshot.size);
+            console.log("loadAllProducts - onSnapshot recibido. NÃºmero de productos:", snapshot.size);
             // productContainer.innerHTML = '';
             productsFullCache = [];
             snapshot.forEach(docSnap=>{
               productsFullCache.push({ id: docSnap.id, ...docSnap.data() });
             });
-            // reconstruir productsCache para búsqueda
+            // reconstruir productsCache para bÃºsqueda
             productsCache = productsFullCache.map(p=>({ id: p.id, name: (p.name||'').toLowerCase() }));
             applySortAndRender();
         }, (error) => {
             console.error("loadAllProducts - Error al cargar productos:", error);
-            showMessageBox("Error al cargar productos. Inténtalo más tarde.");
+            showMessageBox("Error al cargar productos. IntÃ©ntalo mÃ¡s tarde.");
             hideLoading('products-loading-spinner'); // Oculta el loader de productos incluso si hay un error
             productsInitialLoadComplete = true; // Marcar productos como cargados incluso con error
             checkAndHideMainLoader(); // Verificar si el loader principal puede ocultarse
         });
     } catch (error) {
         console.error("loadAllProducts - Error al configurar listener de productos:", error);
-        showMessageBox("Error al cargar productos. Inténtalo más tarde.");
+        showMessageBox("Error al cargar productos. IntÃ©ntalo mÃ¡s tarde.");
         hideLoading('products-loading-spinner'); // Oculta el loader de productos
         productsInitialLoadComplete = true; // Marcar productos como cargados incluso con error
         checkAndHideMainLoader(); // Verificar si el loader principal puede ocultarse
@@ -468,13 +468,13 @@ async function loadAllProducts() {
 
 /**
  * @function loadProductsByCategory
- * @description Carga productos filtrados por categoría desde Firestore y los muestra.
- * @param {string} categoryName - El NOMBRE de la categoría para filtrar.
+ * @description Carga productos filtrados por categorÃ­a desde Firestore y los muestra.
+ * @param {string} categoryName - El NOMBRE de la categorÃ­a para filtrar.
  */
 async function loadProductsByCategory(categoryName) {
-    console.log("loadProductsByCategory - Iniciando carga de productos por categoría:", categoryName);
+    console.log("loadProductsByCategory - Iniciando carga de productos por categorÃ­a:", categoryName);
     if (!db) {
-        console.error("loadProductsByCategory - Firestore no inicializado. No se pueden cargar productos por categoría.");
+        console.error("loadProductsByCategory - Firestore no inicializado. No se pueden cargar productos por categorÃ­a.");
         return;
     }
 
@@ -489,7 +489,7 @@ async function loadProductsByCategory(categoryName) {
     try {
         const productsColRef = collection(db, `artifacts/${appId}/public/data/products`);
 
-        // Resolución progresiva: primero intenta con categoryName, luego con category
+        // ResoluciÃ³n progresiva: primero intenta con categoryName, luego con category
         let qResolved = query(productsColRef, where("categoryName", "==", categoryName));
         let testSnap = await getDocs(qResolved);
         if (testSnap.empty) {
@@ -501,7 +501,7 @@ async function loadProductsByCategory(categoryName) {
         }
 
         unsubscribeProducts = onSnapshot(qResolved, (snapshot) => {
-            console.log("loadProductsByCategory - onSnapshot recibido para categoría. Número de productos:", snapshot.size);
+            console.log("loadProductsByCategory - onSnapshot recibido para categorÃ­a. NÃºmero de productos:", snapshot.size);
             productsFullCache = [];
             snapshot.forEach(docSnap=>{
               productsFullCache.push({ id: docSnap.id, ...docSnap.data() });
@@ -509,15 +509,15 @@ async function loadProductsByCategory(categoryName) {
             productsCache = productsFullCache.map(p=>({ id: p.id, name: (p.name||'').toLowerCase() }));
             applySortAndRender();
         }, (error) => {
-            console.error("loadProductsByCategory - Error al cargar productos por categoría:", error);
-            showMessageBox("Error al cargar productos por categoría. Inténtalo más tarde.");
+            console.error("loadProductsByCategory - Error al cargar productos por categorÃ­a:", error);
+            showMessageBox("Error al cargar productos por categorÃ­a. IntÃ©ntalo mÃ¡s tarde.");
             hideLoading('products-loading-spinner');
             productsInitialLoadComplete = true;
             checkAndHideMainLoader();
         });
     } catch (error) {
-        console.error("loadProductsByCategory - Error al configurar listener de productos por categoría:", error);
-        showMessageBox("Error al cargar productos por categoría. Inténtalo más tarde.");
+        console.error("loadProductsByCategory - Error al configurar listener de productos por categorÃ­a:", error);
+        showMessageBox("Error al cargar productos por categorÃ­a. IntÃ©ntalo mÃ¡s tarde.");
         hideLoading('products-loading-spinner');
         const existingMessageBox = document.querySelector('.message-box-autodismiss');
         if (existingMessageBox) existingMessageBox.remove();
@@ -528,7 +528,7 @@ async function loadProductsByCategory(categoryName) {
  * @function showMessageBox
  * @description Muestra un cuadro de mensaje personalizado en lugar de la alerta del navegador.
  * @param {string} message - El mensaje a mostrar.
- * @param {number} [duration] - Duración en milisegundos para que el mensaje se cierre automáticamente.
+ * @param {number} [duration] - DuraciÃ³n en milisegundos para que el mensaje se cierre automÃ¡ticamente.
  * @returns {HTMLElement} El elemento del messageBox creado.
  */
 function showMessageBox(message, duration = null) {
@@ -546,10 +546,10 @@ function showMessageBox(message, duration = null) {
     document.body.appendChild(messageBox);
 
     if (duration !== null) {
-        // Añadir una clase para identificar el messageBox que se autodismisará
+        // AÃ±adir una clase para identificar el messageBox que se autodismisarÃ¡
         messageBox.classList.add('message-box-autodismiss');
         setTimeout(() => {
-            if (messageBox.parentNode) { // Asegurarse de que el elemento todavía existe
+            if (messageBox.parentNode) { // Asegurarse de que el elemento todavÃ­a existe
                 messageBox.remove();
             }
         }, duration);
@@ -560,8 +560,8 @@ function showMessageBox(message, duration = null) {
 
 /**
  * @function goToCategory
- * @description Maneja la navegación a una categoría. Si no estás en catalogo.html redirige a /catalogo.html?cat=...
- * Si ya estás en catalogo.html, carga la categoría en la misma página.
+ * @description Maneja la navegaciÃ³n a una categorÃ­a. Si no estÃ¡s en catalogo.html redirige a /catalogo.html?cat=...
+ * Si ya estÃ¡s en catalogo.html, carga la categorÃ­a en la misma pÃ¡gina.
  * @param {string} categoryName
  */
 function goToCategory(categoryName) {
@@ -569,28 +569,28 @@ function goToCategory(categoryName) {
     const onCatalogPage = currentPath.toLowerCase().includes('/catalogo.html') || currentPath.toLowerCase().endsWith('/catalogo') || currentPath.toLowerCase().includes('/catalogo');
 
     if (!onCatalogPage) {
-        // Redirigir al catálogo con el parámetro de categoría
+        // Redirigir al catÃ¡logo con el parÃ¡metro de categorÃ­a
         const target = `/catalogo.html?cat=${encodeURIComponent(categoryName)}`;
         window.location.href = target;
         return;
     }
 
-    // Si ya estamos en catalogo.html, filtrar aquí sin recargar
-    showMessageBox(`Cargando productos de la categoría: ${categoryName}...`, 900);
-    loadProductsByCategory(categoryName);
+    // Si ya estamos en catalogo.html, filtrar aquÃ­ sin recargar
+    showMessageBox(`Cargando productos de la categorÃ­a: ${categoryName}...`, 900);
+    loadProductsByCategoryApi(categoryName);
     try { history.pushState({ cat: categoryName }, "", `/catalogo.html?cat=${encodeURIComponent(categoryName)}`); } catch (_) {}
     closeMobileMenu();
     const catalogEl = document.getElementById('catalogo-productos');
     if (catalogEl) catalogEl.scrollIntoView({ behavior: 'smooth' });
 }
 
-/* NOTE: openMobileMenu() y closeMobileMenu() se movieron a la sección de "helpers seguros"
-   más abajo en el archivo para evitar duplicados y para que consulten el DOM al vuelo.
-   Si necesitás modificar la lógica del menú, editá las funciones en la sección de helpers. */
+/* NOTE: openMobileMenu() y closeMobileMenu() se movieron a la secciÃ³n de "helpers seguros"
+   mÃ¡s abajo en el archivo para evitar duplicados y para que consulten el DOM al vuelo.
+   Si necesitÃ¡s modificar la lÃ³gica del menÃº, editÃ¡ las funciones en la secciÃ³n de helpers. */
 
 /**
  * @function toggleCategoriesSubmenu
- * @description Alterna la visibilidad del submenú de categorías.
+ * @description Alterna la visibilidad del submenÃº de categorÃ­as.
  */
 function toggleCategoriesSubmenu() {
     const categoriesSubmenu = document.getElementById('categories-submenu');
@@ -604,7 +604,7 @@ function toggleCategoriesSubmenu() {
 
 /**
  * @function closeCategoriesSubmenu
- * @description Cierra el submenú de categorías.
+ * @description Cierra el submenÃº de categorÃ­as.
  */
 function closeCategoriesSubmenu() {
     const categoriesSubmenu = document.getElementById('categories-submenu');
@@ -627,11 +627,11 @@ window.openFullscreenImage = function(imageUrl, altText) {
     const modal = document.getElementById('image-fullscreen-modal');
     const image = document.getElementById('fullscreen-image');
 
-    // **VERIFICACIÓN CRÍTICA**: Asegurarse de que el modal y la imagen existen en el DOM
+    // **VERIFICACIÃ“N CRÃTICA**: Asegurarse de que el modal y la imagen existen en el DOM
     if (!modal || !image) {
         console.error("openFullscreenImage - Error: Elementos del modal de zoom no encontrados en el DOM.");
-        showMessageBox("No se pudo iniciar el zoom. Por favor, asegúrate de que el modal de imagen esté presente en la página.");
-        return; // Salir de la función si los elementos no existen
+        showMessageBox("No se pudo iniciar el zoom. Por favor, asegÃºrate de que el modal de imagen estÃ© presente en la pÃ¡gina.");
+        return; // Salir de la funciÃ³n si los elementos no existen
     }
 
     // Limpiar cualquier manejador de errores anterior y atributo src para una carga limpia
@@ -644,7 +644,7 @@ window.openFullscreenImage = function(imageUrl, altText) {
         console.error("openFullscreenImage - Error al cargar la imagen en pantalla completa:", imageUrl);
         image.src = 'https://placehold.co/600x400/FF0000/FFFFFF?text=Error+Carga+Imagen'; // Imagen de fallback
         image.alt = 'Error al cargar la imagen';
-        showMessageBox("No se pudo cargar la imagen en pantalla completa. Por favor, inténtalo de nuevo.");
+        showMessageBox("No se pudo cargar la imagen en pantalla completa. Por favor, intÃ©ntalo de nuevo.");
     };
 
     image.src = imageUrl;
@@ -660,26 +660,26 @@ window.openFullscreenImage = function(imageUrl, altText) {
 window.closeFullscreenImage = function() {
     console.log("closeFullscreenImage - Llamada."); // Log de la llamada
     const modal = document.getElementById('image-fullscreen-modal');
-    const image = document.getElementById('fullscreen-image'); // Necesitamos obtener la referencia de la imagen aquí también
+    const image = document.getElementById('fullscreen-image'); // Necesitamos obtener la referencia de la imagen aquÃ­ tambiÃ©n
 
-    // **VERIFICACIÓN CRÍTICA**: Asegurarse de que el modal y la imagen existen en el DOM
+    // **VERIFICACIÃ“N CRÃTICA**: Asegurarse de que el modal y la imagen existen en el DOM
     if (!modal || !image) {
         console.error("closeFullscreenImage - Error: Elementos del modal de zoom no encontrados en el DOM.");
-        return; // Salir de la función si los elementos no existen
+        return; // Salir de la funciÃ³n si los elementos no existen
     }
 
     modal.classList.remove('open');
     document.body.style.overflow = ''; // Restaura el scroll del cuerpo
 
     // Limpiar la imagen y su manejador de errores para liberar recursos
-    image.src = ''; // Vaciar el src para asegurar una carga limpia la próxima vez
+    image.src = ''; // Vaciar el src para asegurar una carga limpia la prÃ³xima vez
     image.onerror = null;
 }
 
 /**
  * @function startCategoryImageAnimation
- * @description Inicia la animación de cambio de imagen para una tarjeta de categoría al pasar el ratón.
- * @param {HTMLElement} cardElement - El elemento de la tarjeta de categoría.
+ * @description Inicia la animaciÃ³n de cambio de imagen para una tarjeta de categorÃ­a al pasar el ratÃ³n.
+ * @param {HTMLElement} cardElement - El elemento de la tarjeta de categorÃ­a.
  */
 function startCategoryImageAnimation(cardElement) {
     const imgElement = cardElement.querySelector('.category-image-animated');
@@ -688,9 +688,9 @@ function startCategoryImageAnimation(cardElement) {
     const originalImageUrl = cardElement.dataset.originalImage;
     const productImages = JSON.parse(cardElement.dataset.productImages || '[]');
 
-    // Si no hay suficientes imágenes para animar (menos de 2), no hacer nada.
+    // Si no hay suficientes imÃ¡genes para animar (menos de 2), no hacer nada.
     if (productImages.length <= 1) {
-        // Asegurarse de que el intervalo si existía, se limpie y se elimine
+        // Asegurarse de que el intervalo si existÃ­a, se limpie y se elimine
         stopCategoryImageAnimation(cardElement);
         return;
     }
@@ -700,7 +700,7 @@ function startCategoryImageAnimation(cardElement) {
 
     let currentIndex = productImages.indexOf(imgElement.src);
     if (currentIndex === -1 || currentIndex >= productImages.length - 1) {
-        currentIndex = -1; // Si la imagen actual no está en la lista o es la última, empezar desde el principio
+        currentIndex = -1; // Si la imagen actual no estÃ¡ en la lista o es la Ãºltima, empezar desde el principio
     }
 
     const intervalId = setInterval(() => {
@@ -712,7 +712,7 @@ function startCategoryImageAnimation(cardElement) {
             imgElement.classList.remove('fade-out');
             imgElement.classList.add('fade-in');
             setTimeout(() => imgElement.classList.remove('fade-in'), 600);
-        }, 300); // 300ms coincide con la duración de la transición CSS
+        }, 300); // 300ms coincide con la duraciÃ³n de la transiciÃ³n CSS
     }, 2000); // Cambiar imagen cada 2 segundos
 
     categoryAnimationIntervals[cardElement.dataset.categoryName] = intervalId;
@@ -720,8 +720,8 @@ function startCategoryImageAnimation(cardElement) {
 
 /**
  * @function stopCategoryImageAnimation
- * @description Detiene la animación de cambio de imagen para una tarjeta de categoría.
- * @param {HTMLElement} cardElement - El elemento de la tarjeta de categoría.
+ * @description Detiene la animaciÃ³n de cambio de imagen para una tarjeta de categorÃ­a.
+ * @param {HTMLElement} cardElement - El elemento de la tarjeta de categorÃ­a.
  */
 function stopCategoryImageAnimation(cardElement) {
     const categoryName = cardElement.dataset.categoryName;
@@ -744,7 +744,7 @@ function stopCategoryImageAnimation(cardElement) {
 }
 
 
-// Lógica para el menú de hamburguesa y submenús
+// LÃ³gica para el menÃº de hamburguesa y submenÃºs
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOMContentLoaded - DOM completamente cargado."); // Log de DOMContentLoaded
     const mobileMenuButton = document.getElementById('mobile-menu-button');
@@ -754,12 +754,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const imageFullscreenModal = document.getElementById('image-fullscreen-modal');
 
 
-    // Referencias a los enlaces de Catálogo
+    // Referencias a los enlaces de CatÃ¡logo
     const catalogLinkMobile = document.getElementById('catalog-link-mobile');
     const catalogLinkDesktop = document.getElementById('catalog-link-desktop');
 
-    // ** Lógica para el botón de hamburguesa: Alterna abrir/cerrar **
-    // Inicialización segura (evita doble inicialización)
+    // ** LÃ³gica para el botÃ³n de hamburguesa: Alterna abrir/cerrar **
+    // InicializaciÃ³n segura (evita doble inicializaciÃ³n)
     if (window.__menuInit) {
         // ya inicializado
     } else {
@@ -768,7 +768,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (btn && nav) {
             let isOpen = false;
 
-            // Conectar la "X" de cierre del panel móvil
+            // Conectar la "X" de cierre del panel mÃ³vil
             const mobileNavClose = document.getElementById('mobile-nav-close');
             if (mobileNavClose) {
                 mobileNavClose.addEventListener('click', (e) => {
@@ -778,7 +778,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
 
-            // Toggle del botón hamburguesa (actualiza isOpen)
+            // Toggle del botÃ³n hamburguesa (actualiza isOpen)
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (isOpen) {
@@ -800,13 +800,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         } else {
-            console.warn('DOMContentLoaded - elementos de menú móvil ausentes; inicialización omitida.');
+            console.warn('DOMContentLoaded - elementos de menÃº mÃ³vil ausentes; inicializaciÃ³n omitida.');
         }
     }
 
-    // Toggle del submenú de categorías
-    // Bind seguro y único para el botón "Categorías" en el menú móvil.
-    // Usa toggle de la clase 'hidden' y rotación del icono para animación simple.
+    // Toggle del submenÃº de categorÃ­as
+    // Bind seguro y Ãºnico para el botÃ³n "CategorÃ­as" en el menÃº mÃ³vil.
+    // Usa toggle de la clase 'hidden' y rotaciÃ³n del icono para animaciÃ³n simple.
     if (categoriesToggleButton) {
         const categoriesIcon = document.getElementById('categories-toggle-icon');
         const categoriesMenu = document.getElementById('categories-submenu');
@@ -821,32 +821,32 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Event listener para el enlace "Catálogo" en la navegación móvil
+    // Event listener para el enlace "CatÃ¡logo" en la navegaciÃ³n mÃ³vil
     if (catalogLinkMobile) {
         catalogLinkMobile.addEventListener('click', function(event) {
             event.preventDefault(); // Evitar el comportamiento predeterminado del ancla
             loadAllProducts(); // Cargar todos los productos
-            closeMobileMenu(); // Cerrar el menú móvil
-            // Desplazar la vista a la sección de productos
+            closeMobileMenu(); // Cerrar el menÃº mÃ³vil
+            // Desplazar la vista a la secciÃ³n de productos
             const catalogEl = document.getElementById('catalogo-productos');
             if (catalogEl) catalogEl.scrollIntoView({ behavior: 'smooth' });
         });
     }
 
-    // Event listener para el enlace "Catálogo" en la navegación de escritorio
+    // Event listener para el enlace "CatÃ¡logo" en la navegaciÃ³n de escritorio
     if (catalogLinkDesktop) {
         catalogLinkDesktop.addEventListener('click', function(event) {
             event.preventDefault(); // Evitar el comportamiento predeterminado del ancla
             loadAllProducts(); // Cargar todos los productos
-            // Desplazar la vista a la sección de productos
+            // Desplazar la vista a la secciÃ³n de productos
             const catalogEl = document.getElementById('catalogo-productos');
             if (catalogEl) catalogEl.scrollIntoView({ behavior: 'smooth' });
         });
     }
 
-    // Cerrar menú y submenús al hacer clic fuera
-    // Cerrar solo el submenú de categorías al hacer clic fuera.
-    // NOTA: El cierre/abierto del panel móvil se maneja exclusivamente en el init seguro que usa `isOpen`.
+    // Cerrar menÃº y submenÃºs al hacer clic fuera
+    // Cerrar solo el submenÃº de categorÃ­as al hacer clic fuera.
+    // NOTA: El cierre/abierto del panel mÃ³vil se maneja exclusivamente en el init seguro que usa `isOpen`.
     document.body.addEventListener('click', function(event) {
         const categoriesSubmenu = document.getElementById('categories-submenu');
         const categoriesToggleBtn = document.getElementById('categories-toggle-button');
@@ -859,7 +859,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Cerrar modal de imagen al hacer clic en el botón de cerrar
+    // Cerrar modal de imagen al hacer clic en el botÃ³n de cerrar
     if (closeImageModalButton) {
         closeImageModalButton.addEventListener('click', window.closeFullscreenImage); // Usar window.closeFullscreenImage
     }
@@ -873,11 +873,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Opcional: Cerrar el menú móvil cuando se hace clic en un enlace interno (excepto Categorías)
-    // Los enlaces del submenú de categorías ya tienen closeMobileMenu() en su onclick
+    // Opcional: Cerrar el menÃº mÃ³vil cuando se hace clic en un enlace interno (excepto CategorÃ­as)
+    // Los enlaces del submenÃº de categorÃ­as ya tienen closeMobileMenu() en su onclick
     if (mobileNav) {
         mobileNav.querySelectorAll('a[href^="#"]').forEach(link => {
-         // Asegurarse de que no sea el enlace de "Categorías" que abre el submenú
+         // Asegurarse de que no sea el enlace de "CategorÃ­as" que abre el submenÃº
          if (link.id !== 'categories-toggle-button') {
              link.addEventListener('click', () => {
                  closeMobileMenu();
@@ -886,10 +886,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // --- Lógica para animaciones de imágenes de categoría (para dispositivos táctiles) ---
+    // --- LÃ³gica para animaciones de imÃ¡genes de categorÃ­a (para dispositivos tÃ¡ctiles) ---
     const categoriesContainer = document.getElementById('categories-container');
     if (categoriesContainer) {
-        // Para dispositivos táctiles: un toque inicia, otro lo detiene o click fuera
+        // Para dispositivos tÃ¡ctiles: un toque inicia, otro lo detiene o click fuera
         categoriesContainer.addEventListener('touchstart', (event) => {
             const card = event.target.closest('.category-card');
             if (card) {
@@ -900,7 +900,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (otherCard) stopCategoryImageAnimation(otherCard);
                     }
                 }
-                // Alternar animación para la tarjeta tocada
+                // Alternar animaciÃ³n para la tarjeta tocada
                 if (categoryAnimationIntervals[card.dataset.categoryName]) {
                     stopCategoryImageAnimation(card);
                 } else {
@@ -909,7 +909,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Listener global para detener la animación si se hace clic fuera de una tarjeta activa
+        // Listener global para detener la animaciÃ³n si se hace clic fuera de una tarjeta activa
         document.body.addEventListener('click', (event) => {
             const card = event.target.closest('.category-card');
             if (!card && Object.keys(categoryAnimationIntervals).length > 0) {
@@ -922,10 +922,10 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         console.warn('DOMContentLoaded - #categories-container ausente; deshabilitando touch animation handlers.');
     }
-    // --- Fin de la lógica para animaciones de imágenes de categoría ---
+    // --- Fin de la lÃ³gica para animaciones de imÃ¡genes de categorÃ­a ---
 
     // Search UI: sugerencias y salto a producto
-    /* Reemplazo de la función de búsqueda: parametrizada para desktop + mobile.
+    /* Reemplazo de la funciÃ³n de bÃºsqueda: parametrizada para desktop + mobile.
        Evita doble bind en el mismo input usando dataset.searchInit. */
     function setupSearch(inputId, listId) {
       const input = document.getElementById(inputId);
@@ -960,10 +960,10 @@ document.addEventListener('DOMContentLoaded', function() {
           el.scrollIntoView({ behavior:'smooth', block:'start' });
           el.classList.add('ring-2','ring-brand-1'); // Adjusted ring color for dark theme
           setTimeout(()=> el.classList.remove('ring-2','ring-brand-1'), 1500); // Adjusted ring color
-          // si el input es mobile, cerramos el menú
+          // si el input es mobile, cerramos el menÃº
           if (inputId === 'search-input-mobile' && typeof closeMobileMenu === 'function') closeMobileMenu();
         } else {
-          // reintento breve si aún no está renderizado
+          // reintento breve si aÃºn no estÃ¡ renderizado
           const t = setInterval(()=>{
             const el2 = document.getElementById(`product-${id}`);
             if (el2) { clearInterval(t); go(id); }
@@ -989,7 +989,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
 
-      // Cerrar lista al click fuera (cada setup instala su handler; inputs están protegidos por dataset)
+      // Cerrar lista al click fuera (cada setup instala su handler; inputs estÃ¡n protegidos por dataset)
       document.addEventListener('click', (e) => {
         if (!list.contains(e.target) && e.target !== input) {
           list.classList.add('hidden');
@@ -1000,7 +1000,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Atajo Ctrl/Cmd+K para enfocar el input correspondiente
       document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-          // Si el usuario ya está enfocado en un input distinto, preferir desktop input; si mobile, enfocar mobile
+          // Si el usuario ya estÃ¡ enfocado en un input distinto, preferir desktop input; si mobile, enfocar mobile
           e.preventDefault();
           input.focus();
           input.select();
@@ -1008,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
 
-    // Añadir scroll listener para el header dinámico
+    // AÃ±adir scroll listener para el header dinÃ¡mico
     window.addEventListener('scroll', () => {
       const header = document.getElementById('main-header');
       if (header) {
@@ -1028,7 +1028,7 @@ document.addEventListener('DOMContentLoaded', function() {
       console.warn('setupSearch error', err);
     }
 
-    // Animación del logo al cargar la página
+    // AnimaciÃ³n del logo al cargar la pÃ¡gina
     document.addEventListener('DOMContentLoaded', () => {
       const logoBig = document.querySelector('.logo-big');
       const logoText = document.getElementById('logo-text');
@@ -1039,7 +1039,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (logoUnderline) setTimeout(() => logoUnderline.classList.add('show'), 380);
     });
 
-    // Mobile search toggle (para la barra de búsqueda que aparece/desaparece)
+    // Mobile search toggle (para la barra de bÃºsqueda que aparece/desaparece)
     const mobileSearchToggle = document.getElementById('mobile-search-toggle');
     const mobileSearchDiv = document.getElementById('mobile-search');
     if (mobileSearchToggle && mobileSearchDiv) {
@@ -1050,24 +1050,24 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-// Inicializar Firebase cuando el DOM esté completamente cargado
+// Inicializar Firebase cuando el DOM estÃ© completamente cargado
 // document.addEventListener('DOMContentLoaded', initFirebase);
 
 // Hacer que las funciones sean accesibles globalmente para eventos onclick en el HTML
 window.showMessageBox = showMessageBox;
 window.goToCategory = goToCategory;
-window.addCategory = addCategory; // Exponer para posibles llamadas desde un futuro panel de administración
-window.addProduct = addProduct;   // Exponer para posibles llamadas desde un futuro panel de administración
-window.loadAllProducts = loadAllProducts; // Exponer para ser llamada desde los enlaces de catálogo
-window.loadProductsByCategory = loadProductsByCategory; // Exponer para ser llamada desde los enlaces de categoría
-window.closeMobileMenu = closeMobileMenu; // Exponer para ser llamada desde los enlaces del submenú
+window.addCategory = addCategory; // Exponer para posibles llamadas desde un futuro panel de administraciÃ³n
+window.addProduct = addProduct;   // Exponer para posibles llamadas desde un futuro panel de administraciÃ³n
+window.loadAllProducts = loadAllProducts; // Exponer para ser llamada desde los enlaces de catÃ¡logo
+window.loadProductsByCategory = loadProductsByCategory; // Exponer para ser llamada desde los enlaces de categorÃ­a
+window.closeMobileMenu = closeMobileMenu; // Exponer para ser llamada desde los enlaces del submenÃº
 window.openMobileMenu = openMobileMenu; // Exponer para ser llamada
-window.openFullscreenImage = openFullscreenImage; // Exponer para abrir imágenes en pantalla completa
-window.closeFullscreenImage = closeFullscreenImage; // Exponer para cerrar imágenes en pantalla completa
-window.startCategoryImageAnimation = startCategoryImageAnimation; // Exponer la función de animación de categoría
-window.stopCategoryImageAnimation = stopCategoryImageAnimation;   // Exponer la función de detener animación de categoría
+window.openFullscreenImage = openFullscreenImage; // Exponer para abrir imÃ¡genes en pantalla completa
+window.closeFullscreenImage = closeFullscreenImage; // Exponer para cerrar imÃ¡genes en pantalla completa
+window.startCategoryImageAnimation = startCategoryImageAnimation; // Exponer la funciÃ³n de animaciÃ³n de categorÃ­a
+window.stopCategoryImageAnimation = stopCategoryImageAnimation;   // Exponer la funciÃ³n de detener animaciÃ³n de categorÃ­a
 
-// helpers para menú móvil (reemplazados/ajustados)
+// helpers para menÃº mÃ³vil (reemplazados/ajustados)
 function getMobileMenuEls() {
     return {
         btn: document.getElementById('mobile-menu-button'),
@@ -1083,11 +1083,11 @@ function openMobileMenu() {
     nav.classList.remove('hidden', 'translate-x-full');
     nav.classList.add('translate-x-0', 'open');
 
-    // accesibilidad: el panel ya NO está oculto
+    // accesibilidad: el panel ya NO estÃ¡ oculto
     nav.removeAttribute('aria-hidden');
     nav.removeAttribute('inert');
 
-    // animación del botón hamburguesa
+    // animaciÃ³n del botÃ³n hamburguesa
     btn.classList.add('open');
     btn.setAttribute('aria-expanded', 'true');
 
@@ -1111,11 +1111,11 @@ function closeMobileMenu() {
     nav.setAttribute('aria-hidden', 'true');
     nav.setAttribute('inert', '');
 
-    // revertir botón hamburguesa
+    // revertir botÃ³n hamburguesa
     btn.classList.remove('open');
     btn.setAttribute('aria-expanded', 'false');
 
-    // devolver el foco al botón que abrió el panel
+    // devolver el foco al botÃ³n que abriÃ³ el panel
     try { btn.focus(); } catch (e) { /* noop */ }
 
     try { closeCategoriesSubmenu(); } catch (e) { /* noop */ }
@@ -1252,8 +1252,8 @@ function renderThumbs(imgs=[]){
 function renderBadges(prod){
   if(!$pd.badges) return;
   const items = [];
-  if (prod.envio24) items.push('<span class="px-2 py-1 rounded-full text-xs bg-emerald-700/30 text-emerald-300">Envío 24/48h</span>'); // Adjusted colors
-  if (prod.garantiaMeses) items.push(`<span class="px-2 py-1 rounded-full text-xs bg-indigo-700/30 text-indigo-300">${prod.garantiaMeses}m Garantía</span>`); // Adjusted colors
+  if (prod.envio24) items.push('<span class="px-2 py-1 rounded-full text-xs bg-emerald-700/30 text-emerald-300">EnvÃ­o 24/48h</span>'); // Adjusted colors
+  if (prod.garantiaMeses) items.push(`<span class="px-2 py-1 rounded-full text-xs bg-indigo-700/30 text-indigo-300">${prod.garantiaMeses}m GarantÃ­a</span>`); // Adjusted colors
   if (prod.stock > 0) items.push('<span class="px-2 py-1 rounded-full text-xs bg-blue-700/30 text-blue-300">Stock disponible</span>'); // Adjusted colors
   $pd.badges.innerHTML = items.join(' ');
 }
@@ -1279,15 +1279,15 @@ function renderProductDetail(prod){
   if(!$pd.title) return;
   $pd.title.textContent = prod.nombre || prod.title || prod.name || 'Producto';
   $pd.price.textContent = prod.precio ?? prod.price ?? 'Consultar';
-  $pd.id.textContent = prod.id || '—';
-  $pd.stock.textContent = (prod.stock ?? '—');
+  $pd.id.textContent = prod.id || 'â€”';
+  $pd.stock.textContent = (prod.stock ?? 'â€”');
 
-  $pd.paneDesc.innerHTML = prod.descripcionLarga || prod.descripcion || prod.description || 'Sin descripción.';
+  $pd.paneDesc.innerHTML = prod.descripcionLarga || prod.descripcion || prod.description || 'Sin descripciÃ³n.';
 
   // --- MOD INICIO: soporte specs/specifications/especificaciones (objeto | array {key,value} | string) ---
   (function renderSpecs(){
     let source = prod.specs ?? prod.specifications ?? prod.especificaciones;
-    let html = '—';
+    let html = 'â€”';
 
     if (source && typeof source === 'object') {
       if (Array.isArray(source)) {
@@ -1322,7 +1322,7 @@ function renderProductDetail(prod){
   })();
   // --- MOD FIN ---
 
-  // CAMBIO: normalizar garantía con prioridades garantia > warranty > garantiaTexto > garantiaMeses
+  // CAMBIO: normalizar garantÃ­a con prioridades garantia > warranty > garantiaTexto > garantiaMeses
   function normalizeWarranty(p){
     const candidates = [
       p.garantia,
@@ -1332,25 +1332,25 @@ function renderProductDetail(prod){
     ];
     for (let raw of candidates){
       if (raw === undefined || raw === null) continue;
-      // Número directo
+      // NÃºmero directo
       if (typeof raw === 'number' && !isNaN(raw) && raw > 0) {
-        return `${raw} meses de garantía.`;
+        return `${raw} meses de garantÃ­a.`;
       }
       // String
       if (typeof raw === 'string') {
         const txt = raw.trim();
         if (!txt) continue;
         if (/^\d+$/.test(txt)) {
-          return `${parseInt(txt,10)} meses de garantía.`;
+          return `${parseInt(txt,10)} meses de garantÃ­a.`;
         }
         return txt; // texto libre
       }
     }
     return null;
   }
-  $pd.paneWarranty.innerHTML = normalizeWarranty(prod) || 'Consultar garantía.';
+  $pd.paneWarranty.innerHTML = normalizeWarranty(prod) || 'Consultar garantÃ­a.';
 
-  // --- FIX: reemplaza Array.isClassName por lógica robusta ---
+  // --- FIX: reemplaza Array.isClassName por lÃ³gica robusta ---
   let imgs = [];
   if (Array.isArray(prod.imagenes) && prod.imagenes.length) imgs = prod.imagenes;
   else if (Array.isArray(prod.images) && prod.images.length) imgs = prod.images;
@@ -1364,7 +1364,7 @@ function renderProductDetail(prod){
   renderThumbs(imgs);
   renderBadges(prod);
 
-  const msg = encodeURIComponent(`Hola! Me interesa el producto "${$pd.title.textContent}" (ID ${prod.id}). ¿Disponibilidad y precio?`);
+  const msg = encodeURIComponent(`Hola! Me interesa el producto "${$pd.title.textContent}" (ID ${prod.id}). Â¿Disponibilidad y precio?`);
   if($pd.whatsapp) $pd.whatsapp.href = `https://wa.me/5491159914197?text=${msg}`;
 
   activateTab('desc');
@@ -1377,7 +1377,7 @@ function renderProductDetail(prod){
   } catch(_) { /* noop */ }
 }
 
-/* Delegación: abrir modal al clickear .product-card (usa data-id o id product-*) */
+/* DelegaciÃ³n: abrir modal al clickear .product-card (usa data-id o id product-*) */
 document.addEventListener('click', async (e) => {
   const card = e.target.closest('.product-card');
   if(!card) return;
@@ -1386,13 +1386,13 @@ document.addEventListener('click', async (e) => {
   const id = card.dataset.id || (card.id && card.id.startsWith('product-') ? card.id.replace(/^product-/, '') : null);
   if(!id) return;
   const prod = await fetchProductById(id);
-  if(!prod) { showMessageBox('No se encontró el producto.'); return; }
+  if(!prod) { showMessageBox('No se encontrÃ³ el producto.'); return; }
   renderProductDetail(prod);
   openPD();
   setHashParam(id);
 });
 
-/* Cerrar modal (backdrop, botón, ESC) */
+/* Cerrar modal (backdrop, botÃ³n, ESC) */
 document.addEventListener('click', (e) => {
   if(e.target.matches('[data-close]') || e.target.id === 'pd-overlay') closePD();
 });
@@ -1443,7 +1443,7 @@ document.addEventListener('click', (e) => {
     }
   } catch (e) { /* noop */ }
 })();
-// Manejar navegación con botón "Atrás" para alternar entre catálogo general y por categoría
+// Manejar navegaciÃ³n con botÃ³n "AtrÃ¡s" para alternar entre catÃ¡logo general y por categorÃ­a
 window.addEventListener('popstate', async () => {
   try {
     const u = new URL(window.location.href);
@@ -1468,7 +1468,7 @@ window.addEventListener('popstate', async () => {
 });
 /* === end product detail modal logic === */
 
-/* === SORT + RENDER (añadido) === */
+/* === SORT + RENDER (aÃ±adido) === */
 function applySortAndRender() {
   const container = document.getElementById('contenedor-productos');
   if (!container) return;
@@ -1640,7 +1640,7 @@ if (typeof window !== 'undefined') {
 }
 
 // =====================
-// Capa fetch → API backend
+// Capa fetch â†’ API backend
 // =====================
 async function fetchJson(url, opts = {}) {
   const resp = await fetch(url, opts);
@@ -1739,3 +1739,4 @@ async function loadProductsByCategoryApi(categoryName) {
     checkAndHideMainLoader();
   }
 }
+
