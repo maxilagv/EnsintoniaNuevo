@@ -1108,14 +1108,20 @@ Schema.org â€” Organization (ajustÃ¡ datos si cambia el telÃ©fono o agr
     }
   }
 
-  async function fetchJson(url){ const r=await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
+  async function fetchJson(url){ const r=await fetch(url, { cache: 'no-store' }); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
 
+  // Carga categorías con fallback de endpoint (ES/EN)
   try {
-    const rows = await fetchJson(`${API_BASE}/categorias`);
+    let rows = await fetchJson(`${API_BASE}/categorias`);
     render(rows || []);
-  } catch (e) {
-    console.error('Categorías API error', e);
-    render([]);
+  } catch (e1) {
+    try {
+      let rows = await fetchJson(`${API_BASE}/categories`);
+      render(rows || []);
+    } catch (e2) {
+      console.error('Categorías API error', e2);
+      render([]);
+    }
   }
 
   if ($select){
