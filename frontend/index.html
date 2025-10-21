@@ -1,13 +1,13 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Ensintonía — Importadora directa de electrónica y hogar</title>
+  <title>EnsintonÃ­a â€” Importadora directa de electrÃ³nica y hogar</title>
 
-  <!-- Tailwind (CDN, rápido para prototipo) -->
+  <!-- Tailwind (CDN, rÃ¡pido para prototipo) -->
   <script>
-    // Asegura el objeto global antes de asignar la configuración
+    // Asegura el objeto global antes de asignar la configuraciÃ³n
     window.tailwind = window.tailwind || {};
     window.tailwind.config = {
       theme: {
@@ -67,7 +67,7 @@
     .muted, .text-muted-700 { color: var(--futuristic-mute) !important; }
     .text-ink { color: var(--futuristic-ink) !important; }
 
-    /* Header / logo: mucho más grande y animado */
+    /* Header / logo: mucho mÃ¡s grande y animado */
     .logo-wrap {
       display:flex;
       align-items:center;
@@ -269,9 +269,9 @@
     .bg-white * , .bg-white\/60 * { color: inherit; }
 
 
-    /* Mobile-first polish: centrar y hacer estético en pantallas pequeñas */
+    /* Mobile-first polish: centrar y hacer estÃ©tico en pantallas pequeÃ±as */
     @media (max-width: 640px) {
-      /* Container: padding cómodo y ancho completo */
+      /* Container: padding cÃ³modo y ancho completo */
       .site-container {
         padding-left: 1rem;
         padding-right: 1rem;
@@ -279,20 +279,20 @@
         margin: 0 auto;
       }
 
-      /* Header: mayor altura, logo más grande visualmente centrado */
+      /* Header: mayor altura, logo mÃ¡s grande visualmente centrado */
       #main-header .site-container { height: 72px; gap: 0.5rem; }
       .logo-big { width: 115px !important; height: auto; }
       .logo-wrap { gap: 0.6rem; align-items: center; }
 
-      /* Títulos: menor tamaño pero con mayor contraste y centrado */
+      /* TÃ­tulos: menor tamaÃ±o pero con mayor contraste y centrado */
       #hero-title { font-size: 1.6rem; line-height: 1.05; text-align: center; }
       #hero-sub, #hero-detail { font-size: 0.98rem; text-align: center; }
 
-      /* Hero CTAs: apilados y full width para tocar fácil con el pulgar */
+      /* Hero CTAs: apilados y full width para tocar fÃ¡cil con el pulgar */
       #hero-ctas { flex-direction: column; gap: 0.75rem; align-items: stretch; }
       #hero-ctas .btn { width: 100%; display: inline-flex; justify-content: center; }
 
-      /* Accent line centrado y más sutil */
+      /* Accent line centrado y mÃ¡s sutil */
       .accent-line { margin: 0.6rem auto 1rem auto; width: 48px; height: 3px; }
 
       /* Ocultar decoraciones pesadas para no competir con el contenido */
@@ -308,35 +308,35 @@
         box-shadow: 0 8px 24px rgba(2,6,23,0.08) !important;
       }
       .card-polish.reveal-init { transform: translateY(10px) scale(0.999) !important; filter: none !important; }
-      .card-polish.tilt { transition: none; transform: none !important; } /* desactivar tilt en móvil */
+      .card-polish.tilt { transition: none; transform: none !important; } /* desactivar tilt en mÃ³vil */
 
-      /* Grid de categorías / productos: una columna con gap */
+      /* Grid de categorÃ­as / productos: una columna con gap */
       #categories-container, #contenedor-productos {
         display: grid;
         grid-template-columns: 1fr;
         gap: 14px;
       }
 
-      /* Centrar texto en tarjetas para estética móvil */
+      /* Centrar texto en tarjetas para estÃ©tica mÃ³vil */
       .product-card .p-6, .product-card .p-4 { text-align: left; } /* mantener left para legibilidad */
       .product-card h3 { font-size: 1.05rem; }
       .product-card p { font-size: 0.95rem; }
 
-      /* Botones pequeños dentro de cards: full width y mayor toque */
+      /* Botones pequeÃ±os dentro de cards: full width y mayor toque */
       .product-card .btn, .product-card a { width: 100%; display: inline-flex; justify-content: center; }
 
-      /* Nav móvil: mejorar espaciado y centrar elementos */
+      /* Nav mÃ³vil: mejorar espaciado y centrar elementos */
       #mobile-nav { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
       #mobile-nav a { padding: 0.75rem 1rem; border-radius: 0.75rem; }
 
-      /* Input search móvil: full width y mayor hit area */
+      /* Input search mÃ³vil: full width y mayor hit area */
       #search-input-mobile { width: 100%; padding-left: 1rem; padding-right: 1rem; border-radius: 12px; }
 
-      /* Reducir animaciones al mínimo para ahorro de CPU en móviles */
+      /* Reducir animaciones al mÃ­nimo para ahorro de CPU en mÃ³viles */
       .card-polish::before, .card-polish .shimmer { display: none; }
       .card-polish.float-subtle { animation: none; }
 
-      /* Ajustes tipográficos para legibilidad */
+      /* Ajustes tipogrÃ¡ficos para legibilidad */
       body { -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
       .muted { opacity: 0.9; }
     }
@@ -347,7 +347,7 @@
     #mobile-menu-button.open .bar:nth-child(2){opacity:0;}
     #mobile-menu-button.open .bar:nth-child(3){transform:translateY(-6px) rotate(-45deg);}
 
-    /* Panel móvil */
+    /* Panel mÃ³vil */
     #mobile-nav{position:fixed; inset:0; z-index:40; display:none;}
     #mobile-nav[data-state="opening"],
     #mobile-nav[data-state="open"]{display:block;}
@@ -376,7 +376,7 @@
       #mobile-nav .mn-panel{padding-bottom:4rem;}
     }
 
-    /* Nuevos estilos para las tarjetas de "Quiénes somos" */
+    /* Nuevos estilos para las tarjetas de "QuiÃ©nes somos" */
     .card-modern {
       background: rgba(15, 23, 42, 0.7); /* Dark, slightly transparent ink color */
       border: 1px solid rgba(49, 62, 85, 0.6); /* Darker, subtle border */
@@ -418,7 +418,7 @@
       color: var(--futuristic-mute); /* Muted light blue for readability */
     }
 
-    /* Estilos para las tarjetas de "Propuesta de valor" y "Logística" */
+    /* Estilos para las tarjetas de "Propuesta de valor" y "LogÃ­stica" */
     .value-card {
       background: rgba(15, 23, 42, 0.7); /* Dark, slightly transparent ink color */
       border: 1px solid rgba(49, 62, 85, 0.6); /* Darker, subtle border */
@@ -445,7 +445,7 @@
       color: var(--futuristic-mute); /* Muted light blue for descriptions */
     }
 
-    /* Estilos para las categorías y otras tarjetas pequeñas */
+    /* Estilos para las categorÃ­as y otras tarjetas pequeÃ±as */
     .category-tag {
       background-color: rgba(255, 255, 255, 0.1); /* Light translucent white */
       border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle light border */
@@ -472,18 +472,18 @@
   <header id="main-header" class="sticky top-0 z-50 bg-white/80 backdrop-blur glass border-b border-gray-100">
     <div class="site-container flex items-center justify-between h-24">
       <a class="flex items-center gap-4 logo-wrap" href="#">
-        <img class="logo-big" src="https://i.postimg.cc/YSDhn3jJ/Chat-GPT-Image-31-ago-2025-03-26-38-p-m.png" alt="Ensintonía logo" loading="lazy" decoding="async">
+        <img class="logo-big" src="https://i.postimg.cc/YSDhn3jJ/Chat-GPT-Image-31-ago-2025-03-26-38-p-m.png" alt="EnsintonÃ­a logo" loading="lazy" decoding="async">
         <div>
-          <div class="neon-text hero-title-shadow text-2xl leading-tight">Ensintonía</div>
-          <div class="text-sm muted -mt-1">Importadora directa • Electrónica & Hogar</div>
+          <div class="neon-text hero-title-shadow text-2xl leading-tight">EnsintonÃ­a</div>
+          <div class="text-sm muted -mt-1">Importadora directa â€¢ ElectrÃ³nica & Hogar</div>
           <div class="mt-2 brand-underline"></div>
         </div>
       </a>
 
       <nav class="hidden md:flex items-center gap-6">
-        <a href="#quienes-somos" class="text-sm text-ink hover:text-brand-700 transition">Quiénes somos</a>
+        <a href="#quienes-somos" class="text-sm text-ink hover:text-brand-700 transition">QuiÃ©nes somos</a>
         <a href="#propuesta-valor" class="text-sm text-ink hover:text-brand-700 transition">Propuesta</a>
-        <a id="catalog-link-header" href="/catalogo.html" class="text-sm text-ink hover:text-brand-700 transition">Catálogo</a>
+        <a id="catalog-link-header" href="/catalogo.html" class="text-sm text-ink hover:text-brand-700 transition">CatÃ¡logo</a>
         <a href="#contacto" class="text-sm text-ink hover:text-brand-700 transition">Contacto</a>
         <a href="https://wa.me/5491159914197" target="_blank" rel="noopener" class="ml-4 px-4 py-2 rounded-full bg-green-600 text-white text-sm shadow-sm hover:bg-green-700 transition btn">WhatsApp</a>
       </nav>
@@ -505,7 +505,7 @@
   <!-- Mobile search (hidden on md+) -->
   <div id="mobile-search" class="md:hidden px-4 py-3 hidden">
     <div class="relative">
-      <input id="search-input-mobile" type="search" placeholder="Buscar… (Ctrl+K)" autocomplete="off"
+      <input id="search-input-mobile" type="search" placeholder="Buscarâ€¦ (Ctrl+K)" autocomplete="off"
              class="w-full rounded-2xl border border-gray-200 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-300" />
     </div>
   </div>
@@ -525,15 +525,15 @@
       <div class="mx-auto max-w-3xl">
         <div class="accent-line mx-auto mb-6 fade-up-init" id="hero-accent"></div>
         <h1 class="title text-4xl sm:text-5xl font-extrabold text-ink leading-tight mb-4 fade-up-init neon-text hero-title-shadow" id="hero-title">
-          Somos <span class="brand">Ensintonía</span>
+          Somos <span class="brand">EnsintonÃ­a</span>
         </h1>
         <p class="subtitle text-lg muted mb-8 fade-up-init" id="hero-sub">
-          Importadora directa de electrónica y soluciones para el hogar. Calidad, stock real y soporte local para que tu proyecto llegue sin sorpresas.
+          Importadora directa de electrÃ³nica y soluciones para el hogar. Calidad, stock real y soporte local para que tu proyecto llegue sin sorpresas.
         </p>
 
         <div class="flex items-center justify-center gap-4 flex-wrap fade-up-init" id="hero-ctas">
           <a id="hero-catalog-btn" href="/catalogo.html" class="btn btn-glow bg-brand-500 hover:bg-brand-600 text-white px-6 py-3 rounded-2xl shadow-sm card-polish btn-glow">
-            Ver catálogo
+            Ver catÃ¡logo
           </a>
           <a href="https://wa.me/5491159914197" target="_blank" rel="noopener" class="btn btn-outline border border-gray-200 px-5 py-3 rounded-2xl text-ink hover:bg-gray-50 card-polish">
             Escribinos por WhatsApp
@@ -541,7 +541,7 @@
         </div>
 
         <p class="mt-8 text-sm muted fade-up-init" id="hero-detail">
-          Desde componentes electrónicos hasta soluciones para el hogar: trabajamos con fabricantes internacionales para ofrecer productos confiables, entrega eficiente y respaldo local.
+          Desde componentes electrÃ³nicos hasta soluciones para el hogar: trabajamos con fabricantes internacionales para ofrecer productos confiables, entrega eficiente y respaldo local.
         </p>
       </div>
     </div>
@@ -552,26 +552,26 @@
     <div class="site-container">
       <div class="grid lg:grid-cols-2 gap-8 items-center">
         <div>
-          <h2 class="section-title text-2xl font-bold mb-4">Quiénes somos</h2>
-          <p class="text-muted-700 mb-4">En Ensintonía nacimos con una idea simple: acercar tecnología confiable al mejor precio posible, sin dolores de cabeza. Operamos desde Sarratea, Quilmes Oeste, combinando importación directa, selección de marcas y un servicio posventa que responde.</p>
-          <p class="text-muted-700">Nuestra propuesta mezcla <strong>stock real</strong>, <strong>asesoría honesta</strong> y <strong>logística simple</strong>. Si buscás electrónica para uso personal o para tu negocio, queremos que encuentres lo esencial: buen producto, buen precio y buena atención.</p>
+          <h2 class="section-title text-2xl font-bold mb-4">QuiÃ©nes somos</h2>
+          <p class="text-muted-700 mb-4">En EnsintonÃ­a nacimos con una idea simple: acercar tecnologÃ­a confiable al mejor precio posible, sin dolores de cabeza. Operamos desde Sarratea, Quilmes Oeste, combinando importaciÃ³n directa, selecciÃ³n de marcas y un servicio posventa que responde.</p>
+          <p class="text-muted-700">Nuestra propuesta mezcla <strong>stock real</strong>, <strong>asesorÃ­a honesta</strong> y <strong>logÃ­stica simple</strong>. Si buscÃ¡s electrÃ³nica para uso personal o para tu negocio, queremos que encuentres lo esencial: buen producto, buen precio y buena atenciÃ³n.</p>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div class="p-6 rounded-2xl shadow-sm card-modern">
-            <h3 class="font-semibold mb-2">Importación & distribución</h3>
-            <p class="text-sm text-muted-700">Líneas de audio, hogar y accesorios con lotes escalables.</p>
+            <h3 class="font-semibold mb-2">ImportaciÃ³n & distribuciÃ³n</h3>
+            <p class="text-sm text-muted-700">LÃ­neas de audio, hogar y accesorios con lotes escalables.</p>
           </div>
           <div class="p-6 rounded-2xl shadow-sm card-modern">
-            <h3 class="font-semibold mb-2">Asesoría de compra</h3>
+            <h3 class="font-semibold mb-2">AsesorÃ­a de compra</h3>
             <p class="text-sm text-muted-700">Te ayudamos a elegir con datos reales y expectativas claras.</p>
           </div>
           <div class="p-6 rounded-2xl shadow-sm card-modern">
             <h3 class="font-semibold mb-2">Posventa</h3>
-            <p class="text-sm text-muted-700">Soporte humano y gestión de garantías.</p>
+            <p class="text-sm text-muted-700">Soporte humano y gestiÃ³n de garantÃ­as.</p>
           </div>
           <div class="p-6 rounded-2xl shadow-sm card-modern">
             <h3 class="font-semibold mb-2">Alianzas B2B</h3>
-            <p class="text-sm text-muted-700">Precios por volumen y reposición programada.</p>
+            <p class="text-sm text-muted-700">Precios por volumen y reposiciÃ³n programada.</p>
           </div>
         </div>
       </div>
@@ -593,7 +593,7 @@
         <li class="p-4 rounded-2xl shadow-sm flex items-start gap-3 value-card">
           <svg class="w-6 h-6 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M6 7v10"/></svg>
           <div>
-            <strong>Curaduría de marcas</strong>
+            <strong>CuradurÃ­a de marcas</strong>
             <div class="text-sm text-muted-700">Probamos y elegimos lo mejor.</div>
           </div>
         </li>
@@ -601,32 +601,32 @@
           <svg class="w-6 h-6 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M5 10v10"/></svg>
           <div>
             <strong>Stock actualizado</strong>
-            <div class="text-sm text-muted-700">Inventario vivo y entregas ágiles.</div>
+            <div class="text-sm text-muted-700">Inventario vivo y entregas Ã¡giles.</div>
           </div>
         </li>
         <li class="p-4 rounded-2xl shadow-sm flex items-start gap-3 value-card">
           <svg class="w-6 h-6 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 8a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
           <div>
             <strong>Soporte cercano</strong>
-            <div class="text-sm text-muted-700">Acompañamos antes y después de la compra.</div>
+            <div class="text-sm text-muted-700">AcompaÃ±amos antes y despuÃ©s de la compra.</div>
           </div>
         </li>
       </ul>
     </div>
   </section>
 
-  <!-- CATEGORÍAS -->
+  <!-- CATEGORÃAS -->
   <section id="categorias" class="section py-16">
     <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-6">Categorías</h2>
+      <h2 class="section-title text-2xl font-bold mb-6">CategorÃ­as</h2>
 
-      <!-- NUEVO: Selector rápido para ir directo a una categoría -->
+      <!-- NUEVO: Selector rÃ¡pido para ir directo a una categorÃ­a -->
       <div class="mb-5 flex flex-wrap items-center gap-3" id="category-jump-wrap">
         <label for="category-jump" class="text-sm font-medium">Ir directo:</label>
         <select id="category-jump"
                 class="text-sm bg-white/10 border border-white/20 rounded-lg px-3 py-2
                        focus:outline-none focus:ring-2 focus:ring-brand-300 min-w-[230px]">
-          <option value="">Seleccioná una categoría…</option>
+          <option value="">SeleccionÃ¡ una categorÃ­aâ€¦</option>
         </select>
         <button id="category-jump-clear"
                 class="text-xs px-3 py-2 rounded-lg border border-white/20 text-ink hover:bg-white/10 transition"
@@ -634,55 +634,55 @@
       </div>
       <!-- FIN NUEVO -->
 
-      <!-- Reemplazado: lista dinámica -->
+      <!-- Reemplazado: lista dinÃ¡mica -->
       <ul id="categories-list" class="flex flex-wrap gap-3"></ul>
-      <p class="note text-sm text-muted-700 mt-4">El catálogo se actualiza seguido.</p>
+      <p class="note text-sm text-muted-700 mt-4">El catÃ¡logo se actualiza seguido.</p>
     </div>
   </section>
 
-  <!-- LOGÍSTICA -->
+  <!-- LOGÃSTICA -->
   <section id="logistica" class="section py-12 bg-white/60">
     <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-4">Logística y cobertura</h2>
+      <h2 class="section-title text-2xl font-bold mb-4">LogÃ­stica y cobertura</h2>
       <div class="grid md:grid-cols-3 gap-6">
         <div class="p-4 rounded-2xl shadow-sm value-card">
-          <h4 class="font-semibold mb-2">Envíos</h4>
-          <p class="text-sm text-muted-700">Correo y transporte; mensajería en AMBA. Costos y tiempos según destino y peso.</p>
+          <h4 class="font-semibold mb-2">EnvÃ­os</h4>
+          <p class="text-sm text-muted-700">Correo y transporte; mensajerÃ­a en AMBA. Costos y tiempos segÃºn destino y peso.</p>
         </div>
         <div class="p-4 rounded-2xl shadow-sm value-card">
           <h4 class="font-semibold mb-2">Pagos</h4>
-          <p class="text-sm text-muted-700">Efectivo, transferencia y medios electrónicos. Consultá por promociones.</p>
+          <p class="text-sm text-muted-700">Efectivo, transferencia y medios electrÃ³nicos. ConsultÃ¡ por promociones.</p>
         </div>
         <div class="p-4 rounded-2xl shadow-sm value-card">
-          <h4 class="font-semibold mb-2">Facturación</h4>
-          <p class="text-sm text-muted-700">Emitimos comprobantes según normativa vigente.</p>
+          <h4 class="font-semibold mb-2">FacturaciÃ³n</h4>
+          <p class="text-sm text-muted-700">Emitimos comprobantes segÃºn normativa vigente.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- GARANTÍA -->
+  <!-- GARANTÃA -->
   <section id="garantia" class="section py-12">
     <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-4">Garantías y cambios</h2>
-      <p class="text-muted-700 mb-4">Todos los productos cuentan con garantía del fabricante o del importador según el caso. Si recibís algo con falla de origen, avisanos dentro de los plazos para gestionar el cambio o la reparación.</p>
+      <h2 class="section-title text-2xl font-bold mb-4">GarantÃ­as y cambios</h2>
+      <p class="text-muted-700 mb-4">Todos los productos cuentan con garantÃ­a del fabricante o del importador segÃºn el caso. Si recibÃ­s algo con falla de origen, avisanos dentro de los plazos para gestionar el cambio o la reparaciÃ³n.</p>
       <ul class="list-disc pl-5 text-muted-700">
-        <li>Probamos y verificamos funcionamiento básico antes de despachar cuando corresponde.</li>
-        <li>Guardá packaging, accesorios y comprobante de compra para agilizar cualquier gestión.</li>
-        <li>Te asistimos para diagnosticar y resolver rápido.</li>
+        <li>Probamos y verificamos funcionamiento bÃ¡sico antes de despachar cuando corresponde.</li>
+        <li>GuardÃ¡ packaging, accesorios y comprobante de compra para agilizar cualquier gestiÃ³n.</li>
+        <li>Te asistimos para diagnosticar y resolver rÃ¡pido.</li>
       </ul>
     </div>
   </section>
 
-  <!-- CÓMO COMPRAR -->
+  <!-- CÃ“MO COMPRAR -->
   <section id="como-comprar" class="section py-12 bg-white/60">
     <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-4">Cómo comprar</h2>
+      <h2 class="section-title text-2xl font-bold mb-4">CÃ³mo comprar</h2>
       <ol class="list-decimal pl-5 text-muted-700 space-y-2">
-        <li>Entrá al <a class="text-brand-500 underline" href="/catalogo.html">catálogo</a> y elegí tu producto.</li>
+        <li>EntrÃ¡ al <a class="text-brand-500 underline" href="/catalogo.html">catÃ¡logo</a> y elegÃ­ tu producto.</li>
         <li>Consultanos disponibilidad y medio de pago.</li>
-        <li>Coordinamos envío o retiro.</li>
-        <li>Recibís y probás. Si necesitás ayuda, estamos.</li>
+        <li>Coordinamos envÃ­o o retiro.</li>
+        <li>RecibÃ­s y probÃ¡s. Si necesitÃ¡s ayuda, estamos.</li>
       </ol>
     </div>
   </section>
@@ -692,16 +692,16 @@
     <div class="site-container">
       <h2 class="section-title text-2xl font-bold mb-4">Preguntas frecuentes</h2>
       <details class="mb-3">
-        <summary>¿Tienen stock real?</summary>
-        <p class="text-muted-700">Actualizamos el inventario a diario. Si algo varía, te avisamos antes de cerrar la compra.</p>
+        <summary>Â¿Tienen stock real?</summary>
+        <p class="text-muted-700">Actualizamos el inventario a diario. Si algo varÃ­a, te avisamos antes de cerrar la compra.</p>
       </details>
       <details class="mb-3">
-        <summary>¿Hacen precios por cantidad?</summary>
-        <p class="text-muted-700">Sí. Para comercios y revendedores tenemos escalas por volumen. Pedí tu lista.</p>
+        <summary>Â¿Hacen precios por cantidad?</summary>
+        <p class="text-muted-700">SÃ­. Para comercios y revendedores tenemos escalas por volumen. PedÃ­ tu lista.</p>
       </details>
       <details class="mb-3">
-        <summary>¿Cuánto tarda el envío?</summary>
-        <p class="text-muted-700">Depende del destino y del operador. En AMBA suele ser más ágil. Te pasamos estimado al momento de comprar.</p>
+        <summary>Â¿CuÃ¡nto tarda el envÃ­o?</summary>
+        <p class="text-muted-700">Depende del destino y del operador. En AMBA suele ser mÃ¡s Ã¡gil. Te pasamos estimado al momento de comprar.</p>
       </details>
     </div>
   </section>
@@ -712,12 +712,12 @@
       <h2 class="section-title text-2xl font-bold mb-4">Contacto</h2>
       <address class="not-italic text-muted-700">
         <strong>Base de operaciones:</strong> Sarratea, Quilmes Oeste, Buenos Aires<br>
-        <strong>WhatsApp:</strong> <a class="text-brand-500 underline" href="https://wa.me/5491159914197" target="_blank" rel="noopener">+54 9 11 5991‑4197</a><br>
+        <strong>WhatsApp:</strong> <a class="text-brand-500 underline" href="https://wa.me/5491159914197" target="_blank" rel="noopener">+54 9 11 5991â€‘4197</a><br>
         <strong>Horarios:</strong> a coordinar (consultar disponibilidad)
       </address>
 
       <div class="mt-6 flex gap-3">
-        <a href="/catalogo.html" class="btn btn-primary bg-brand-500 hover:bg-brand-600 text-white px-5 py-3 rounded-2xl shadow-sm card-hover">Ir al catálogo</a>
+        <a href="/catalogo.html" class="btn btn-primary bg-brand-500 hover:bg-brand-600 text-white px-5 py-3 rounded-2xl shadow-sm card-hover">Ir al catÃ¡logo</a>
         <a href="https://wa.me/5491159914197" target="_blank" rel="noopener" class="btn btn-outline border border-gray-200 px-5 py-3 rounded-2xl">Escribir por WhatsApp</a>
       </div>
     </div>
@@ -726,22 +726,22 @@
   <!-- CIERRE -->
   <section id="cierre" class="section py-12">
     <div class="site-container text-center">
-      <h2 class="section-title text-2xl font-bold mb-4">Tecnología que suma, sin complicaciones</h2>
-      <p class="text-muted-700 mb-6">Ese es nuestro norte. Si buscás precio, garantía y una atención que responde, estamos en la misma sintonía.</p>
-      <a href="/catalogo.html" class="btn btn-primary bg-brand-500 hover:bg-brand-600 text-white px-6 py-3 rounded-2xl shadow-sm card-hover">Ver catálogo</a>
+      <h2 class="section-title text-2xl font-bold mb-4">TecnologÃ­a que suma, sin complicaciones</h2>
+      <p class="text-muted-700 mb-6">Ese es nuestro norte. Si buscÃ¡s precio, garantÃ­a y una atenciÃ³n que responde, estamos en la misma sintonÃ­a.</p>
+      <a href="/catalogo.html" class="btn btn-primary bg-brand-500 hover:bg-brand-600 text-white px-6 py-3 rounded-2xl shadow-sm card-hover">Ver catÃ¡logo</a>
     </div>
   </section>
 
   <!-- Schema.org JSON-LD (mantener) -->
   <!-- ==========================
-Schema.org — Organization (ajustá datos si cambia el teléfono o agregás redes)
+Schema.org â€” Organization (ajustÃ¡ datos si cambia el telÃ©fono o agregÃ¡s redes)
 ========================== -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "Organization",
-  "name": "Ensintonía",
-  "description": "Importadora y distribuidora de electrónica y productos para el hogar. Atención mayorista y minorista desde Quilmes Oeste.",
+  "name": "EnsintonÃ­a",
+  "description": "Importadora y distribuidora de electrÃ³nica y productos para el hogar. AtenciÃ³n mayorista y minorista desde Quilmes Oeste.",
   "address": {
     "@type": "PostalAddress",
     "streetAddress": "Sarratea",
@@ -760,7 +760,7 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
 }
 </script>
 
-  <!-- Small script to orchestrate hero entrance and small interactivity (delegado a main.js para la lógica pesada) -->
+  <!-- Small script to orchestrate hero entrance and small interactivity (delegado a main.js para la lÃ³gica pesada) -->
   <script>
     // secuencia visual del hero (simple y ligera)
     (function(){
@@ -914,10 +914,10 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
   </script>
 
   <div id="mobile-nav" aria-hidden="true">
-    <button class="mn-overlay" data-close="1" aria-label="Cerrar menú"></button>
-    <nav class="mn-panel" role="dialog" aria-modal="true" aria-label="Menú móvil">
+    <button class="mn-overlay" data-close="1" aria-label="Cerrar menÃº"></button>
+    <nav class="mn-panel" role="dialog" aria-modal="true" aria-label="MenÃº mÃ³vil">
       <div class="flex items-center justify-between mb-1">
-        <span class="font-semibold text-lg">Menú</span>
+        <span class="font-semibold text-lg">MenÃº</span>
         <button id="mobile-menu-close" class="p-2 rounded-md hover:bg-gray-100" aria-label="Cerrar">
           <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M6 18L18 6"/>
@@ -926,21 +926,21 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
       </div>
 
       <div>
-        <h6>Navegación</h6>
-        <a href="#quienes-somos" data-link>Quiénes somos</a>
+        <h6>NavegaciÃ³n</h6>
+        <a href="#quienes-somos" data-link>QuiÃ©nes somos</a>
         <a href="#propuesta-valor" data-link>Propuesta</a>
-        <a href="/catalogo.html" data-link>Catálogo</a>
+        <a href="/catalogo.html" data-link>CatÃ¡logo</a>
         <a href="#contacto" data-link>Contacto</a>
-        <a href="contact.html" data-link>Contacto (página)</a>
+        <a href="contact.html" data-link>Contacto (pÃ¡gina)</a>
       </div>
 
       <div>
-        <h6>Categorías</h6>
+        <h6>CategorÃ­as</h6>
         <ul id="mobile-cats" class="space-y-1"></ul>
       </div>
 
       <div class="mt-2">
-        <h6>Acción</h6>
+        <h6>AcciÃ³n</h6>
         <a href="https://wa.me/5491159914197" target="_blank" rel="noopener">WhatsApp</a>
       </div>
     </nav>
@@ -955,7 +955,7 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
 
       if(!btn || !panelWrap) return;
 
-      // syncCategories eliminado: ahora las categorías se inyectan en vivo desde Firestore
+      // syncCategories eliminado: ahora las categorÃ­as se inyectan en vivo desde Firestore
 
       function trapFocus(e){
         if(e.key !== 'Tab') return;
@@ -1043,186 +1043,116 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
     })();
   </script>
 
-  <!-- Carga dinámica de categorías (Firestore) -->
+  <!-- Carga dinÃ¡mica de categorÃ­as (Firestore) -->
   <script type="module">
-    console.log('BUILD ID:', '2025-08-31_15:40');
+  import { API_BASE } from './config.js';
 
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    import { db as importedDb, auth as importedAuth, firebaseConfig as importedFirebaseConfig } from './firebaseconfig.js';
+  const $home   = document.getElementById('categories-list');
+  const $mobile = document.getElementById('mobile-cats');
+  const $select = document.getElementById('category-jump');
+  const $clear  = document.getElementById('category-jump-clear');
 
-    console.log('[CATS] init block (home)');
+  const slugify = (s='') =>
+    String(s)
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .toLowerCase().trim()
+      .replace(/[^\w\s-]/g,'')
+      .replace(/\s+/g,'-')
+      .replace(/-+/g,'-');
 
-    const app  = initializeApp(importedFirebaseConfig);
-    const db   = importedDb || getFirestore(app);
-    const auth = importedAuth || getAuth(app);
-    const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+  function render(categories){
+    if ($home)   $home.innerHTML = '';
+    if ($mobile) $mobile.innerHTML = '';
+    if ($select) $select.innerHTML = '<option value="">Seleccioná una categoría…</option>';
 
-    const $home   = document.getElementById('categories-list');   // chips en portada
-    const $mobile = document.getElementById('mobile-cats');       // menú hamburguesa
-    const $select = document.getElementById('category-jump');     // "Ir directo"
-    const $clear  = document.getElementById('category-jump-clear');
-
-    // REEMPLAZO slugify previo por la versión solicitada
-    function slugify(s=''){
-      return String(s)
-        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')   // quitar tildes
-        .toLowerCase().trim()
-        .replace(/[^\w\s-]/g,'')                          // quitar símbolos raros
-        .replace(/\s+/g,'-')                              // espacios -> guion
-        .replace(/-+/g,'-');                              // colapsar guiones
+    if (!categories || !categories.length){
+      if ($home) $home.innerHTML = '<li class="px-3 py-2 rounded-full category-tag opacity-70">Sin categorías</li>';
+      if ($clear) $clear.hidden = true;
+      return;
     }
 
-    function render(categories){
-      console.log('[CATS] render count:', categories.length);
-      if ($home)   $home.innerHTML = '';
-      if ($mobile) $mobile.innerHTML = '';
-      if ($select) $select.innerHTML = '<option value="">Seleccioná una categoría…</option>';
+    const fragHome = document.createDocumentFragment();
+    const fragMob  = document.createDocumentFragment();
 
-      if (!categories.length){
-        if ($home) $home.innerHTML = '<li class="px-3 py-2 rounded-full category-tag opacity-70">Sin categorías</li>';
-        if ($clear) $clear.hidden = true;
-        return;
+    categories.forEach(c => {
+      const name = c.name || c.nombre || 'Categoría';
+      const slug = c.slug ? String(c.slug) : slugify(name);
+      const icon = c.icon || c.icon_url || c.iconUrl;
+
+      if ($home){
+        const li = document.createElement('li');
+        li.className = 'px-3 py-2 rounded-full category-tag';
+        li.innerHTML = `<a href="catalogo.html?cat=${encodeURIComponent(name)}" class="flex items-center gap-1" data-cat="${slug}">${icon ? `<img src="${icon}" class="w-4 h-4 object-contain" alt="">` : ''}<span>${name}</span></a>`;
+        fragHome.appendChild(li);
       }
 
-      const fragHome = document.createDocumentFragment();
-      const fragMob  = document.createDocumentFragment();
-
-      categories.forEach(c=>{
-        const name = c.name || c.nombre || 'Categoría';
-        const slug = c.slug ? String(c.slug) : slugify(name);
-        const icon = c.icon || c.iconUrl;
-
-        if ($home){
-          const li = document.createElement('li');
-          li.className = 'px-3 py-2 rounded-full category-tag';
-          li.innerHTML = `<a href=\"catalogo.html?cat=${'${encodeURIComponent(name)}'}\" class=\"flex items-center gap-1\" data-cat=\"${'${slug}'}\">
-            ${icon ? `<img src="${icon}" class="w-4 h-4 object-contain" alt="">` : ''}
-            <span>${name}</span>
-          </a>`;
-          fragHome.appendChild(li);
-        }
-
-        if ($mobile){
-          const liM = document.createElement('li');
-          liM.innerHTML = `<a data-cat=\"${'${slug}'}\" href=\"catalogo.html?cat=${'${encodeURIComponent(name)}'}\"
-              class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 text-sm">
-              ${icon ? `<img src="${icon}" class="w-4 h-4 object-contain" alt="">` : ''}
-              <span>${name}</span>
-          </a>`;
-          fragMob.appendChild(liM);
-        }
-
-        if ($select){
-          const opt = document.createElement('option');
-          opt.value = name;
-          opt.textContent = name;
-          $select.appendChild(opt);
-        }
-      });
-
-      if ($home)   $home.appendChild(fragHome);
-      if ($mobile) $mobile.appendChild(fragMob);
-
-      if ($clear){
-        $clear.hidden = !$select || !$select.value;
+      if ($mobile){
+        const liM = document.createElement('li');
+        liM.innerHTML = `<a data-cat="${slug}" href="catalogo.html?cat=${encodeURIComponent(name)}" class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 text-sm">${icon ? `<img src="${icon}" class="w-4 h-4 object-contain" alt="">` : ''}<span>${name}</span></a>`;
+        fragMob.appendChild(liM);
       }
-    }
 
-    // Delegación click móvil para cerrar y navegar
-    (function wireMobileNav(){
-      if (!$mobile) return;
-      $mobile.addEventListener('click', e=>{
-        const a = e.target.closest('a[data-cat]');
-        if(!a) return;
-        console.log('[CATS] mobile nav ->', a.dataset.cat);
-        // cerrar usando overlay existente para mantener animaciones
-        const overlay = document.querySelector('#mobile-nav .mn-overlay');
-        if (overlay) overlay.click();
-        // navegación natural
-      });
-    })();
+      if ($select){
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        $select.appendChild(opt);
+      }
+    });
 
-    // Select jump + clear
-    if ($select){
-      $select.addEventListener('change', ()=>{
-        if ($select.value){
-          if ($clear) $clear.hidden = false;
-          window.location.href = `catalogo.html?cat=${encodeURIComponent($select.value)}`;
-        } else {
-          if ($clear) $clear.hidden = true;
-        }
-      });
-    }
+    if ($home)   $home.appendChild(fragHome);
+    if ($mobile) $mobile.appendChild(fragMob);
+
     if ($clear){
-      $clear.addEventListener('click', ()=>{
-        if ($select){
-          $select.value = '';
-          $clear.hidden = true;
-        }
-      });
+      $clear.hidden = !$select || !$select.value;
     }
+  }
 
-    // Auth + snapshot
-    signInAnonymously(auth).catch(err=>{
-      console.warn('[CATS] anon sign-in failed (continuing read-only)', err?.code);
+  async function fetchJson(url){ const r=await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
+
+  try {
+    const rows = await fetchJson(`${API_BASE}/categorias`);
+    render(rows || []);
+  } catch (e) {
+    console.error('Categorías API error', e);
+    render([]);
+  }
+
+  if ($select){
+    $select.addEventListener('change', ()=> {
+      if ($select.value){
+        if ($clear) $clear.hidden = false;
+        window.location.href = `catalogo.html?cat=${encodeURIComponent($select.value)}`;
+      } else {
+        if ($clear) $clear.hidden = true;
+      }
     });
-
-    onAuthStateChanged(auth, ()=>{
-      console.log('[CATS] auth ready, subscribing');
-      const colRef = collection(db, `artifacts/${appId}/public/data/categories`);
-      onSnapshot(colRef, (snap)=>{
-        const rows = snap.docs.map(d=>({ id:d.id, ...d.data() }));
-        const act = rows.filter(x => x.active === true || x.active === 'true' || x.active === 1);
-        render(act.length ? act : rows);
-      }, err=>{
-        console.error('[CATS] snapshot error', err);
-        render([]);
-      });
+  }
+  if ($clear){
+    $clear.addEventListener('click', ()=>{
+      if ($select){
+        $select.value = '';
+        $clear.hidden = true;
+      }
     });
+  }
 
-    // --- fuerza href correcto en todos los links de categorías (home + hamburguesa) ---
-    function fixCategoryLinks(){
-      const roots = [
-        document.getElementById('categories-list'),
-        document.getElementById('mobile-cats')
-      ];
-      roots.forEach(root=>{
-        if(!root) return;
-        root.querySelectorAll('a').forEach(a=>{
-          const catName = (a.querySelector('span')?.textContent || a.textContent || '').trim();
-          if(!catName) return;
-          const want = `catalogo.html?cat=${encodeURIComponent(catName)}`;
-          a.setAttribute('href', want);
-          if(!a.__catPatched){
-            a.addEventListener('click', e=>{
-              const current = a.getAttribute('href') || '';
-              if(!current.includes('?cat=')){
-                e.preventDefault();
-                location.href = want;
-              }
-            }, { capture:true });
-            a.__catPatched = 1;
-          }
-        });
-      });
-    }
+  (function wireMobileNav(){
+    if (!$mobile) return;
+    $mobile.addEventListener('click', (e)=>{
+      const a = e.target.closest('a[data-cat]');
+      if(!a) return;
+      const overlay = document.querySelector('#mobile-nav .mn-overlay');
+      if (overlay) overlay.click();
+    });
+  })();
+</script>
 
-    // ejecutar ahora
-    fixCategoryLinks();
-
-    // observar cambios para re-fijar (re-renders / snapshots)
-    new MutationObserver(()=>fixCategoryLinks())
-      .observe(document.body, { subtree:true, childList:true });
-
-  </script>
-
-  <!-- catalogo.html (agregá esto antes de filtrar productos por categoría, por ejemplo antes de loadProductsByCategory)
+  <!-- catalogo.html (agregÃ¡ esto antes de filtrar productos por categorÃ­a, por ejemplo antes de loadProductsByCategory)
 const urlParams = new URLSearchParams(window.location.search);
 const category = urlParams.get('category') || urlParams.get('cat'); // retrocompatibilidad
 
-// Luego usá la constante category para filtrar productos por su slug
+// Luego usÃ¡ la constante category para filtrar productos por su slug
 // Ejemplo de uso:
 if (category) {
   // filtrar productos por slug === category
@@ -1231,6 +1161,7 @@ if (category) {
 -->
 </body>
 </html>
+
 
 
 
