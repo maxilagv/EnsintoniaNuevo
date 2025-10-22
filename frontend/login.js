@@ -81,7 +81,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log("Login del panel usando API del servidor (JWT)");
 
-    const API_BASE = 'https://ensintonia-backend.onrender.com/api'; // o la URL real de Render
+const API_BASE = '/api';
+
 
 
     // Forzar autenticación: si entras a login.html, se limpia cualquier sesión previa
