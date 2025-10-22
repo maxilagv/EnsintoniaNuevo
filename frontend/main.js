@@ -1138,10 +1138,24 @@ async function getProductByIdFS(id) {
 }
 
 async function fetchProductById(id) {
+  // Try local cache first; then fallback to API list
   let prod = getProductByIdLocal(id);
   if (prod) return prod;
-  prod = await getProductByIdFS(id);
-  return prod;
+  try {
+    let rows;
+    try {
+      rows = await fetchJson(`${API_BASE}/productos`);
+    } catch (_) {
+      rows = await fetchJson(`${API_BASE}/products`);
+    }
+    const mapped = (rows || []).map(mapApiProduct);
+    productsFullCache = mapped;
+    if (typeof window !== 'undefined') window.productsFullCache = mapped;
+    return mapped.find(p => String(p.id) === String(id)) || null;
+  } catch (e) {
+    console.error('fetchProductById fallback (API) error', e);
+    return null;
+  }
 }
 
 /**
@@ -1155,6 +1169,58 @@ async function loadSimilarProducts(categoryName, excludeId) {
   if (!categoryName) { wrap.innerHTML = ''; return; }
 
   wrap.innerHTML = '<p class="col-span-full text-center text-futuristic-mute">Cargando productos similares...</p>';
+  // Preferir API + cache en lugar de Firebase
+  try {
+    if (!Array.isArray(productsFullCache) || productsFullCache.length === 0) {
+      let rows;
+      try {
+        rows = await fetchJson(`${API_BASE}/productos`);
+      } catch (_) {
+        rows = await fetchJson(`${API_BASE}/products`);
+      }
+      productsFullCache = (rows || []).map(mapApiProduct);
+      if (typeof window !== 'undefined') window.productsFullCache = productsFullCache;
+    }
+
+    const norm = String(categoryName || '').toLowerCase();
+    const similar = productsFullCache
+      .filter(p => (p.categoryName || p.category || '').toLowerCase() === norm)
+      .filter(p => !excludeId || String(p.id) !== String(excludeId))
+      .slice(0, 6);
+
+    wrap.innerHTML = '';
+    if (!similar.length) {
+      wrap.innerHTML = '<p class="col-span-full text-center text-futuristic-mute">No hay productos similares.</p>';
+      return;
+    }
+
+    similar.forEach(p => {
+      const name = p.name || 'Producto';
+      const imageUrl = p.imageUrl || 'https://placehold.co/400x300/cccccc/333333?text=Sin+Imagen';
+      const price = (p.price !== undefined ? p.price : p.precio);
+      const priceHtml = (price !== undefined && price !== null)
+        ? `<div class=\"mt-2\"><span class=\"price-chip\"><i class=\"fa-solid fa-tag text-white/80 text-xs\"></i>$${Number(price).toLocaleString('es-AR',{minimumFractionDigits:2, maximumFractionDigits:2})}</span></div>`
+        : '';
+
+      const card = document.createElement('div');
+      card.className = 'product-card group rounded-2xl flex flex-col cursor-pointer';
+      card.dataset.id = p.id;
+      card.innerHTML = `
+        <div class=\"relative aspect-[4/3] overflow-hidden rounded-t-2xl\">`
+        + `  <img src=\"${imageUrl}\" alt=\"${name}\" class=\"w-full h-full object-cover\" loading=\"lazy\" onerror=\"this.onerror=null;this.src='https://placehold.co/400x300/cccccc/333333?text=Sin+Imagen';\">`
+        + `</div>
+        <div class=\"p-3\">
+          <h4 class=\"text-sm font-medium text-futuristic-ink line-clamp-2\">${name}</h4>
+          ${priceHtml}
+        </div>`;
+      wrap.appendChild(card);
+    });
+    return; // Evitar fallback a Firebase
+  } catch (e) {
+    console.error('loadSimilarProducts (API) - Error:', e);
+    // Continúa al fallback Firebase si falla la API
+  }
+
   try {
     const productsColRef = collection(db, `artifacts/${appId}/public/data/products`);
     let q1 = query(productsColRef, where('categoryName', '==', categoryName), limit(6));
