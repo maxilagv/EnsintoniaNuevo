@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EnsintonÃ­a - Todo para tu hogar</title>
+    <title>Ensintonía - Todo para tu hogar</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -565,7 +565,7 @@
             <nav class="hidden md:flex items-center gap-6">
                 <a href="index.html#quienes-somos" class="navbar-link text-sm font-medium">QuiÃ©nes somos</a>
                 <a href="index.html#propuesta-valor" class="navbar-link text-sm font-medium">Propuesta</a>
-                <a href="#catalogo-productos" class="navbar-link text-sm font-medium">CatÃ¡logo</a>
+                <a href="#catalogo-productos" class="navbar-link text-sm font-medium">Catálogo</a>
                 <a href="contact.html" class="navbar-link text-sm font-medium">Contacto</a>
                 <a href="https://wa.me/5491159914197" target="_blank" rel="noopener" class="ml-4 px-4 py-2 rounded-full bg-green-600 text-white text-sm shadow-sm hover:bg-green-700 transition btn">WhatsApp</a>
             </nav>
@@ -611,7 +611,7 @@
             <a href="index.html#propuesta-valor" class="block py-2 font-medium hover:text-brand-1">Propuesta</a>
           </li>
           <li>
-            <a id="catalog-link-mobile" href="#catalogo-productos" class="block py-2 font-medium hover:text-brand-1">CatÃ¡logo</a>
+            <a id="catalog-link-mobile" href="#catalogo-productos" class="block py-2 font-medium hover:text-brand-1">Catálogo</a>
           </li>
           <li>
             <button id="categories-toggle-button"
@@ -632,10 +632,10 @@
       </div>
     </nav>
 
-    <!-- Hero del CatÃ¡logo -->
+    <!-- Hero del Catálogo -->
     <section class="py-16 md:py-24">
       <div class="container mx-auto px-4 text-center">
-        <h1 class="hero-catalog-title text-5xl font-extrabold leading-tight mb-4 animate-fade-in-down">Explora Nuestro CatÃ¡logo</h1>
+        <h1 class="hero-catalog-title text-5xl font-extrabold leading-tight mb-4 animate-fade-in-down">Explora Nuestro Catálogo</h1>
         <p class="hero-catalog-subtitle text-lg leading-relaxed max-w-2xl mx-auto mb-6 animate-fade-in-up">
           Descubre una cuidadosa selecciÃ³n de electrÃ³nica y productos para el hogar.
           Calidad, innovaciÃ³n y funcionalidad en cada detalle.
@@ -671,6 +671,10 @@
     <section id="productos" class="py-16 sm:py-20 bg-white/5 backdrop-blur-sm border-t border-b border-white/10">
         <div class="container mx-auto px-4">
             <h2 class="text-3xl sm:text-4xl font-bold text-center mb-12 sm:mb-16 hero-catalog-title animate-fade-in-down">Nuestras CategorÃ­as</h2>
+            <div class="flex flex-wrap gap-3 justify-center mb-10">
+              <a href="#productos" class="btn btn-outline">Ver categorías</a>
+              <a href="#catalogo-productos" class="btn btn-primary">Ver todos los productos</a>
+            </div>
             <div id="categories-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 <!-- Skeletons: 6 items para categorÃ­as -->
                 <div class="product-card animate-pulse">
@@ -690,7 +694,7 @@
         </div>
     </section>
 
-    <!-- Nueva SecciÃ³n para Productos (CatÃ¡logo General) -->
+    <!-- Nueva Sección para Productos (Catálogo General) -->
     <section id="catalogo-productos" class="py-16 sm:py-20">
         <div class="container mx-auto px-4">
             <h2 id="category-title" class="text-3xl sm:text-4xl font-bold text-center mb-12 sm:mb-16 hero-catalog-title animate-fade-in-down">Todos Nuestros Productos</h2>
@@ -838,7 +842,7 @@
     <div id="categories-loading-spinner" class="hidden fixed inset-0 z-[60] grid place-items-center bg-white/5 backdrop-blur-sm">
       <div class="rounded-2xl border border-white/20 bg-gray-900/80 shadow-lg p-5 text-center text-futuristic-ink">
         <div class="animate-spin h-6 w-6 mx-auto mb-3 rounded-full border-2 border-white/30 border-t-brand-1"></div>
-        <p class="text-sm font-medium">Cargando categorÃ­asâ€¦</p>
+        <p class="text-sm font-medium">Cargando categorías...</p>
       </div>
     </div>
 
@@ -846,7 +850,7 @@
     <div id="products-loading-spinner" class="hidden fixed inset-0 z-[60] grid place-items-center bg-white/5 backdrop-blur-sm">
       <div class="rounded-2xl border border-white/20 bg-gray-900/80 shadow-lg p-5 text-center text-futuristic-ink">
         <div class="animate-spin h-6 w-6 mx-auto mb-3 rounded-full border-2 border-white/30 border-t-brand-1"></div>
-        <p class="text-sm font-medium">Cargando productosâ€¦</p>
+        <p class="text-sm font-medium">Cargando productos...</p>
       </div>
     </div>
 
@@ -854,7 +858,7 @@
     <div id="futuristic-loader" class="hidden fixed inset-0 z-[70] grid place-items-center bg-gradient-to-b from-white/5 to-slate-50/5">
       <div class="text-center">
         <div class="animate-spin h-8 w-8 mx-auto mb-4 rounded-full border-2 border-white/30 border-t-brand-1"></div>
-        <h3 class="text-base font-semibold text-futuristic-ink">Preparando catÃ¡logoâ€¦</h3>
+        <h3 class="text-base font-semibold text-futuristic-ink">Preparando catálogo...</h3>
         <p class="text-sm text-futuristic-mute mt-1">Un segundo, por favor</p>
       </div>
     </div>
@@ -872,6 +876,28 @@
             if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
           }
         },60);
+    </script>
+
+    <!-- Correcciones rápidas de textos (acentos y flechas) -->
+    <script>
+      (function fixTexts(){
+        try {
+          const sel = document.getElementById('product-sort');
+          if (sel && sel.options && sel.options.length >= 4) {
+            const map = {
+              recent: 'Más recientes',
+              old: 'Más viejos',
+              az: 'A → Z',
+              za: 'Z → A'
+            };
+            for (const opt of sel.options) {
+              if (map[opt.value]) opt.textContent = map[opt.value];
+            }
+          }
+          const catsTitle = document.querySelector('#productos h2');
+          if (catsTitle) catsTitle.textContent = 'Nuestras Categorías';
+        } catch(e) { /* noop */ }
+      })();
     </script>
     
     <!-- Forzar que la pÃ¡gina siempre arranque arriba del todo -->

@@ -1747,18 +1747,27 @@ async function loadCategoriesApi() {
 
       if (categoriesContainer) {
         const card = document.createElement('div');
-        card.className = 'category-card rounded-xl overflow-hidden shadow-md bg-white/5 border border-white/10';
+        card.className = 'category-card rounded-xl overflow-hidden shadow-md bg-white/5 border border-white/10 flex flex-col';
         card.dataset.categoryName = name;
         card.dataset.originalImage = img;
+        const href = `catalogo.html?cat=${encodeURIComponent(name)}`;
         card.innerHTML = `
-          <img
-            src="${img || 'https://placehold.co/600x300/cccccc/333333?text=Categoria'}"
-            alt="${name}"
-            class="w-full h-40 object-cover category-image-animated"
-            loading="lazy"
-            onerror="this.onerror=null;this.src='https://placehold.co/600x300/cccccc/333333?text=Categoria'"
-          />
-          <div class="p-3 text-center text-white/90 font-semibold">${name}</div>`;
+          <a href="${href}" class="block">
+            <img
+              src="${img || 'https://placehold.co/600x300/cccccc/333333?text=Categoria'}"
+              alt="${name}"
+              class="w-full h-40 object-cover category-image-animated"
+              loading="lazy"
+              onerror="this.onerror=null;this.src='https://placehold.co/600x300/cccccc/333333?text=Categoria'"
+            />
+          </a>
+          <div class="p-3 text-center text-white/90 font-semibold">${name}</div>
+          <div class="px-3 pb-4 text-center mt-auto">
+            <a href="${href}" class="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition">
+              <i class="fa-solid fa-eye"></i>
+              Ver productos
+            </a>
+          </div>`;
         categoriesContainer.appendChild(card);
       }
 
