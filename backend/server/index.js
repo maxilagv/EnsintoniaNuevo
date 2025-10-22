@@ -146,6 +146,9 @@ app.use(cors({
   credentials: false,
   optionsSuccessStatus: 204
 }));
+// ✅ Forzar respuesta automática a todas las preflight OPTIONS
+app.options('*', cors());
+
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 
