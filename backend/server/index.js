@@ -41,9 +41,14 @@ const PORT = process.env.PORT || 3000;
 app.disable('x-powered-by');
 
 // Usar Helmet para configurar encabezados HTTP y políticas adicionales
+// Usar Helmet con ajustes para COEP y recursos externos
 app.use(helmet({
-  referrerPolicy: { policy: 'no-referrer' }
+  referrerPolicy: { policy: 'no-referrer' },
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: { policy: "same-origin" },
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+
 
 // Construir lista de connectSrc para CSP dinámicamente desde entornos permitidos
 const cspConnectSrc = (() => {
