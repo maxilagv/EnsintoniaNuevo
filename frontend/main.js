@@ -1685,10 +1685,14 @@ async function loadCategoriesApi() {
         card.dataset.categoryName = name;
         card.dataset.originalImage = img;
         card.innerHTML = `
-          <a href="catalogo.html?cat=${encodeURIComponent(name)}" class="block">
-            <img src="${img}" alt="${name}" class="w-full h-40 object-cover category-image-animated" onerror="this.onerror=null;this.src='https://placehold.co/600x300/cccccc/333333?text=Categoria'">
-            <div class="p-3 text-center text-white/90 font-semibold">${name}</div>
-          </a>`;
+          <img
+            src="${img || 'https://placehold.co/600x300/cccccc/333333?text=Categoria'}"
+            alt="${name}"
+            class="w-full h-40 object-cover category-image-animated"
+            loading="lazy"
+            onerror="this.onerror=null;this.src='https://placehold.co/600x300/cccccc/333333?text=Categoria'"
+          />
+          <div class="p-3 text-center text-white/90 font-semibold">${name}</div>`;
         categoriesContainer.appendChild(card);
       }
 
