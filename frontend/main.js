@@ -1242,9 +1242,9 @@ function renderThumbs(imgs=[]){
     const b = document.createElement('button');
     b.className = 'w-16 h-16 rounded-lg overflow-hidden border border-white/20 bg-white/5 hover:border-brand-1'; // Adjusted classes for dark theme
     b.innerHTML = `<img src="${src}" alt="" class="w-full h-full object-cover">`;
-    b.addEventListener('click', ()=> { if($pd.image) $pd.image.src = src; });
+    b.addEventListener('click', ()=> { if($pd.image) $pd.image.src = resolveImageUrl(src); });
     $pd.thumbs.appendChild(b);
-    if(i===0 && $pd.image) $pd.image.src = src;
+    if(i===0 && $pd.image) $pd.image.src = resolveImageUrl(src);
   });
   if(!imgs.length && $pd.image) $pd.image.src = '';
 }
@@ -1649,6 +1649,23 @@ async function fetchJson(url, opts = {}) {
   return ct.includes('application/json') ? resp.json() : null;
 }
 
+// Normaliza URLs de imagen: absolutas, relativas y data:
+function resolveImageUrl(p) {
+  try {
+    if (!p) return '';
+    const s = String(p).trim();
+    if (!s) return '';
+    if (/^(data:|https?:)/i.test(s)) return s;
+    let origin = '';
+    try { origin = new URL(API_BASE).origin; } catch (_) { origin = ''; }
+    if (!origin) return s;
+    if (s.startsWith('/')) return origin + s;
+    return origin + '/' + s.replace(/^\.\//, '');
+  } catch (_) {
+    return p || '';
+  }
+}
+
 async function loadCategoriesApi() {
   try {
     showLoading('categories-loading-spinner');
@@ -1665,7 +1682,7 @@ async function loadCategoriesApi() {
 
     (rows || []).forEach((cat) => {
       const name = cat.name || '';
-      const img = cat.image_url || cat.image_file_path || '';
+      const img = resolveImageUrl(cat.image_url || cat.image_file_path || cat.imageUrl || cat.icon || cat.icon_url || '');
 
       if (categoriesContainer) {
         const card = document.createElement('div');
@@ -1701,7 +1718,7 @@ function mapApiProduct(row) {
     name: row.name,
     description: row.description || '',
     price: row.price,
-    imageUrl: row.image_url || row.image_file_path || '',
+    imageUrl: resolveImageUrl(row.image_url || row.image_file_path || row.imageUrl || row.imagen || row.img || ''),
     categoryName: row.category_name,
     createdAt: row.created_at ? new Date(row.created_at) : undefined,
     stock: row.stock_quantity,
@@ -1754,4 +1771,5 @@ async function loadProductsByCategoryApi(categoryName) {
     checkAndHideMainLoader();
   }
 }
+
 
