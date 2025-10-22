@@ -17,6 +17,23 @@ const productRoutes = require('./routes/productroutes.js');
 const categoryRoutes = require('./routes/categoryroutes.js');
 const publicRoutes = require('./routes/publicroutes.js');
 const orderRoutes = require('./routes/orderroutes.js');
+// ✅ Fijar respuesta CORS inmediata para ensintonia-nuevo.vercel.app
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://ensintonia-nuevo.vercel.app');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Loguear absolutamente todas las requests que lleguen
+  console.log(`[REQ] ${req.method} ${req.originalUrl} from ${req.headers.origin || 'no-origin'}`);
+
+  // Responder manualmente las preflight
+  if (req.method === 'OPTIONS') {
+    console.log(`[CORS] Preflight OPTIONS respondido para ${req.originalUrl}`);
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 
 const app = express();
 
