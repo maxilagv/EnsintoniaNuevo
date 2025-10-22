@@ -20,10 +20,19 @@ const orderRoutes = require('./routes/orderroutes.js');
 
 const app = express();
 
+// --- FIX para permitir imágenes externas (Cloudinary / Cross-Origin) ---
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  next();
+});
+
 // Confiar en el proxy (cuando se usa detrás de CDN/Reverse Proxy)
 if (process.env.TRUST_PROXY === 'true') {
   app.set('trust proxy', 1);
 }
+
 
 // Puerto del servidor, obtenido de las variables de entorno o por defecto 3000
 const PORT = process.env.PORT || 3000;
