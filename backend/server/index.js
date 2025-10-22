@@ -17,7 +17,8 @@ const productRoutes = require('./routes/productroutes.js');
 const categoryRoutes = require('./routes/categoryroutes.js');
 const publicRoutes = require('./routes/publicroutes.js');
 const orderRoutes = require('./routes/orderroutes.js');
-// ✅ Fijar respuesta CORS inmediata para ensintonia-nuevo.vercel.app
+const app = express();
+
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', 'https://ensintonia-nuevo.vercel.app');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -35,7 +36,7 @@ app.use((req, res, next) => {
   next();
 });
 
-const app = express();
+
 
 // --- FIX para permitir imágenes externas (Cloudinary / Cross-Origin) ---
 app.use((req, res, next) => {
