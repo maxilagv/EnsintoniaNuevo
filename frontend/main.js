@@ -287,20 +287,15 @@ async function loadCategories() {
  
                 // Rellenar el contenido HTML de la tarjeta
                 // La imagen tiene un onclick para abrir el modal de zoom
-                categoryCardDiv.innerHTML = `
-                    <div class="relative aspect-[4/3] overflow-hidden rounded-t-2xl">
-                        <img loading="lazy" decoding="async"
-                             src="${category.imageUrl || 'https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen'}"
-                             alt="${category.name}"
-                             class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02] category-image-animated"
-                             onerror="this.onerror=null;this.src='https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';">
-                    </div>
-                    <div class="p-6 sm:p-7">
-                        <h3 class="text-xl sm:text-2xl font-semibold mb-2 line-clamp-2 text-futuristic-ink">${category.name}</h3>
-                        <p class="text-base text-futuristic-mute mb-4 line-clamp-2">${category.description || 'DescripciÃ³n no disponible.'}</p>
-                        <button class="px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm focus:ring-2 focus:ring-brand-500/30 active:translate-y-px w-full btn">Ver CategorÃ­a</button>
-                    </div>
-                `;
+                                categoryCardDiv.innerHTML = `
+                  <a href="catalogo.html?cat=${encodeURIComponent(category.name)}" class="block">
+                    <img loading="lazy" decoding="async"
+                         src="${resolveImageUrl(category.imageUrl || (Array.isArray(category.productImages) && category.productImages[0]) || '') || 'https://placehold.co/600x300/cccccc/333333?text=Categoria'}"
+                         alt="${category.name}"
+                         class="w-full h-40 object-cover category-image-animated"
+                         onerror="this.onerror=null;this.src='https://placehold.co/600x300/cccccc/333333?text=Categoria'">
+                    <div class="p-3 text-center text-white/90 font-semibold">${category.name}</div>
+                  </a>`;
                  
                  // AÃ±adir listeners directamente a la tarjeta creada para la animaciÃ³n en PC
                  categoryCardDiv.addEventListener('mouseenter', () => startCategoryImageAnimation(categoryCardDiv));
@@ -1771,5 +1766,6 @@ async function loadProductsByCategoryApi(categoryName) {
     checkAndHideMainLoader();
   }
 }
+
 
 
