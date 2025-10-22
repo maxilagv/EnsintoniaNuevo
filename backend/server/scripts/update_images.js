@@ -1,66 +1,95 @@
-// scripts/update_images.js
-import pkg from 'pg';
-import dotenv from 'dotenv';
+/**
+ * Verifica y actualiza las imágenes rotas en la base de datos.
+ * - Comprueba si las URLs devuelven HTTP 200.
+ * - Informa cuáles están rotas.
+ * - Permite reemplazarlas automáticamente con nuevas URLs (Cloudinary o PostImage).
+ */
 
-dotenv.config(); // Para leer tu DATABASE_URL
+import pg from "pg";
+import fetch from "node-fetch";
+import dotenv from "dotenv";
+import readline from "readline";
 
-const { Pool } = pkg;
+dotenv.config();
+const { Pool } = pg;
 
+// ============================================
+// 🧩 Configuración de conexión
+// ============================================
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  connectionString: process.env.DATABASE_URL || "postgresql://user:pass@localhost:5432/ensintonia",
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
 });
 
-// ======================================
-// 1️⃣ IMÁGENES DE CATEGORÍAS
-// ======================================
-const categoryImages = {
-  celulares: 'https://res.cloudinary.com/ensintonia/image/upload/v1/categories/celulares.png',
-  'Aires acondicionados': 'https://res.cloudinary.com/ensintonia/image/upload/v1/categories/aires.png',
-  hogar: 'https://res.cloudinary.com/ensintonia/image/upload/v1/categories/hogar.png',
-  tv: 'https://res.cloudinary.com/ensintonia/image/upload/v1/categories/tv.png',
-  'cosmeticos, perfumes y accesorios': 'https://res.cloudinary.com/ensintonia/image/upload/v1/categories/perfumes.png',
-  electronica: 'https://res.cloudinary.com/ensintonia/image/upload/v1/categories/electronica.png',
-  herramientas: 'https://res.cloudinary.com/ensintonia/image/upload/v1/categories/herramientas.png',
-  'Insumos Impresoras': 'https://res.cloudinary.com/ensintonia/image/upload/v1/categories/impresoras.png',
-  Entretenimiento: 'https://res.cloudinary.com/ensintonia/image/upload/v1/categories/entretenimiento.png',
-  electrohogar: 'https://res.cloudinary.com/ensintonia/image/upload/v1/categories/electrohogar.png'
-};
-
-// ======================================
-// 2️⃣ IMÁGENES DE PRODUCTOS (ejemplo inicial)
-// ======================================
-// Podés exportar tu JSON de productos desde Firebase o CSV y mapearlo acá.
-const productImages = {
-  'TV STICK PROGRAMADO': 'https://res.cloudinary.com/ensintonia/image/upload/v1/products/tv-stick.png',
-  'SMART TV 50" (RCA--G50P6UHD)': 'https://res.cloudinary.com/ensintonia/image/upload/v1/products/rca-50.png',
-  'FREIDORA DE AIRE 7.5 LITROS (AFR-1601)': 'https://res.cloudinary.com/ensintonia/image/upload/v1/products/freidora.png',
-  // ...
-};
-
-// ======================================
-// 3️⃣ FUNCIÓN DE ACTUALIZACIÓN MASIVA
-// ======================================
-async function updateImages() {
+// ============================================
+// ⚙️ Helpers
+// ============================================
+async function checkImage(url) {
+  if (!url) return false;
   try {
-    console.log('🚀 Actualizando imágenes de categorías...');
-    for (const [name, url] of Object.entries(categoryImages)) {
-      const res = await pool.query('UPDATE categories SET image_url = $1 WHERE name = $2', [url, name]);
-      console.log(`✔️  ${name} (${res.rowCount} fila/s actualizada/s)`);
-    }
-
-    console.log('\n🚀 Actualizando imágenes de productos...');
-    for (const [name, url] of Object.entries(productImages)) {
-      const res = await pool.query('UPDATE products SET image_url = $1 WHERE name = $2', [url, name]);
-      console.log(`✔️  ${name} (${res.rowCount} fila/s actualizada/s)`);
-    }
-
-    console.log('\n✅ Todas las imágenes fueron actualizadas correctamente.');
-  } catch (error) {
-    console.error('❌ Error actualizando imágenes:', error.message);
-  } finally {
-    await pool.end();
+    const res = await fetch(url, { method: "HEAD" });
+    return res.ok;
+  } catch {
+    return false;
   }
 }
 
-updateImages();
+function ask(question) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => rl.question(question, (ans) => {
+    rl.close();
+    resolve(ans.trim());
+  }));
+}
+
+// ============================================
+// 🔍 Verificar categorías y productos
+// ============================================
+async function verifyTable(table, column = "image_url", nameCol = "name") {
+  console.log(`\n🔍 Verificando imágenes en tabla "${table}"...`);
+  const res = await pool.query(`SELECT id, ${nameCol}, ${column} FROM ${table} ORDER BY id`);
+  const rows = res.rows;
+
+  const broken = [];
+  for (const row of rows) {
+    const ok = await checkImage(row[column]);
+    if (!ok) {
+      console.log(`❌ Rota: [${row.id}] ${row[nameCol]} (${row[column] || "sin URL"})`);
+      broken.push(row);
+    } else {
+      console.log(`✅ OK: ${row[nameCol]}`);
+    }
+  }
+
+  if (!broken.length) {
+    console.log(`\n✅ Todas las imágenes de "${table}" están correctas.`);
+    return;
+  }
+
+  console.log(`\n⚠️ ${broken.length} imágenes rotas encontradas en "${table}".`);
+  const fix = await ask("¿Querés reemplazarlas manualmente ahora? (s/n): ");
+  if (fix.toLowerCase() === "s") {
+    for (const row of broken) {
+      const newUrl = await ask(`Nueva URL para "${row[nameCol]}" (Enter para omitir): `);
+      if (newUrl) {
+        await pool.query(`UPDATE ${table} SET ${column} = $1 WHERE id = $2`, [newUrl, row.id]);
+        console.log(`✔️ Actualizada: ${row[nameCol]}`);
+      }
+    }
+  }
+}
+
+// ============================================
+// 🚀 Ejecutar verificación completa
+// ============================================
+(async () => {
+  try {
+    await verifyTable("categories");
+    await verifyTable("products");
+    console.log("\n✨ Verificación finalizada.");
+  } catch (err) {
+    console.error("❌ Error en el script:", err.message);
+  } finally {
+    await pool.end();
+  }
+})();

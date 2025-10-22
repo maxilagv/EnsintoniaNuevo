@@ -16,14 +16,15 @@ async function getProducts(req, res) {
               p.created_at,
               p.updated_at,
               p.deleted_at
-         FROM Products p
-         JOIN Categories c ON c.id = p.category_id
+         FROM products p
+         JOIN categories c ON c.id = p.category_id
         WHERE p.deleted_at IS NULL AND c.deleted_at IS NULL
         ORDER BY p.id DESC`
     );
+
     res.json(rows);
   } catch (err) {
-    console.error("Error en getProducts:", err); // <-- agregar este log
+    console.error("💥 Error en getProducts:", err.message);
     res.status(500).json({ error: "Failed to fetch products" });
   }
 }
