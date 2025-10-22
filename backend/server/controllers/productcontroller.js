@@ -3,6 +3,8 @@ const { query, withTransaction } = require('../db/pg');
 
 async function getProducts(req, res) {
   try {
+    console.log("📡 getProducts: consulta iniciada");
+
     const { rows } = await query(
       `SELECT p.id,
               p.category_id,
@@ -22,12 +24,17 @@ async function getProducts(req, res) {
         ORDER BY p.id DESC`
     );
 
+    console.log("✅ getProducts: consulta exitosa");
     res.json(rows);
   } catch (err) {
-    console.error("💥 Error en getProducts:", err.message);
+    console.error("💥 Error exacto en getProducts:");
+    console.error("Mensaje:", err.message);
+    console.error("Detalle:", err.detail);
+    console.error("Stack:", err.stack);
     res.status(500).json({ error: "Failed to fetch products" });
   }
 }
+
 
 // Validation (standard English payload)
 const validateProduct = [
