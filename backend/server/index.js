@@ -71,7 +71,14 @@ app.use(
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://www.gstatic.com"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-      imgSrc: ["'self'", "data:", "https://placehold.co", "https://cdn.prod.website-files.com"],
+imgSrc: [
+  "'self'",
+  "data:",
+  "https://placehold.co",
+  "https://cdn.prod.website-files.com",
+  "https://res.cloudinary.com"
+],
+
       // Endpoints permitidos para fetch/XHR/WebSocket
       connectSrc: cspConnectSrc,
       fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
