@@ -21,7 +21,8 @@ async function getProducts(req, res) {
          FROM products p
          JOIN categories c ON c.id = p.category_id
         WHERE p.deleted_at IS NULL AND c.deleted_at IS NULL
-        ORDER BY p.id DESC`
+        ORDER BY p.id DESC
+        LIMIT 100`
     );
 
     console.log("✅ getProducts: consulta exitosa");
@@ -32,6 +33,40 @@ async function getProducts(req, res) {
     console.error("Detalle:", err.detail);
     console.error("Stack:", err.stack);
     res.status(500).json({ error: "Failed to fetch products" });
+  }
+}
+
+async function getProductById(req, res) {
+  const { id } = req.params || {};
+  const idNum = Number(id);
+  if (!Number.isInteger(idNum) || idNum <= 0) {
+    return res.status(400).json({ error: 'Invalid product ID' });
+  }
+  try {
+    const { rows } = await query(
+      `SELECT p.id,
+              p.category_id,
+              p.name,
+              p.description,
+              p.price::float AS price,
+              COALESCE(p.image_url, p.image_file_path) AS image_url,
+              c.name AS category_name,
+              p.stock_quantity,
+              p.specifications,
+              p.created_at,
+              p.updated_at,
+              p.deleted_at
+         FROM products p
+         JOIN categories c ON c.id = p.category_id
+        WHERE p.id = $1 AND p.deleted_at IS NULL AND c.deleted_at IS NULL
+        LIMIT 1`,
+      [idNum]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Product not found' });
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error('Error fetching product by id:', err);
+    return res.status(500).json({ error: 'Failed to fetch product' });
   }
 }
 
@@ -197,7 +232,44 @@ async function deleteProduct(req, res) {
 
 module.exports = {
   getProducts,
+  getProductById,
   createProduct: [...validateProduct, createProduct],
   updateProduct: [...validateProduct, updateProduct],
-  deleteProduct
+  deleteProduct,
+  patchStock: [
+    async function patchStock(req, res){
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid product ID' });
+      const delta = Number(req.body?.delta);
+      if (!Number.isFinite(delta)) return res.status(400).json({ error: 'delta required' });
+      const reason = req.body?.reason ? String(req.body.reason) : null;
+      try {
+        const result = await withTransaction(async (client) => {
+          const { rows } = await client.query('SELECT stock_quantity FROM Products WHERE id = $1 FOR UPDATE', [id]);
+          if (!rows.length) { const e = new Error('Product not found'); e.status = 404; throw e; }
+          const current = Number(rows[0].stock_quantity || 0) || 0;
+          let next = current + delta;
+          if (next < 0) next = 0;
+          await client.query('UPDATE Products SET stock_quantity = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [next, id]);
+          // movimiento de ajuste (compra si aumenta, venta si disminuye)
+          const tipo = delta >= 0 ? 'compra' : 'venta';
+          const qty = Math.abs(Math.floor(delta));
+          if (qty > 0) {
+            await client.query(
+              `INSERT INTO movimientos(tipo, producto_id, cantidad, precio_unitario, usuario, nota)
+               VALUES ($1, $2, $3, 0, $4, $5)`,
+              [tipo, id, qty, (req.user && req.user.email) || null, reason || 'stock patch']
+            );
+          }
+          return { old: current, new: next };
+        });
+        return res.json(result);
+      } catch (err) {
+        const code = err.status || 500;
+        if (code !== 500) return res.status(code).json({ error: err.message });
+        console.error('patchStock error:', err.message);
+        return res.status(500).json({ error: 'Failed to patch stock' });
+      }
+    }
+  ]
 };

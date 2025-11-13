@@ -24,13 +24,28 @@ async function tableExists(client, tableName) {
 }
 
 async function main() {
+  // SSL seguro
+  const fs = require('fs');
+  const useSSL = process.env.PGSSL === 'true' || process.env.NODE_ENV === 'production';
+  const caInline = process.env.PGSSL_CA || process.env.PG_CA;
+  const caFile = process.env.PGSSL_CA_FILE || process.env.PG_CA_FILE;
+  let ca = undefined;
+  if (caInline && caInline.trim()) {
+    ca = caInline;
+  } else if (caFile) {
+    try { ca = fs.readFileSync(path.resolve(caFile), 'utf8'); } catch (_) {}
+  }
+  const reject = String(process.env.PGSSL_REJECT_UNAUTHORIZED || '').toLowerCase();
+  const rejectUnauthorized = reject === 'false' ? false : true;
+  const ssl = useSSL ? (ca ? { rejectUnauthorized, ca } : { rejectUnauthorized }) : undefined;
+
   const client = new Client({
     host: process.env.PGHOST || '127.0.0.1',
     port: Number(process.env.PGPORT || 5432),
     database: process.env.PGDATABASE || 'postgres',
     user: process.env.PGUSER || 'postgres',
     password: process.env.PGPASSWORD,
-    ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    ssl,
   });
 
   await client.connect();

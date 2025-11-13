@@ -11,7 +11,8 @@ async function getCategorias(req, res) {
               description
          FROM Categories
         WHERE deleted_at IS NULL
-        ORDER BY name ASC`
+        ORDER BY name ASC
+        LIMIT 200`
     );
     res.json(rows);
   } catch (err) {

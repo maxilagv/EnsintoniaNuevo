@@ -6,6 +6,7 @@
  */
 
 import pg from "pg";
+import fs from "fs";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import readline from "readline";
@@ -16,9 +17,21 @@ const { Pool } = pg;
 // ============================================
 // 🧩 Configuración de conexión
 // ============================================
+const useSSL = process.env.PGSSL === 'true' || process.env.NODE_ENV === 'production';
+let ssl = useSSL ? { rejectUnauthorized: true } : false;
+const caInline = process.env.PGSSL_CA || process.env.PG_CA;
+const caFile = process.env.PGSSL_CA_FILE || process.env.PG_CA_FILE;
+if (useSSL) {
+  if (caInline && caInline.trim()) {
+    ssl = { rejectUnauthorized: true, ca: caInline };
+  } else if (caFile) {
+    try { ssl = { rejectUnauthorized: true, ca: fs.readFileSync(caFile, 'utf8') }; } catch {}
+  }
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://user:pass@localhost:5432/ensintonia",
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+  ssl,
 });
 
 // ============================================

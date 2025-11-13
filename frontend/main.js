@@ -1,1282 +1,550 @@
-﻿// ConfiguraciÃ³n global de la API
+﻿// Frontend catalog: clean version using REST API (no Firebase)
+// Loads categories and products from API_BASE, keeps visual functions and UI behavior.
+
 import { API_BASE } from './config.js';
+// Activar modo de búsqueda simple para evitar el typeahead complejo
+if (typeof window !== 'undefined') { window.__simpleSearchMode = true; }
 
-// Variables globales de Firebase (proporcionadas por el entorno Canvas)
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+// --- Global state ---
+let categoriesData = [];
+let productsFullCache = [];
+let productsCache = []; // optional search cache
 
-let app; // (legacy Firebase, no usado al consumir API)
-let userId;
-let categoriesData = []; // Para almacenar las categorÃ­as cargadas
+// Exponer caches al objeto window para que las utilidades de búsqueda
+// que consultan window.productsFullCache funcionen en módulos ESM
+if (typeof window !== 'undefined') {
+  window.productsFullCache = window.productsFullCache || [];
+  window.productsCache = window.productsCache || [];
+}
 
-// Nuevas variables de estado para controlar la carga inicial
+function syncProductCachesToWindow() {
+  try {
+    if (typeof window !== 'undefined') {
+      window.productsFullCache = productsFullCache;
+      window.productsCache = productsCache;
+    }
+  } catch {}
+}
+let currentSort = 'recent';
+
+// Initial load coordination
 let categoriesInitialLoadComplete = false;
 let productsInitialLoadComplete = false;
 
-// Variable global para almacenar los intervalos de animaciÃ³n de las categorÃ­as
+// Category hover animations
 let categoryAnimationIntervals = {};
 
-// Nuevo: cache global de productos (id + nombre en minÃºsculas) para bÃºsqueda/sugerencias
-let productsCache = [];
-// Unsubscribe handler para listener activo de productos (onSnapshot)
-let unsubscribeProducts = null;
-
-// Cache completo para re-render
-let productsFullCache = [];
-let currentSort = 'recent';          // valor inicial coincide con <select>
-window.productsFullCache = productsFullCache;
-
-/**
- * @function checkAndHideMainLoader
- * @description Verifica si todas las cargas iniciales (categorÃ­as y productos) han finalizado
- * y oculta el loader principal si es asÃ­.
- */
+// --- Helpers ---
 function checkAndHideMainLoader() {
-    console.log("checkAndHideMainLoader - called."); // Log de inicio
-    console.log("checkAndHideMainLoader - categoriesInitialLoadComplete:", categoriesInitialLoadComplete);
-    console.log("checkAndHideMainLoader - productsInitialLoadComplete:", productsInitialLoadComplete);
-
-    if (categoriesInitialLoadComplete && productsInitialLoadComplete) {
-        console.log("checkAndHideMainLoader - Ambas cargas iniciales completas. Ocultando loader futurista.");
-        hideLoading('futuristic-loader');
-    } else {
-        console.log("checkAndHideMainLoader - Esperando a que todas las cargas iniciales se completen.");
-    }
+  if (categoriesInitialLoadComplete && productsInitialLoadComplete) {
+    hideLoading('futuristic-loader');
+  }
 }
 
-/**
- * @function initFirebase
- * @description Inicializa la aplicaciÃ³n Firebase y configura la autenticaciÃ³n.
- * Maneja el inicio de sesiÃ³n con token personalizado o de forma anÃ³nima.
- * TambiÃ©n escucha los cambios en el estado de autenticaciÃ³n para cargar las categorÃ­as.
- */
-async function initFirebase() {
-    console.log("initFirebase - Iniciando inicializaciÃ³n de Firebase...");
-    try {
-        // 'app' ahora se inicializa aquÃ­ usando la firebaseConfig importada
-        app = initializeApp(firebaseConfig);
-        // 'db' y 'auth' ya vienen importados de firebaseconfig.js
-
-        // Iniciar sesiÃ³n con token personalizado si estÃ¡ disponible, de lo contrario, de forma anÃ³nima
-        if (initialAuthToken) {
-            console.log("initFirebase - Intentando iniciar sesiÃ³n con token personalizado.");
-            await signInWithCustomToken(auth, initialAuthToken);
-        } else {
-            console.log("initFirebase - Intentando iniciar sesiÃ³n anÃ³nimamente.");
-            await signInAnonymously(auth);
-        }
-
-        // Escuchar cambios en el estado de autenticaciÃ³n
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                userId = user.uid;
-                console.log("initFirebase - Firebase inicializado. ID de Usuario:", userId);
-                const userIdDisplay = document.getElementById('user-id-display');
-                if (userIdDisplay) { // Check if element exists before accessing
-                    userIdDisplay.textContent = `ID de Usuario: ${userId}`;
-                }
-
-                // Si la URL trae ?cat=Nombre: mostrar solo esa categorÃ­a y ocultar categorÃ­as
-                try {
-                  const u = new URL(window.location.href);
-                  const cat = u.searchParams.get('cat') || u.searchParams.get('category');
-                  if (cat) {
-                    console.log("initFirebase - ParÃ¡metro cat= detectado:", cat, " -> solo productos de esa categorÃ­a, ocultando categorÃ­as.");
-
-                    // Ocultar secciÃ³n/caja de categorÃ­as
-                    const categoriesSection = document.getElementById('productos');
-                    if (categoriesSection) categoriesSection.style.display = 'none';
-                    const categoriesContainer = document.getElementById('categories-container');
-                    if (categoriesContainer) categoriesContainer.style.display = 'none';
-
-                    // TÃ­tulo dinÃ¡mico arriba de productos
-                    const titleEl = document.getElementById('category-title');
-                    if (titleEl) titleEl.textContent = `Mostrando productos de: ${cat}`;
-
-                    // Marcar categorÃ­as como completas para el loader global
-                    categoriesInitialLoadComplete = true;
-
-                    // Cargar productos filtrados y salir de esta rama
-                    loadProductsByCategory(cat);
-                    return; // Evitar que se ejecuten loadCategories/loadAllProducts mÃ¡s abajo
-                  }
-                } catch (e) {
-                  console.warn('initFirebase - No se pudo leer parÃ¡metro cat, seguimos flujo normal.', e);
-                }
-
-
-                // Cargar categorÃ­as y productos despuÃ©s de la autenticaciÃ³n
-                console.log("initFirebase - Llamando a loadCategories y a la carga de productos adecuada segÃºn URL.");
-                loadCategories();
-                // Si la URL trae ?cat=Nombre, abrir la carga filtrada; si no, cargar todos.
-                try {
-                  const u = new URL(window.location.href);
-                  const cat = u.searchParams.get('cat') || u.searchParams.get('category');
-                  if (cat) {
-                    console.log("initFirebase - ParÃ¡metro cat detectado en URL:", cat, " -> llamando a loadProductsByCategory.");
-                    loadProductsByCategory(cat);
-                  } else {
-                    console.log("initFirebase - Sin parÃ¡metro cat en URL -> llamando a loadAllProducts.");
-                    loadAllProducts();
-                  }
-                } catch (e) {
-                  console.warn('initFirebase - error leyendo URL para parÃ¡metro cat, cargando todos los productos', e);
-                  loadAllProducts();
-                }
-            } else {
-                console.log("initFirebase - NingÃºn usuario ha iniciado sesiÃ³n. Marcando cargas como completas.");
-                userId = null;
-                const userIdDisplay = document.getElementById('user-id-display');
-                if (userIdDisplay) {
-                    userIdDisplay.textContent = 'ID de Usuario: No autenticado';
-                }
-                // Si no hay usuario, marcar ambas cargas como completas para ocultar el loader
-                categoriesInitialLoadComplete = true;
-                productsInitialLoadComplete = true;
-                checkAndHideMainLoader();
-            }
-        });
-
-    } catch (error) {
-        console.error("initFirebase - Error al inicializar Firebase:", error);
-        showMessageBox("Error al inicializar la aplicaciÃ³n. Por favor, intÃ©ntalo de nuevo mÃ¡s tarde.");
-        // Asegurar que el loader se oculte incluso si hay un error de inicializaciÃ³n de Firebase
-        categoriesInitialLoadComplete = true;
-        productsInitialLoadComplete = true;
-        checkAndHideMainLoader();
-    }
+function showLoading(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('hidden');
+  if (id === 'futuristic-loader') document.body.style.overflow = 'hidden';
 }
 
-/**
- * @function showLoading
- * @description Muestra un spinner de carga especÃ­fico.
- * @param {string} spinnerId - El ID del elemento del spinner a mostrar.
- */
-function showLoading(spinnerId) {
-    console.log("showLoading - Mostrando loader:", spinnerId);
-    const loader = document.getElementById(spinnerId);
-    if (loader) { // Asegurarse de que el loader existe
-        loader.classList.remove('hidden');
-        if (spinnerId === 'futuristic-loader') {
-            document.body.style.overflow = 'hidden'; // Evita el scroll solo para el loader de pÃ¡gina completa
-        }
-    }
-}
-
-/**
- * @function hideLoading
- * @description Oculta un spinner de carga especÃ­fico.
- * @param {string} spinnerId - El ID del elemento del spinner a ocultar.
- */
-function hideLoading(spinnerId) {
-    console.log("hideLoading - Ocultando loader:", spinnerId);
-    const loader = document.getElementById(spinnerId);
-    if (loader) { // Asegurarse de que el loader existe
-        if (spinnerId === 'futuristic-loader') {
-            loader.style.opacity = '0'; // Inicia la transiciÃ³n
-            loader.style.pointerEvents = 'none'; // Deshabilita los eventos del puntero inmediatamente
-            console.log("hideLoading - Futuristic loader: opacity set to 0, pointer-events set to none.");
-
-            // Eliminar el elemento del DOM despuÃ©s de la transiciÃ³n
-            setTimeout(() => {
-                loader.classList.add('hidden'); // AÃ±ade la clase 'hidden' despuÃ©s de la transiciÃ³n
-                // loader.remove(); // Elimina el loader del DOM despuÃ©s de la transiciÃ³n
-                document.body.style.overflow = ''; // Restaura el scroll
-                console.log("hideLoading - Futuristic loader: 'hidden' class added after timeout.");
-            }, 500); // 500ms coincide con la duraciÃ³n de la transiciÃ³n CSS
-        } else {
-            loader.classList.add('hidden');
-        }
-    }
-}
-
-/**
- * @function loadCategories
- * @description Carga las categorÃ­as desde Firestore en tiempo real y las renderiza en la pÃ¡gina
- * y en el submenÃº de categorÃ­as del menÃº mÃ³vil. TambiÃ©n carga una muestra de imÃ¡genes de productos
- * para cada categorÃ­a para la animaciÃ³n.
- */
-async function loadCategories() {
-    console.log("loadCategories - Iniciando carga de categorÃ­as.");
-    if (!db) {
-        console.error("loadCategories - Firestore no inicializado. No se pueden cargar categorÃ­as.");
-        categoriesInitialLoadComplete = true;
-        checkAndHideMainLoader();
-        return;
-    }
-    showLoading('categories-loading-spinner');
-
-    const categoriesCol = collection(db, `artifacts/${appId}/public/data/categories`);
-
-    onSnapshot(categoriesCol, async (snapshot) => {
-        console.log("loadCategories - onSnapshot recibido. NÃºmero de categorÃ­as:", snapshot.size);
-        categoriesData = []; // Limpiar datos de categorÃ­as anteriores
-        const categoriesContainer = document.getElementById('categories-container');
-        const categoriesSubmenu = document.getElementById('categories-submenu');
-
-        if (categoriesContainer) {
-            categoriesContainer.innerHTML = ''; // Limpiar categorÃ­as existentes en la secciÃ³n principal
-        } else {
-            console.warn('loadCategories - elemento #categories-container no encontrado en el DOM.');
-        }
-        if (categoriesSubmenu) {
-            categoriesSubmenu.innerHTML = ''; // Limpiar categorÃ­as existentes en el submenÃº
-        } else {
-            console.warn('loadCategories - elemento #categories-submenu no encontrado en el DOM.');
-        }
-
-        if (snapshot.empty) {
-            console.log("loadCategories - No hay categorÃ­as en Firestore.");
-            if (categoriesContainer) {
-                categoriesContainer.innerHTML = '<p class="text-center text-futuristic-mute col-span-full">No hay categorÃ­as disponibles en este momento.</p>';
-            }
-            if (categoriesSubmenu) {
-                categoriesSubmenu.innerHTML = '<li class="text-futuristic-mute text-base py-2">No hay categorÃ­as.</li>';
-            }
-        } else {
-            const categoryPromises = snapshot.docs.map(async doc => { // Procesar cada categorÃ­a asÃ­ncronamente
-                const category = { id: doc.id, ...doc.data() };
-
-                // Sub-consulta: intentar primero con categoryName, fallback a category
-                const baseCol = collection(db, `artifacts/${appId}/public/data/products`);
-                let productsForCategoryQuery = query(
-                    baseCol,
-                    where("categoryName", "==", category.name),
-                    limit(3)
-                );
-                let productsSnapshot = await getDocs(productsForCategoryQuery);
-
-                if (productsSnapshot.empty) {
-                    productsForCategoryQuery = query(
-                        baseCol,
-                        where("category", "==", category.name),
-                        limit(3)
-                    );
-                    productsSnapshot = await getDocs(productsForCategoryQuery);
-                }
-
-                const productImages = productsSnapshot.docs
-                    .map(pDoc => pDoc.data().imageUrl)
-                    .filter(url => url && url !== category.imageUrl);
-
-                if (category.imageUrl) productImages.unshift(category.imageUrl);
-                if (productImages.length === 0 && category.imageUrl) productImages.push(category.imageUrl);
-
-                category.productImages = productImages;
-                categoriesData.push(category);
-                return category;
-            });
-
-            // Esperar a que todas las sub-consultas de imÃ¡genes de productos se completen
-            const loadedCategories = await Promise.all(categoryPromises);
-
-            loadedCategories.forEach(category => {
-                // Crear el elemento de la tarjeta de categorÃ­a
-                const categoryCardDiv = document.createElement('div');
-                // Usar class category-card para no interferir con product-card
-                categoryCardDiv.className = "category-card group rounded-2xl flex flex-col"; // Clases del product-card para aplicar estilos futuristas
-                // Apuntar a la pÃ¡gina de catÃ¡logo con parÃ¡metro ?cat=para navegaciÃ³n cross-page
-                categoryCardDiv.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    goToCategory(category.name);
-                });
-
-                categoryCardDiv.setAttribute('data-category-name', category.name);
-                categoryCardDiv.setAttribute('data-original-image', category.imageUrl || 'https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen');
-                categoryCardDiv.setAttribute('data-product-images', JSON.stringify(category.productImages));
- 
-                // Rellenar el contenido HTML de la tarjeta
-                // La imagen tiene un onclick para abrir el modal de zoom
-                                categoryCardDiv.innerHTML = `
-                  <a href="catalogo.html?cat=${encodeURIComponent(category.name)}" class="block">
-                    <img loading="lazy" decoding="async"
-                         src="${resolveImageUrl(category.imageUrl || (Array.isArray(category.productImages) && category.productImages[0]) || '') || 'https://placehold.co/600x300/cccccc/333333?text=Categoria'}"
-                         alt="${category.name}"
-                         class="w-full h-40 object-cover category-image-animated"
-                         onerror="this.onerror=null;this.src='https://placehold.co/600x300/cccccc/333333?text=Categoria'">
-                    <div class="p-3 text-center text-white/90 font-semibold">${category.name}</div>
-                  </a>`;
-                 
-                 // AÃ±adir listeners directamente a la tarjeta creada para la animaciÃ³n en PC
-                 categoryCardDiv.addEventListener('mouseenter', () => startCategoryImageAnimation(categoryCardDiv));
-                 categoryCardDiv.addEventListener('mouseleave', () => stopCategoryImageAnimation(categoryCardDiv)); // <--- Cambiado aquÃ­
-
-                 if (categoriesContainer) {
-                    categoriesContainer.appendChild(categoryCardDiv);
-                 } else {
-                    console.warn('loadCategories - no se puede append; #categories-container ausente.');
-                 }
-
-                // Renderizar en el submenÃº mÃ³vil: link directo a catalogo.html?cat=
-                const submenuItem = `
-                    <li>
-                        <a href="/catalogo.html?cat=${encodeURIComponent(category.name)}"
-                           data-cat="${(category.name || '').replace(/\"/g,'&quot;')}"
-                           onclick="goToCategory(this.dataset.cat); return false;"
-                           class="block py-2 text-base text-futuristic-ink hover:text-brand-1 transition duration-200">
-                            ${category.name}
-                        </a>
-                    </li>
-                `;
-
-                if (categoriesSubmenu) {
-                    categoriesSubmenu.innerHTML += submenuItem;
-                } else {
-                    console.warn('loadCategories - submenÃº de categorÃ­as ausente; salto render en mobile submenu.');
-                }
-            });
-        }
-        hideLoading('categories-loading-spinner'); // Oculta el loader de categorÃ­as
-        categoriesInitialLoadComplete = true; // Marcar categorÃ­as como cargadas
-        checkAndHideMainLoader(); // Verificar si el loader principal puede ocultarse
-    }, (error) => {
-        console.error("loadCategories - Error al obtener categorÃ­as:", error);
-        showMessageBox("Error al cargar las categorÃ­as. Por favor, intÃ©ntalo de nuevo.");
-        hideLoading('categories-loading-spinner'); // Oculta el loader de categorÃ­as incluso si hay un error
-        categoriesInitialLoadComplete = true; // Marcar categorÃ­as como cargadas incluso con error
-        checkAndHideMainLoader(); // Verificar si el loader principal puede ocultarse
-    });
-}
-
-/**
- * @function addCategory
- * @description AÃ±ade una nueva categorÃ­a a Firestore. Esta funciÃ³n serÃ­a utilizada por un panel de administraciÃ³n.
- * @param {string} name - Nombre de la categorÃ­a.
- * @param {string} description - DescripciÃ³n de la categorÃ­a.
- * @param {string} imageUrl - URL de la imagen de la categorÃ­a (deberÃ­a provenir de Cloud Storage).
- */
-async function addCategory(name, description, imageUrl) {
-    if (!db || !userId) {
-        showMessageBox("Error: Firebase o usuario no autenticado. No se puede aÃ±adir la categorÃ­a.");
-        return;
-    }
-    try {
-        const newCategoryRef = await addDoc(collection(db, `artifacts/${appId}/public/data/categories`), {
-            name: name,
-            description: description,
-            imageUrl: imageUrl,
-            createdAt: new Date()
-        });
-        console.log("CategorÃ­a aÃ±adida con ID: ", newCategoryRef.id);
-        showMessageBox(`CategorÃ­a "${name}" aÃ±adida con Ã©xito.`);
-    }
-    catch (e) {
-        console.error("Error al aÃ±adir la categorÃ­a: ", e);
-        showMessageBox("Error al aÃ±adir la categorÃ­a. IntÃ©ntalo de nuevo.");
-    }
-}
-
-/**
- * @function addProduct
- * @description AÃ±ade un nuevo producto a Firestore. Esta funciÃ³n serÃ­a utilizada por un panel de administraciÃ³n.
- * @param {string} name - Nombre del producto.
- * @param {number} price - Precio del producto.
- * @param {string} imageUrl - URL de la imagen del producto (deberÃ­a provenir de Cloud Storage).
- * @param {string} categoryName - Nombre de la categorÃ­a a la que pertenece el producto.
- * @param {string} description - DescripciÃ³n del producto.
- * @param {string} [componentsUrl] - URL opcional a la pÃ¡gina de componentes del producto.
- * @param {string} [videoUrl] - URL opcional de un video para el producto (ej. YouTube embed URL o link directo a .mp4).
- */
-async function addProduct(name, price, imageUrl, categoryName, description, componentsUrl = null, videoUrl = null) {
-    if (!db || !userId) {
-        showMessageBox("Error: Firebase o usuario no autenticado. No se puede aÃ±adir el producto.");
-        return;
-    }
-    try {
-        const newProductRef = await addDoc(collection(db, `artifacts/${appId}/public/data/products`), {
-            name: name,
-            price: price,
-            imageUrl: imageUrl,
-            category: categoryName, // Se guarda el nombre de la categorÃ­a
-            description: description,
-            componentsUrl: componentsUrl,
-            videoUrl: videoUrl, // Â¡Nuevo campo para el link de video!
-            createdAt: new Date()
-        });
-        console.log("Producto aÃ±adido con ID: ", newProductRef.id);
-        showMessageBox(`Producto "${name}" aÃ±adido con Ã©xito.`);
-    }
-    catch (e) {
-        console.error("Error al aÃ±adir el producto: ", e);
-        showMessageBox("Error al aÃ±adir el producto. IntÃ©ntalo de nuevo.");
-    }
-}
-
-/**
- * @function loadAllProducts
- * @description Carga todos los productos desde Firestore y los muestra en el contenedor de productos.
- */
-async function loadAllProducts() {
-    console.log("loadAllProducts - Iniciando carga de todos los productos.");
-    if (!db) {
-        console.error("loadAllProducts - Firestore no inicializado. No se pueden cargar productos.");
-        productsInitialLoadComplete = true; // Marcar como cargado incluso si Firestore no estÃ¡ listo
-        checkAndHideMainLoader();
-        return;
-    }
-
-    // Si hay un listener de productos activo, lo desuscribimos antes de crear uno nuevo
-    try { if (typeof unsubscribeProducts === 'function' || unsubscribeProducts) { unsubscribeProducts(); } } catch(e){ console.warn('loadAllProducts - error al unsubscribe previous listener', e); }
-    unsubscribeProducts = null;
-
-    showLoading('products-loading-spinner'); // Muestra el loader de productos
-    // Limpiar cache global antes de renderizar lista completa
-    productsCache = [];
-     const productContainer = document.getElementById("contenedor-productos");
-     if (!productContainer) {
-         console.warn('loadAllProducts - #contenedor-productos no encontrado en el DOM. Abortando render de productos.');
-         hideLoading('products-loading-spinner');
-         productsInitialLoadComplete = true;
-         checkAndHideMainLoader();
-         return;
-     }
-     productContainer.innerHTML = ''; // Limpia antes de agregar
-
-    try {
-        const productsColRef = collection(db, `artifacts/${appId}/public/data/products`);
-        // Asignar el unsubscribe devuelto por onSnapshot para poder cancelarlo luego
-        unsubscribeProducts = onSnapshot(productsColRef, (snapshot) => {
-            console.log("loadAllProducts - onSnapshot recibido. NÃºmero de productos:", snapshot.size);
-            // productContainer.innerHTML = '';
-            productsFullCache = [];
-            snapshot.forEach(docSnap=>{
-              productsFullCache.push({ id: docSnap.id, ...docSnap.data() });
-            });
-            // reconstruir productsCache para bÃºsqueda
-            productsCache = productsFullCache.map(p=>({ id: p.id, name: (p.name||'').toLowerCase() }));
-            applySortAndRender();
-        }, (error) => {
-            console.error("loadAllProducts - Error al cargar productos:", error);
-            showMessageBox("Error al cargar productos. IntÃ©ntalo mÃ¡s tarde.");
-            hideLoading('products-loading-spinner'); // Oculta el loader de productos incluso si hay un error
-            productsInitialLoadComplete = true; // Marcar productos como cargados incluso con error
-            checkAndHideMainLoader(); // Verificar si el loader principal puede ocultarse
-        });
-    } catch (error) {
-        console.error("loadAllProducts - Error al configurar listener de productos:", error);
-        showMessageBox("Error al cargar productos. IntÃ©ntalo mÃ¡s tarde.");
-        hideLoading('products-loading-spinner'); // Oculta el loader de productos
-        productsInitialLoadComplete = true; // Marcar productos como cargados incluso con error
-        checkAndHideMainLoader(); // Verificar si el loader principal puede ocultarse
-    }
-}
-
-/**
- * @function loadProductsByCategory
- * @description Carga productos filtrados por categorÃ­a desde Firestore y los muestra.
- * @param {string} categoryName - El NOMBRE de la categorÃ­a para filtrar.
- */
-async function loadProductsByCategory(categoryName) {
-    console.log("loadProductsByCategory - Iniciando carga de productos por categorÃ­a:", categoryName);
-    if (!db) {
-        console.error("loadProductsByCategory - Firestore no inicializado. No se pueden cargar productos por categorÃ­a.");
-        return;
-    }
-
-    // Si hay un listener de productos activo, lo desuscribimos antes de crear uno nuevo
-    try { if (typeof unsubscribeProducts === 'function' || unsubscribeProducts) { unsubscribeProducts(); } } catch(e){ console.warn('loadProductsByCategory - error al unsubscribe previous listener', e); }
-    unsubscribeProducts = null;
-
-    showLoading('products-loading-spinner'); // Muestra el loader de productos
-    const productContainer = document.getElementById("contenedor-productos");
-    productContainer.innerHTML = ''; // Limpia antes de agregar
-
-    try {
-        const productsColRef = collection(db, `artifacts/${appId}/public/data/products`);
-
-        // ResoluciÃ³n progresiva: primero intenta con categoryName, luego con category
-        let qResolved = query(productsColRef, where("categoryName", "==", categoryName));
-        let testSnap = await getDocs(qResolved);
-        if (testSnap.empty) {
-            console.log("loadProductsByCategory - Sin resultados en categoryName, probando con category legacy.");
-            qResolved = query(productsColRef, where("category", "==", categoryName));
-            testSnap = await getDocs(qResolved);
-        } else {
-            console.log("loadProductsByCategory - Usando campo categoryName para el listener.");
-        }
-
-        unsubscribeProducts = onSnapshot(qResolved, (snapshot) => {
-            console.log("loadProductsByCategory - onSnapshot recibido para categorÃ­a. NÃºmero de productos:", snapshot.size);
-            productsFullCache = [];
-            snapshot.forEach(docSnap=>{
-              productsFullCache.push({ id: docSnap.id, ...docSnap.data() });
-            });
-            productsCache = productsFullCache.map(p=>({ id: p.id, name: (p.name||'').toLowerCase() }));
-            applySortAndRender();
-        }, (error) => {
-            console.error("loadProductsByCategory - Error al cargar productos por categorÃ­a:", error);
-            showMessageBox("Error al cargar productos por categorÃ­a. IntÃ©ntalo mÃ¡s tarde.");
-            hideLoading('products-loading-spinner');
-            productsInitialLoadComplete = true;
-            checkAndHideMainLoader();
-        });
-    } catch (error) {
-        console.error("loadProductsByCategory - Error al configurar listener de productos por categorÃ­a:", error);
-        showMessageBox("Error al cargar productos por categorÃ­a. IntÃ©ntalo mÃ¡s tarde.");
-        hideLoading('products-loading-spinner');
-        const existingMessageBox = document.querySelector('.message-box-autodismiss');
-        if (existingMessageBox) existingMessageBox.remove();
-    }
-}
-
-/**
- * @function showMessageBox
- * @description Muestra un cuadro de mensaje personalizado en lugar de la alerta del navegador.
- * @param {string} message - El mensaje a mostrar.
- * @param {number} [duration] - DuraciÃ³n en milisegundos para que el mensaje se cierre automÃ¡ticamente.
- * @returns {HTMLElement} El elemento del messageBox creado.
- */
-function showMessageBox(message, duration = null) {
-    const messageBox = document.createElement('div');
-    messageBox.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-[120]'; // Aumentar z-index
-    messageBox.innerHTML = `
-        <div class="bg-gray-900/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl text-center max-w-sm mx-auto flex flex-col items-center border border-white/20 text-futuristic-ink">
-            <p class="text-xl font-semibold mb-4">${message}</p>
-            ${duration === null ? '<button onclick="this.parentNode.parentNode.remove()" class="px-5 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm focus:ring-2 focus:ring-brand-500/30 active:translate-y-px btn">Cerrar</button>' : ''}
-
-            ${duration !== null ? '<div class="loader-circle border-t-2 border-b-2 border-brand-1 rounded-full w-8 h-8 animate-spin mt-4"></div>' : ''}
-
-        </div>
-    `;
-    document.body.appendChild(messageBox);
-
-    if (duration !== null) {
-        // AÃ±adir una clase para identificar el messageBox que se autodismisarÃ¡
-        messageBox.classList.add('message-box-autodismiss');
-        setTimeout(() => {
-            if (messageBox.parentNode) { // Asegurarse de que el elemento todavÃ­a existe
-                messageBox.remove();
-            }
-        }, duration);
-    }
-
-    return messageBox; // Retorna el elemento para poder manipularlo si es necesario
-}
-
-/**
- * @function goToCategory
- * @description Maneja la navegaciÃ³n a una categorÃ­a. Si no estÃ¡s en catalogo.html redirige a /catalogo.html?cat=...
- * Si ya estÃ¡s en catalogo.html, carga la categorÃ­a en la misma pÃ¡gina.
- * @param {string} categoryName
- */
-function goToCategory(categoryName) {
-    const currentPath = window.location.pathname || '';
-    const onCatalogPage = currentPath.toLowerCase().includes('/catalogo.html') || currentPath.toLowerCase().endsWith('/catalogo') || currentPath.toLowerCase().includes('/catalogo');
-
-    if (!onCatalogPage) {
-        // Redirigir al catÃ¡logo con el parÃ¡metro de categorÃ­a
-        const target = `/catalogo.html?cat=${encodeURIComponent(categoryName)}`;
-        window.location.href = target;
-        return;
-    }
-
-    // Si ya estamos en catalogo.html, filtrar aquÃ­ sin recargar
-    showMessageBox(`Cargando productos de la categorÃ­a: ${categoryName}...`, 900);
-    loadProductsByCategoryApi(categoryName);
-    try { history.pushState({ cat: categoryName }, "", `/catalogo.html?cat=${encodeURIComponent(categoryName)}`); } catch (_) {}
-    closeMobileMenu();
-    const catalogEl = document.getElementById('catalogo-productos');
-    if (catalogEl) catalogEl.scrollIntoView({ behavior: 'smooth' });
-}
-
-/* NOTE: openMobileMenu() y closeMobileMenu() se movieron a la secciÃ³n de "helpers seguros"
-   mÃ¡s abajo en el archivo para evitar duplicados y para que consulten el DOM al vuelo.
-   Si necesitÃ¡s modificar la lÃ³gica del menÃº, editÃ¡ las funciones en la secciÃ³n de helpers. */
-
-/**
- * @function toggleCategoriesSubmenu
- * @description Alterna la visibilidad del submenÃº de categorÃ­as.
- */
-function toggleCategoriesSubmenu() {
-    const categoriesSubmenu = document.getElementById('categories-submenu');
-    const categoriesToggleIcon = document.getElementById('categories-toggle-icon');
-    if (categoriesSubmenu && categoriesToggleIcon) {
-        categoriesSubmenu.classList.toggle('hidden');
-        categoriesToggleIcon.classList.toggle('fa-chevron-down');
-        categoriesToggleIcon.classList.toggle('fa-chevron-up');
-    }
-}
-
-/**
- * @function closeCategoriesSubmenu
- * @description Cierra el submenÃº de categorÃ­as.
- */
-function closeCategoriesSubmenu() {
-    const categoriesSubmenu = document.getElementById('categories-submenu');
-    const categoriesToggleIcon = document.getElementById('categories-toggle-icon');
-    if (categoriesSubmenu && categoriesToggleIcon && !categoriesSubmenu.classList.contains('hidden')) {
-        categoriesSubmenu.classList.add('hidden');
-        categoriesToggleIcon.classList.remove('fa-chevron-up');
-        categoriesToggleIcon.classList.add('fa-chevron-down');
-    }
-}
-
-/**
- * @function openFullscreenImage
- * @description Abre un modal para mostrar la imagen del producto en pantalla completa.
- * @param {string} imageUrl - La URL de la imagen a mostrar.
- * @param {string} altText - El texto alternativo para la imagen.
- */
-window.openFullscreenImage = function(imageUrl, altText) {
-    console.log("openFullscreenImage - Llamada. URL:", imageUrl, "Alt:", altText); // Log de la llamada
-    const modal = document.getElementById('image-fullscreen-modal');
-    const image = document.getElementById('fullscreen-image');
-
-    // **VERIFICACIÃ“N CRÃTICA**: Asegurarse de que el modal y la imagen existen en el DOM
-    if (!modal || !image) {
-        console.error("openFullscreenImage - Error: Elementos del modal de zoom no encontrados en el DOM.");
-        showMessageBox("No se pudo iniciar el zoom. Por favor, asegÃºrate de que el modal de imagen estÃ© presente en la pÃ¡gina.");
-        return; // Salir de la funciÃ³n si los elementos no existen
-    }
-
-    // Limpiar cualquier manejador de errores anterior y atributo src para una carga limpia
-    image.onerror = null;
-    image.src = ''; 
-    image.alt = '';
-
-    // Configurar el manejador de errores antes de establecer el src
-    image.onerror = function() {
-        console.error("openFullscreenImage - Error al cargar la imagen en pantalla completa:", imageUrl);
-        image.src = 'https://placehold.co/600x400/FF0000/FFFFFF?text=Error+Carga+Imagen'; // Imagen de fallback
-        image.alt = 'Error al cargar la imagen';
-        showMessageBox("No se pudo cargar la imagen en pantalla completa. Por favor, intÃ©ntalo de nuevo.");
-    };
-
-    image.src = imageUrl;
-    image.alt = altText;
-    modal.classList.add('open');
-    document.body.style.overflow = 'hidden'; // Evita el scroll del cuerpo
-}
-
-/**
- * @function closeFullscreenImage
- * @description Cierra el modal de imagen en pantalla completa.
- */
-window.closeFullscreenImage = function() {
-    console.log("closeFullscreenImage - Llamada."); // Log de la llamada
-    const modal = document.getElementById('image-fullscreen-modal');
-    const image = document.getElementById('fullscreen-image'); // Necesitamos obtener la referencia de la imagen aquÃ­ tambiÃ©n
-
-    // **VERIFICACIÃ“N CRÃTICA**: Asegurarse de que el modal y la imagen existen en el DOM
-    if (!modal || !image) {
-        console.error("closeFullscreenImage - Error: Elementos del modal de zoom no encontrados en el DOM.");
-        return; // Salir de la funciÃ³n si los elementos no existen
-    }
-
-    modal.classList.remove('open');
-    document.body.style.overflow = ''; // Restaura el scroll del cuerpo
-
-    // Limpiar la imagen y su manejador de errores para liberar recursos
-    image.src = ''; // Vaciar el src para asegurar una carga limpia la prÃ³xima vez
-    image.onerror = null;
-}
-
-/**
- * @function startCategoryImageAnimation
- * @description Inicia la animaciÃ³n de cambio de imagen para una tarjeta de categorÃ­a al pasar el ratÃ³n.
- * @param {HTMLElement} cardElement - El elemento de la tarjeta de categorÃ­a.
- */
-function startCategoryImageAnimation(cardElement) {
-    const imgElement = cardElement.querySelector('.category-image-animated');
-    if (!imgElement) return;
-
-    const originalImageUrl = cardElement.dataset.originalImage;
-    const productImages = JSON.parse(cardElement.dataset.productImages || '[]');
-
-    // Si no hay suficientes imÃ¡genes para animar (menos de 2), no hacer nada.
-    if (productImages.length <= 1) {
-        // Asegurarse de que el intervalo si existÃ­a, se limpie y se elimine
-        stopCategoryImageAnimation(cardElement);
-        return;
-    }
-
-    // Limpiar cualquier intervalo existente para esta tarjeta
-    stopCategoryImageAnimation(cardElement);
-
-    let currentIndex = productImages.indexOf(imgElement.src);
-    if (currentIndex === -1 || currentIndex >= productImages.length - 1) {
-        currentIndex = -1; // Si la imagen actual no estÃ¡ en la lista o es la Ãºltima, empezar desde el principio
-    }
-
-    const intervalId = setInterval(() => {
-        currentIndex = (currentIndex + 1) % productImages.length;
-        // Aplicar un efecto de desvanecimiento sutil
-        imgElement.classList.add('fade-out');
-        setTimeout(() => {
-            imgElement.src = productImages[currentIndex];
-            imgElement.classList.remove('fade-out');
-            imgElement.classList.add('fade-in');
-            setTimeout(() => imgElement.classList.remove('fade-in'), 600);
-        }, 300); // 300ms coincide con la duraciÃ³n de la transiciÃ³n CSS
-    }, 2000); // Cambiar imagen cada 2 segundos
-
-    categoryAnimationIntervals[cardElement.dataset.categoryName] = intervalId;
-}
-
-/**
- * @function stopCategoryImageAnimation
- * @description Detiene la animaciÃ³n de cambio de imagen para una tarjeta de categorÃ­a.
- * @param {HTMLElement} cardElement - El elemento de la tarjeta de categorÃ­a.
- */
-function stopCategoryImageAnimation(cardElement) {
-    const categoryName = cardElement.dataset.categoryName;
-    if (categoryAnimationIntervals[categoryName]) {
-        clearInterval(categoryAnimationIntervals[categoryName]);
-        delete categoryAnimationIntervals[categoryName];
-
-        const imgElement = cardElement.querySelector('.category-image-animated');
-        if (imgElement) {
-            // Revertir la imagen a la original con un desvanecimiento
-            imgElement.classList.add('fade-out');
-            setTimeout(() => {
-                imgElement.src = cardElement.dataset.originalImage;
-                imgElement.classList.remove('fade-out');
-                imgElement.classList.add('fade-in');
-                setTimeout(() => imgElement.classList.remove('fade-in'), 600);
-            }, 300);
-        }
-    }
-}
-
-
-// LÃ³gica para el menÃº de hamburguesa y submenÃºs
-document.addEventListener('DOMContentLoaded', function() {
-    console.log("DOMContentLoaded - DOM completamente cargado."); // Log de DOMContentLoaded
-    const mobileMenuButton = document.getElementById('mobile-menu-button');
-    const mobileNav = document.getElementById('mobile-nav');
-    const categoriesToggleButton = document.getElementById('categories-toggle-button');
-    const closeImageModalButton = document.getElementById('close-image-modal');
-    const imageFullscreenModal = document.getElementById('image-fullscreen-modal');
-
-
-    // Referencias a los enlaces de CatÃ¡logo
-    const catalogLinkMobile = document.getElementById('catalog-link-mobile');
-    const catalogLinkDesktop = document.getElementById('catalog-link-desktop');
-
-    // ** LÃ³gica para el botÃ³n de hamburguesa: Alterna abrir/cerrar **
-    // InicializaciÃ³n segura (evita doble inicializaciÃ³n)
-    if (window.__menuInit) {
-        // ya inicializado
-    } else {
-        window.__menuInit = true;
-        const { btn, nav } = getMobileMenuEls();
-        if (btn && nav) {
-            let isOpen = false;
-
-            // Conectar la "X" de cierre del panel mÃ³vil
-            const mobileNavClose = document.getElementById('mobile-nav-close');
-            if (mobileNavClose) {
-                mobileNavClose.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    closeMobileMenu();
-                    isOpen = false;
-                });
-            }
-
-            // Toggle del botÃ³n hamburguesa (actualiza isOpen)
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (isOpen) {
-                    closeMobileMenu();
-                } else {
-                    openMobileMenu();
-                }
-                isOpen = !isOpen;
-            });
-
-            // Cerrar al tocar fuera
-            document.body.addEventListener('click', (e) => {
-                if (!isOpen) return;
-                const { btn: b, nav: n } = getMobileMenuEls();
-                if (!n || !b) return;
-                if (!n.contains(e.target) && e.target !== b && !b.contains(e.target)) { // Added !b.contains(e.target)
-                    closeMobileMenu();
-                    isOpen = false;
-                }
-            });
-        } else {
-            console.warn('DOMContentLoaded - elementos de menÃº mÃ³vil ausentes; inicializaciÃ³n omitida.');
-        }
-    }
-
-    // Toggle del submenÃº de categorÃ­as
-    // Bind seguro y Ãºnico para el botÃ³n "CategorÃ­as" en el menÃº mÃ³vil.
-    // Usa toggle de la clase 'hidden' y rotaciÃ³n del icono para animaciÃ³n simple.
-    if (categoriesToggleButton) {
-        const categoriesIcon = document.getElementById('categories-toggle-icon');
-        const categoriesMenu = document.getElementById('categories-submenu');
-        if (categoriesMenu && categoriesIcon && !categoriesToggleButton.dataset.toggleInit) {
-            categoriesToggleButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                categoriesMenu.classList.toggle('hidden');
-                categoriesIcon.classList.toggle('rotate-180');
-            });
-            // marcar como inicializado para evitar binds dobles
-            categoriesToggleButton.dataset.toggleInit = '1';
-        }
-    }
-
-    // Event listener para el enlace "CatÃ¡logo" en la navegaciÃ³n mÃ³vil
-    if (catalogLinkMobile) {
-        catalogLinkMobile.addEventListener('click', function(event) {
-            event.preventDefault(); // Evitar el comportamiento predeterminado del ancla
-            loadAllProducts(); // Cargar todos los productos
-            closeMobileMenu(); // Cerrar el menÃº mÃ³vil
-            // Desplazar la vista a la secciÃ³n de productos
-            const catalogEl = document.getElementById('catalogo-productos');
-            if (catalogEl) catalogEl.scrollIntoView({ behavior: 'smooth' });
-        });
-    }
-
-    // Event listener para el enlace "CatÃ¡logo" en la navegaciÃ³n de escritorio
-    if (catalogLinkDesktop) {
-        catalogLinkDesktop.addEventListener('click', function(event) {
-            event.preventDefault(); // Evitar el comportamiento predeterminado del ancla
-            loadAllProducts(); // Cargar todos los productos
-            // Desplazar la vista a la secciÃ³n de productos
-            const catalogEl = document.getElementById('catalogo-productos');
-            if (catalogEl) catalogEl.scrollIntoView({ behavior: 'smooth' });
-        });
-    }
-
-    // Cerrar menÃº y submenÃºs al hacer clic fuera
-    // Cerrar solo el submenÃº de categorÃ­as al hacer clic fuera.
-    // NOTA: El cierre/abierto del panel mÃ³vil se maneja exclusivamente en el init seguro que usa `isOpen`.
-    document.body.addEventListener('click', function(event) {
-        const categoriesSubmenu = document.getElementById('categories-submenu');
-        const categoriesToggleBtn = document.getElementById('categories-toggle-button');
-        if (categoriesSubmenu && !categoriesSubmenu.classList.contains('hidden')) {
-            const clickedInsideSubmenu = categoriesSubmenu.contains(event.target);
-            const clickedToggle = categoriesToggleBtn && categoriesToggleBtn.contains(event.target);
-            if (!clickedInsideSubmenu && !clickedToggle) {
-                closeCategoriesSubmenu();
-            }
-        }
-    });
-
-    // Cerrar modal de imagen al hacer clic en el botÃ³n de cerrar
-    if (closeImageModalButton) {
-        closeImageModalButton.addEventListener('click', window.closeFullscreenImage); // Usar window.closeFullscreenImage
-    }
-
-    // Cerrar modal de imagen al hacer clic fuera de la imagen (en el overlay)
-    if (imageFullscreenModal) {
-        imageFullscreenModal.addEventListener('click', function(event) {
-            if (event.target === imageFullscreenModal) { // Solo si el click es directamente en el overlay
-                window.closeFullscreenImage(); // Usar window.closeFullscreenImage
-            }
-        });
-    }
-
-    // Opcional: Cerrar el menÃº mÃ³vil cuando se hace clic en un enlace interno (excepto CategorÃ­as)
-    // Los enlaces del submenÃº de categorÃ­as ya tienen closeMobileMenu() en su onclick
-    if (mobileNav) {
-        mobileNav.querySelectorAll('a[href^="#"]').forEach(link => {
-         // Asegurarse de que no sea el enlace de "CategorÃ­as" que abre el submenÃº
-         if (link.id !== 'categories-toggle-button') {
-             link.addEventListener('click', () => {
-                 closeMobileMenu();
-             });
-         }
-        });
-    }
-
-    // --- LÃ³gica para animaciones de imÃ¡genes de categorÃ­a (para dispositivos tÃ¡ctiles) ---
-    const categoriesContainer = document.getElementById('categories-container');
-    if (categoriesContainer) {
-        // Para dispositivos tÃ¡ctiles: un toque inicia, otro lo detiene o click fuera
-        categoriesContainer.addEventListener('touchstart', (event) => {
-            const card = event.target.closest('.category-card');
-            if (card) {
-                // Detener animaciones de otras tarjetas activas
-                for (const key in categoryAnimationIntervals) {
-                    if (key !== card.dataset.categoryName) {
-                        const otherCard = document.querySelector(`[data-category-name="${key}"]`);
-                        if (otherCard) stopCategoryImageAnimation(otherCard);
-                    }
-                }
-                // Alternar animaciÃ³n para la tarjeta tocada
-                if (categoryAnimationIntervals[card.dataset.categoryName]) {
-                    stopCategoryImageAnimation(card);
-                } else {
-                    startCategoryImageAnimation(card);
-                }
-            }
-        });
-
-        // Listener global para detener la animaciÃ³n si se hace clic fuera de una tarjeta activa
-        document.body.addEventListener('click', (event) => {
-            const card = event.target.closest('.category-card');
-            if (!card && Object.keys(categoryAnimationIntervals).length > 0) {
-                for (const key in categoryAnimationIntervals) {
-                    const activeCard = document.querySelector(`[data-category-name="${key}"]`);
-                    if (activeCard) stopCategoryImageAnimation(activeCard);
-                }
-            }
-        });
-    } else {
-        console.warn('DOMContentLoaded - #categories-container ausente; deshabilitando touch animation handlers.');
-    }
-    // --- Fin de la lÃ³gica para animaciones de imÃ¡genes de categorÃ­a ---
-
-    // Search UI: sugerencias y salto a producto
-    /* Reemplazo de la funciÃ³n de bÃºsqueda: parametrizada para desktop + mobile.
-       Evita doble bind en el mismo input usando dataset.searchInit. */
-    function setupSearch(inputId, listId) {
-      const input = document.getElementById(inputId);
-      const list  = document.getElementById(listId);
-      if (!input || !list) return;
-      if (input.dataset.searchInit) return; // ya inicializado
-      input.dataset.searchInit = '1';
-
-      const renderSuggestions = (q) => {
-        const term = (q || '').trim().toLowerCase();
-        if (!term) { list.innerHTML = ''; list.classList.add('hidden'); input.setAttribute('aria-expanded','false'); return; }
-        // Busqueda simple: exacto primero, luego parciales
-        const exact  = productsCache.filter(p => p.name === term);
-        const rest   = productsCache.filter(p => p.name.includes(term) && p.name !== term);
-        const matches = [...exact, ...rest].slice(0, 8);
-
-        // Update list classes for dark theme
-        list.className = 'absolute mt-1 w-full bg-gray-900 border border-white/20 rounded-xl shadow-md hidden overflow-hidden z-50 text-white';
-
-        list.innerHTML = matches.map(m =>
-          `<li role="option" data-id="${m.id}" class="px-3 py-2 cursor-pointer hover:bg-white/10">${m.name}</li>`
-        ).join('');
-        list.classList.toggle('hidden', matches.length === 0);
-        input.setAttribute('aria-expanded', String(matches.length > 0));
-      };
-
-      const go = (id) => {
-        const el = document.getElementById(`product-${id}`);
-        if (el) {
-          list.classList.add('hidden');
-          input.setAttribute('aria-expanded','false');
-          el.scrollIntoView({ behavior:'smooth', block:'start' });
-          el.classList.add('ring-2','ring-brand-1'); // Adjusted ring color for dark theme
-          setTimeout(()=> el.classList.remove('ring-2','ring-brand-1'), 1500); // Adjusted ring color
-          // si el input es mobile, cerramos el menÃº
-          if (inputId === 'search-input-mobile' && typeof closeMobileMenu === 'function') closeMobileMenu();
-        } else {
-          // reintento breve si aÃºn no estÃ¡ renderizado
-          const t = setInterval(()=>{
-            const el2 = document.getElementById(`product-${id}`);
-            if (el2) { clearInterval(t); go(id); }
-          }, 250);
-          setTimeout(()=> clearInterval(t), 3000);
-        }
-      };
-
-      input.addEventListener('input', e => renderSuggestions(e.target.value));
-
-      list.addEventListener('click', e => {
-        const li = e.target.closest('li[data-id]');
-        if (li) go(li.dataset.id);
-      });
-
-      input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') {
-          const first = list.querySelector('li[data-id]');
-          if (first) go(first.dataset.id);
-        } else if (e.key === 'Escape') {
-          list.classList.add('hidden');
-          input.setAttribute('aria-expanded','false');
-        }
-      });
-
-      // Cerrar lista al click fuera (cada setup instala su handler; inputs estÃ¡n protegidos por dataset)
-      document.addEventListener('click', (e) => {
-        if (!list.contains(e.target) && e.target !== input) {
-          list.classList.add('hidden');
-          input.setAttribute('aria-expanded','false');
-        }
-      });
-
-      // Atajo Ctrl/Cmd+K para enfocar el input correspondiente
-      document.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-          // Si el usuario ya estÃ¡ enfocado en un input distinto, preferir desktop input; si mobile, enfocar mobile
-          e.preventDefault();
-          input.focus();
-          input.select();
-        }
-      });
-    }
-
-    // AÃ±adir scroll listener para el header dinÃ¡mico
-    window.addEventListener('scroll', () => {
-      const header = document.getElementById('main-header');
-      if (header) {
-        if (window.scrollY > 50) { // Adjust scroll threshold as needed
-          header.classList.add('scrolled');
-        } else {
-          header.classList.remove('scrolled');
-        }
-      }
-    });
-
-    // Llamar a setupSearch dentro del DOMContentLoaded principal (inicializar desktop + mobile)
-    try {
-      setupSearch('search-input', 'search-results');                // desktop (si existe)
-      setupSearch('search-input-mobile', 'search-results-mobile');  // mobile (nuevo)
-    } catch (err) {
-      console.warn('setupSearch error', err);
-    }
-
-    // AnimaciÃ³n del logo al cargar la pÃ¡gina
-    document.addEventListener('DOMContentLoaded', () => {
-      const logoBig = document.querySelector('.logo-big');
-      const logoText = document.getElementById('logo-text');
-      const logoUnderline = document.getElementById('logo-underline');
-
-      if (logoBig) setTimeout(() => logoBig.classList.add('logo-animate'), 50);
-      if (logoText) setTimeout(() => logoText.classList.add('show'), 120);
-      if (logoUnderline) setTimeout(() => logoUnderline.classList.add('show'), 380);
-    });
-
-    // Mobile search toggle (para la barra de bÃºsqueda que aparece/desaparece)
-    const mobileSearchToggle = document.getElementById('mobile-search-toggle');
-    const mobileSearchDiv = document.getElementById('mobile-search');
-    if (mobileSearchToggle && mobileSearchDiv) {
-        mobileSearchToggle.addEventListener('click', () => {
-            mobileSearchDiv.classList.toggle('hidden');
-        });
-    }
-});
-
-
-// Inicializar Firebase cuando el DOM estÃ© completamente cargado
-// document.addEventListener('DOMContentLoaded', initFirebase);
-
-// Hacer que las funciones sean accesibles globalmente para eventos onclick en el HTML
-window.showMessageBox = showMessageBox;
-window.goToCategory = goToCategory;
-window.addCategory = addCategory; // Exponer para posibles llamadas desde un futuro panel de administraciÃ³n
-window.addProduct = addProduct;   // Exponer para posibles llamadas desde un futuro panel de administraciÃ³n
-window.loadAllProducts = loadAllProducts; // Exponer para ser llamada desde los enlaces de catÃ¡logo
-window.loadProductsByCategory = loadProductsByCategory; // Exponer para ser llamada desde los enlaces de categorÃ­a
-window.closeMobileMenu = closeMobileMenu; // Exponer para ser llamada desde los enlaces del submenÃº
-window.openMobileMenu = openMobileMenu; // Exponer para ser llamada
-window.openFullscreenImage = openFullscreenImage; // Exponer para abrir imÃ¡genes en pantalla completa
-window.closeFullscreenImage = closeFullscreenImage; // Exponer para cerrar imÃ¡genes en pantalla completa
-window.startCategoryImageAnimation = startCategoryImageAnimation; // Exponer la funciÃ³n de animaciÃ³n de categorÃ­a
-window.stopCategoryImageAnimation = stopCategoryImageAnimation;   // Exponer la funciÃ³n de detener animaciÃ³n de categorÃ­a
-
-// helpers para menÃº mÃ³vil (reemplazados/ajustados)
-function getMobileMenuEls() {
-    return {
-        btn: document.getElementById('mobile-menu-button'),
-        nav: document.getElementById('mobile-nav'),
-    };
-}
-
-function openMobileMenu() {
-    const { nav, btn } = getMobileMenuEls();
-    if (!nav || !btn) return;
-
-    // mostrar panel
-    nav.classList.remove('hidden', 'translate-x-full');
-    nav.classList.add('translate-x-0', 'open');
-
-    // accesibilidad: el panel ya NO estÃ¡ oculto
-    nav.removeAttribute('aria-hidden');
-    nav.removeAttribute('inert');
-
-    // animaciÃ³n del botÃ³n hamburguesa
-    btn.classList.add('open');
-    btn.setAttribute('aria-expanded', 'true');
-
-    // mover el foco a la "X" para evitar focos perdidos
-    const closeBtn = document.getElementById('mobile-nav-close');
-    if (closeBtn) closeBtn.focus();
-}
-
-function closeMobileMenu() {
-    const { nav, btn } = getMobileMenuEls();
-    if (!nav || !btn) return;
-
-    // iniciar cierre (slide out)
-    nav.classList.remove('translate-x-0', 'open');
-    nav.classList.add('translate-x-full');
+function hideLoading(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (id === 'futuristic-loader') {
+    el.style.opacity = '0';
+    el.style.pointerEvents = 'none';
     setTimeout(() => {
-        nav.classList.add('hidden');
+      el.classList.add('hidden');
+      document.body.style.overflow = '';
+    }, 500);
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
+function showMessageBox(message, duration = null) {
+  try {
+    let s = String(message ?? '');
+    const fixes = [
+      [/est�/g, 'está'],
+      [/vac�o/g, 'vacío'],
+      [/opci�n/g, 'opción'],
+      [/estar�/g, 'estará'],
+      [/pr�ximamente/g, 'próximamente'],
+      [/Eleg�/g, 'Elegí'],
+      [/Complet�/g, 'Completá'],
+      [/d�gitos/g, 'dígitos'],
+      [/N�mero/g, 'Número'],
+      [/Esta vacio/g, 'Está vacío'],
+      [/esta vacio/g, 'está vacío'],
+      [/valido\b/g, 'válido'],
+      [/telefono\b/g, 'teléfono'],
+      [/digitos\b/g, 'dígitos'],
+      [/opcion\b/g, 'opción'],
+      [/estara\b/g, 'estará'],
+      [/proximamente\b/g, 'próximamente'],
+      [/conexion\b/g, 'conexión'],
+      [/Compra registrada! Numero de compra:/g, '¡Compra registrada! Número de compra:'],
+      [/^Compra registrada!$/g, '¡Compra registrada!']
+    ];
+    for (const [rgx, rep] of fixes) { s = s.replace(rgx, rep); }
+    message = s;
+  } catch {}
+  const box = document.createElement('div');
+  box.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-[120]';
+  box.innerHTML = `
+    <div class="bg-gray-900/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl text-center max-w-sm mx-auto flex flex-col items-center border border-white/20 text-futuristic-ink">
+      <p class="text-xl font-semibold mb-4">${message}</p>
+      ${duration === null ? '<button onclick="this.parentNode.parentNode.remove()" class="px-5 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm focus:ring-2 focus:ring-brand-500/30 active:translate-y-px btn">Cerrar</button>' : ''}
+      ${duration !== null ? '<div class="loader-circle border-t-2 border-b-2 border-brand-1 rounded-full w-8 h-8 animate-spin mt-4"></div>' : ''}
+    </div>`;
+  document.body.appendChild(box);
+  if (duration !== null) {
+    box.classList.add('message-box-autodismiss');
+    setTimeout(() => { if (box.parentNode) box.remove(); }, duration);
+  }
+  return box;
+}
+
+// --- Category image hover animation ---
+function startCategoryImageAnimation(cardElement) {
+  const imgElement = cardElement.querySelector('.category-image-animated');
+  if (!imgElement) return;
+  const productImages = JSON.parse(cardElement.dataset.productImages || '[]');
+  if (productImages.length <= 1) {
+    stopCategoryImageAnimation(cardElement);
+    return;
+  }
+  stopCategoryImageAnimation(cardElement);
+  let currentIndex = productImages.indexOf(imgElement.src);
+  if (currentIndex === -1 || currentIndex >= productImages.length - 1) currentIndex = -1;
+  const intervalId = setInterval(() => {
+    currentIndex = (currentIndex + 1) % productImages.length;
+    imgElement.classList.add('fade-out');
+    setTimeout(() => {
+      imgElement.src = productImages[currentIndex];
+      imgElement.classList.remove('fade-out');
+      imgElement.classList.add('fade-in');
+      setTimeout(() => imgElement.classList.remove('fade-in'), 600);
     }, 300);
-
-    // accesibilidad: volver a ocultar
-    nav.setAttribute('aria-hidden', 'true');
-    nav.setAttribute('inert', '');
-
-    // revertir botÃ³n hamburguesa
-    btn.classList.remove('open');
-    btn.setAttribute('aria-expanded', 'false');
-
-    // devolver el foco al botÃ³n que abriÃ³ el panel
-    try { btn.focus(); } catch (e) { /* noop */ }
-
-    try { closeCategoriesSubmenu(); } catch (e) { /* noop */ }
+  }, 2000);
+  categoryAnimationIntervals[cardElement.dataset.categoryName] = intervalId;
 }
 
-/* === Product Detail Modal: fetch + rendering + open/close + deep-link === */
-
-// intenta obtener desde productsCache completo (si tu app lo llena con objetos completos)
-function getProductByIdLocal(id) {
-  if (!window.productsFullCache) return null;
-  return window.productsFullCache.find(p => String(p.id) === String(id)) || null;
-}
-
-async function getProductByIdFS(id) {
-  if (!db) return null;
-  try {
-    const ref = doc(db, `artifacts/${appId}/public/data/products`, id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    return { id: snap.id, ...snap.data() };
-  } catch (e) {
-    console.error('getProductByIdFS error', e);
-    return null;
+function stopCategoryImageAnimation(cardElement) {
+  const key = cardElement.dataset.categoryName;
+  if (categoryAnimationIntervals[key]) {
+    clearInterval(categoryAnimationIntervals[key]);
+    delete categoryAnimationIntervals[key];
+    const imgElement = cardElement.querySelector('.category-image-animated');
+    if (imgElement) {
+      imgElement.classList.add('fade-out');
+      setTimeout(() => {
+        imgElement.src = cardElement.dataset.originalImage;
+        imgElement.classList.remove('fade-out');
+        imgElement.classList.add('fade-in');
+        setTimeout(() => imgElement.classList.remove('fade-in'), 600);
+      }, 300);
+    }
   }
 }
 
-async function fetchProductById(id) {
-  // Try local cache first; then fallback to API list
-  let prod = getProductByIdLocal(id);
-  if (prod) return prod;
-  try {
-    let rows;
-    try {
-      rows = await fetchJson(`${API_BASE}/productos`);
-    } catch (_) {
-      rows = await fetchJson(`${API_BASE}/products`);
-    }
-    const mapped = (rows || []).map(mapApiProduct);
-    productsFullCache = mapped;
-    if (typeof window !== 'undefined') window.productsFullCache = mapped;
-    return mapped.find(p => String(p.id) === String(id)) || null;
-  } catch (e) {
-    console.error('fetchProductById fallback (API) error', e);
-    return null;
+// --- Fullscreen image modal ---
+window.openFullscreenImage = function(imageUrl, altText) {
+  const modal = document.getElementById('image-fullscreen-modal');
+  const image = document.getElementById('fullscreen-image');
+  if (!modal || !image) return;
+  image.onerror = null;
+  image.src = '';
+  image.alt = '';
+  image.onerror = function() {
+    image.src = 'https://placehold.co/600x400/FF0000/FFFFFF?text=Error+Carga+Imagen';
+    image.alt = 'Error al cargar la imagen';
+    showMessageBox('No se pudo cargar la imagen en pantalla completa.');
+  };
+  image.src = imageUrl;
+  image.alt = altText || '';
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+};
+
+window.closeFullscreenImage = function() {
+  const modal = document.getElementById('image-fullscreen-modal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  document.body.style.overflow = '';
+};
+
+// --- Mobile menu helpers ---
+function getMobileMenuEls() {
+  return { btn: document.getElementById('mobile-menu-button'), nav: document.getElementById('mobile-nav') };
+}
+function openMobileMenu() {
+  const { nav, btn } = getMobileMenuEls();
+  if (!nav || !btn) return;
+  nav.classList.remove('hidden', 'translate-x-full');
+  nav.classList.add('translate-x-0', 'open');
+  nav.removeAttribute('aria-hidden');
+  nav.removeAttribute('inert');
+  btn.classList.add('open');
+  btn.setAttribute('aria-expanded', 'true');
+  const closeBtn = document.getElementById('mobile-nav-close');
+  if (closeBtn) closeBtn.focus();
+}
+function closeMobileMenu() {
+  const { nav, btn } = getMobileMenuEls();
+  if (!nav || !btn) return;
+  nav.classList.remove('translate-x-0', 'open');
+  nav.classList.add('translate-x-full');
+  setTimeout(() => { nav.classList.add('hidden'); }, 300);
+  nav.setAttribute('aria-hidden', 'true');
+  nav.setAttribute('inert', '');
+  btn.classList.remove('open');
+  btn.setAttribute('aria-expanded', 'false');
+  try { btn.focus(); } catch {}
+  try { closeCategoriesSubmenu(); } catch {}
+}
+window.openMobileMenu = openMobileMenu;
+window.closeMobileMenu = closeMobileMenu;
+
+// --- Category submenu toggle ---
+function toggleCategoriesSubmenu() {
+  const categoriesSubmenu = document.getElementById('categories-submenu');
+  const categoriesToggleIcon = document.getElementById('categories-toggle-icon');
+  if (categoriesSubmenu && categoriesToggleIcon) {
+    categoriesSubmenu.classList.toggle('hidden');
+    categoriesToggleIcon.classList.toggle('fa-chevron-down');
+    categoriesToggleIcon.classList.toggle('fa-chevron-up');
+  }
+}
+function closeCategoriesSubmenu() {
+  const categoriesSubmenu = document.getElementById('categories-submenu');
+  const categoriesToggleIcon = document.getElementById('categories-toggle-icon');
+  if (categoriesSubmenu && categoriesToggleIcon && !categoriesSubmenu.classList.contains('hidden')) {
+    categoriesSubmenu.classList.add('hidden');
+    categoriesToggleIcon.classList.remove('fa-chevron-up');
+    categoriesToggleIcon.classList.add('fa-chevron-down');
   }
 }
 
-/**
- * Cargar y renderizar productos similares por categor
- * @param {string} categoryName - Nombre de la categor a filtrar
- * @param {string} excludeId - ID del producto actual a excluir
- */
-async function loadSimilarProducts(categoryName, excludeId) {
-  const wrap = document.getElementById('similar-products-container');
-  if (!wrap) return;
-  if (!categoryName) { wrap.innerHTML = ''; return; }
-
-  wrap.innerHTML = '<p class="col-span-full text-center text-futuristic-mute">Cargando productos similares...</p>';
-  try {
-    const productsColRef = collection(db, `artifacts/${appId}/public/data/products`);
-    let q1 = query(productsColRef, where('categoryName', '==', categoryName), limit(6));
-    let snapshot = await getDocs(q1);
-    if (snapshot.empty) {
-      const q2 = query(productsColRef, where('category', '==', categoryName), limit(6));
-      snapshot = await getDocs(q2);
-    }
-
-    wrap.innerHTML = '';
-    let count = 0;
-    snapshot.forEach(docSnap => {
-      const id = docSnap.id;
-      if (excludeId && id === excludeId) return;
-      const p = docSnap.data() || {};
-      const name = p.name || p.nombre || 'Producto';
-      const imageUrl = (Array.isArray(p.images) && p.images[0])
-                    || (Array.isArray(p.imagenes) && p.imagenes[0])
-                    || p.imageUrl || p.imagen || 'https://placehold.co/400x300/cccccc/333333?text=Sin+Imagen';
-      const price = (p.price !== undefined ? p.price : p.precio);
-      const priceHtml = (price !== undefined && price !== null)
-        ? `<div class="mt-2"><span class="price-chip"><i class="fa-solid fa-tag text-white/80 text-xs"></i>$${Number(price).toLocaleString('es-AR',{minimumFractionDigits:2, maximumFractionDigits:2})}</span></div>`
-        : '';
-
-      const card = document.createElement('div');
-      card.className = 'product-card group rounded-2xl flex flex-col cursor-pointer';
-      card.dataset.id = id;
-      card.innerHTML = `
-        <div class="relative aspect-[4/3] overflow-hidden rounded-t-2xl">
-          <img src="${imageUrl}" alt="${name}" class="w-full h-full object-cover" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/400x300/cccccc/333333?text=Sin+Imagen';">
-        </div>
-        <div class="p-3">
-          <h4 class="text-sm font-medium text-futuristic-ink line-clamp-2">${name}</h4>
-          ${priceHtml}
-        </div>`;
-      wrap.appendChild(card);
-      count++;
-    });
-
-    if (count === 0) {
-      wrap.innerHTML = '<p class="col-span-full text-center text-futuristic-mute">No hay productos similares.</p>';
-    }
-  } catch (e) {
-    console.error('loadSimilarProducts - Error:', e);
-    wrap.innerHTML = '<p class="col-span-full text-center text-futuristic-mute">No se pudieron cargar productos similares.</p>';
-  }
+// --- API helpers ---
+async function apiGet(path) {
+  const url = `${API_BASE}${path}`;
+  const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!resp.ok) throw new Error(`GET ${path} -> ${resp.status}`);
+  return resp.json();
 }
 
-// API-based similar products (no Firebase)
-async function loadSimilarProductsApi(categoryName, excludeId) {
-  const wrap = document.getElementById('similar-products-container');
-  if (!wrap) return;
-  if (!categoryName) { wrap.innerHTML = ''; return; }
+function mapProduct(row) {
+  return {
+    id: row.id,
+    name: row.name || row.nombre || 'Producto',
+    description: row.description || row.descripcion || '',
+    price: row.price ?? row.precio,
+    imageUrl: row.image_url || row.imageUrl || row.imagen || null,
+    categoryName: row.category_name || row.category || row.categoria || '',
+    specifications: row.specifications || row.specs || row.especificaciones,
+    stock: row.stock_quantity ?? row.stock,
+    createdAt: row.created_at || row.createdAt || null,
+  };
+}
 
-  wrap.innerHTML = '<p class="col-span-full text-center text-futuristic-mute">Cargando productos similares...</p>';
+// --- Simple search helpers (from scratch) ---
+function normalizeNoAccents(s) {
+  try { return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch { return String(s||'').toLowerCase(); }
+}
+
+function findFirstMatch(term) {
+  const q = normalizeNoAccents(term).trim();
+  if (!q) return null;
+  const base = Array.isArray(window.productsFullCache) ? window.productsFullCache : [];
+  // nombre (prefijo)
+  let m = base.find(p => normalizeNoAccents(p.name || p.nombre).startsWith(q));
+  if (m) return m;
+  // nombre (contiene)
+  m = base.find(p => normalizeNoAccents(p.name || p.nombre).includes(q));
+  if (m) return m;
+  // categoría (prefijo)
+  m = base.find(p => normalizeNoAccents(p.categoryName || p.categoria).startsWith(q));
+  if (m) return m;
+  // id exacto
+  m = base.find(p => String(p.id) === q);
+  return m || null;
+}
+
+async function openProductById(id) {
   try {
-    // Ensure we have products cache; if empty, fetch from API
-    if (!Array.isArray(productsFullCache) || productsFullCache.length === 0) {
-      let rows;
-      try {
-        rows = await fetchJson(`${API_BASE}/productos`);
-      } catch (_) {
-        rows = await fetchJson(`${API_BASE}/products`);
+    const prod = await fetchProductById(id);
+    if (!prod) return;
+    renderProductDetail(prod);
+    openPD();
+  } catch {}
+}
+
+// --- Categories ---
+async function loadCategories() {
+  showLoading('categories-loading-spinner');
+  try {
+    const categoriesContainer = document.getElementById('categories-container');
+    const categoriesSubmenu = document.getElementById('categories-submenu');
+    if (categoriesContainer) categoriesContainer.innerHTML = '';
+    if (categoriesSubmenu) categoriesSubmenu.innerHTML = '';
+
+    const rows = await apiGet('/categorias');
+    categoriesData = Array.isArray(rows) ? rows : [];
+
+    // Render main grid
+    if (categoriesContainer) {
+      if (!categoriesData.length) {
+        categoriesContainer.innerHTML = '<p class="text-center text-futuristic-mute col-span-full">No hay categorías disponibles.</p>';
+      } else {
+        categoriesData.forEach(cat => {
+          const name = cat.name || cat.nombre || 'Categoría';
+          const imageUrl = cat.image_url || cat.imageUrl || 'https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';
+          const desc = cat.description || cat.descripcion || 'Descripción no disponible.';
+          const card = document.createElement('div');
+          card.className = 'category-card group rounded-2xl flex flex-col';
+          card.dataset.categoryName = name;
+          card.dataset.originalImage = imageUrl;
+          card.dataset.productImages = JSON.stringify([imageUrl]);
+          card.addEventListener('click', (e) => { e.preventDefault(); goToCategory(name); });
+          card.addEventListener('mouseenter', () => startCategoryImageAnimation(card));
+          card.addEventListener('mouseleave', () => stopCategoryImageAnimation(card));
+          card.innerHTML = `
+            <div class="relative aspect-[4/3] overflow-hidden rounded-t-2xl">
+              <img loading="lazy" decoding="async" src="${imageUrl}" alt="${name}"
+                   class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02] category-image-animated"
+                   onerror="this.onerror=null;this.src='https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';">
+            </div>
+            <div class="p-6 sm:p-7">
+              <h3 class="text-xl sm:text-2xl font-semibold mb-2 line-clamp-2 text-futuristic-ink">${name}</h3>
+              <p class="text-base text-futuristic-mute mb-4 line-clamp-2">${desc}</p>
+              <button class="px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm focus:ring-2 focus:ring-brand-500/30 active:translate-y-px w-full btn">Ver Categoría</button>
+            </div>`;
+          categoriesContainer.appendChild(card);
+        });
       }
-      productsFullCache = (rows || []).map(mapApiProduct);
-      if (typeof window !== 'undefined') window.productsFullCache = productsFullCache;
     }
 
-    const norm = String(categoryName || '').toLowerCase();
-    const similar = productsFullCache
-      .filter(p => (p.categoryName || p.category || '').toLowerCase() === norm)
-      .filter(p => !excludeId || String(p.id) !== String(excludeId))
-      .slice(0, 6);
-
-    wrap.innerHTML = '';
-    if (!similar.length) {
-      wrap.innerHTML = '<p class="col-span-full text-center text-futuristic-mute">No hay productos similares.</p>';
-      return;
+    // Render submenu (mobile)
+    if (categoriesSubmenu && categoriesData.length) {
+      categoriesData.forEach(cat => {
+        const name = cat.name || cat.nombre || 'Categoría';
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <a href="/catalogo.html?cat=${encodeURIComponent(name)}"
+             data-cat="${String(name).replace(/\"/g,'&quot;')}"
+             onclick="goToCategory(this.dataset.cat); return false;"
+             class="block py-2 text-base text-futuristic-ink hover:text-brand-1 transition duration-200">${name}</a>`;
+        categoriesSubmenu.appendChild(li);
+      });
     }
-
-    similar.forEach(p => {
-      const name = p.name || 'Producto';
-      const imageUrl = p.imageUrl || 'https://placehold.co/400x300/cccccc/333333?text=Sin+Imagen';
-      const price = (p.price !== undefined ? p.price : p.precio);
-      const priceHtml = (price !== undefined && price !== null)
-        ? `<div class=\"mt-2\"><span class=\"price-chip\"><i class=\"fa-solid fa-tag text-white/80 text-xs\"></i>$${Number(price).toLocaleString('es-AR',{minimumFractionDigits:2, maximumFractionDigits:2})}</span></div>`
-        : '';
-
-      const card = document.createElement('div');
-      card.className = 'product-card group rounded-2xl flex flex-col cursor-pointer';
-      card.dataset.id = p.id;
-      card.innerHTML = `
-        <div class=\"relative aspect-[4/3] overflow-hidden rounded-t-2xl\">
-          <img src=\"${imageUrl}\" alt=\"${name}\" class=\"w-full h-full object-cover\" loading=\"lazy\" onerror=\"this.onerror=null;this.src='https://placehold.co/400x300/cccccc/333333?text=Sin+Imagen';\">`
-        + `</div>
-        <div class=\"p-3\">
-          <h4 class=\"text-sm font-medium text-futuristic-ink line-clamp-2\">${name}</h4>
-          ${priceHtml}
-        </div>`;
-      wrap.appendChild(card);
-    });
   } catch (e) {
-    console.error('loadSimilarProducts (API) - Error:', e);
-    wrap.innerHTML = '<p class=\"col-span-full text-center text-futuristic-mute\">No se pudieron cargar productos similares.</p>';
+    console.error('loadCategories(API) error:', e);
+    showMessageBox('Error al cargar las categorías.');
+  } finally {
+    hideLoading('categories-loading-spinner');
+    categoriesInitialLoadComplete = true;
+    checkAndHideMainLoader();
   }
 }
 
-/* UI references */
+// --- Products ---
+function getCreatedAtTS(v) {
+  if (!v) return 0;
+  if (typeof v === 'string') { const d = new Date(v); return isNaN(d) ? 0 : d.getTime(); }
+  if (v instanceof Date) return v.getTime();
+  if (typeof v === 'object' && typeof v.seconds === 'number') return v.seconds * 1000;
+  return 0;
+}
+
+// Combined filters (search + price)
+function normalizeStr(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function flattenSpecs(prod){
+  const src = prod.specifications || prod.specs || prod.especificaciones;
+  if (!src) return '';
+  try {
+    if (Array.isArray(src)) {
+      return src.map(it => {
+        if (!it) return '';
+        if (typeof it === 'string') return it;
+        if (typeof it === 'object') {
+          const k = it.key ?? it.clave ?? it.nombre ?? it.name ?? '';
+          const v = it.value ?? it.valor ?? it.val ?? '';
+          return `${k}: ${v}`;
+        }
+        return '';
+      }).join(' ');
+    }
+    if (typeof src === 'object') {
+      return Object.entries(src).map(([k,v]) => `${k}: ${v}`).join(' ');
+    }
+    return String(src);
+  } catch { return ''; }
+}
+function computeFilteredList(){
+  // Si hay una lista filtrada explícita (móvil), úsala como base
+  let list = (Array.isArray(window.__filteredList) && window.__filteredList.length)
+    ? [...window.__filteredList]
+    : [...productsFullCache];
+
+  // Structured filters
+  const catFilter = (window.__searchCategory || '').trim().toLowerCase();
+  const idFilter = (window.__searchId || '').trim().toLowerCase();
+  if (catFilter) list = list.filter(p => (p.categoryName || p.category || '').toLowerCase() === catFilter);
+  if (idFilter) list = list.filter(p => String(p.id).toLowerCase().includes(idFilter));
+
+  // Free-text search tokens (AND)
+  const q = (window.__searchQuery || '').trim();
+  if (q) {
+    const tokens = normalizeStr(q).split(/\s+/).filter(Boolean);
+    list = list.filter(p => {
+      const hayRaw = [p.name, p.description, p.categoryName, p.category, p.id, flattenSpecs(p)].filter(Boolean).join(' ');
+      const hay = normalizeStr(hayRaw);
+      return tokens.every(t => hay.includes(t));
+    });
+  }
+
+  // Price range
+  const hasMin = typeof window.__priceMin === 'number';
+  const hasMax = typeof window.__priceMax === 'number';
+  const minV = hasMin ? window.__priceMin : 0;
+  const maxV = hasMax ? window.__priceMax : Infinity;
+  if (hasMin || hasMax) {
+    list = list.filter(p => {
+      const priceNum = Number(p.price ?? p.precio);
+      const val = isFinite(priceNum) ? priceNum : 0;
+      return val >= minV && val <= maxV;
+    });
+  }
+  return list;
+}
+
+function applySortAndRender() {
+  const container = document.getElementById('contenedor-productos');
+  if (!container) return;
+  let list = computeFilteredList();
+  list.sort((a,b)=>{
+    if (currentSort === 'recent') return getCreatedAtTS(b.createdAt) - getCreatedAtTS(a.createdAt);
+    if (currentSort === 'old')    return getCreatedAtTS(a.createdAt) - getCreatedAtTS(b.createdAt);
+    if (currentSort === 'az')     return (a.name||'').localeCompare(b.name||'', 'es', {sensitivity:'base'});
+    if (currentSort === 'za')     return (b.name||'').localeCompare(a.name||'', 'es', {sensitivity:'base'});
+    return 0;
+  });
+
+  container.innerHTML = '';
+  if (!list.length) {
+    container.innerHTML = '<p class="col-span-full text-center text-futuristic-mute">No hay productos disponibles.</p>';
+  } else {
+    list.forEach(p => {
+      const id = p.id;
+      const name = p.name || 'Producto';
+      const description = p.description || '';
+      const imageUrl = p.imageUrl || 'https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';
+      const price = p.price;
+      const catLabel = p.categoryName || p.category || '';
+
+      let mediaHtml = `
+        <div class="media-frame relative aspect-[4/3] overflow-hidden rounded-t-2xl">
+          ${catLabel ? `<span class="cat-badge">${catLabel}</span>` : ''}
+          <img loading="lazy" decoding="async" src="${imageUrl}" alt="${name}"
+               class="w-full h-full object-cover"
+               onerror="this.onerror=null;this.src='https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';">
+        </div>`;
+
+      const priceHtml = price != null
+        ? `<div class="mt-3"><span class="price-chip"><i class="fa-solid fa-tag text-white/80 text-xs"></i>${currency(price)}</span></div>`
+        : '<p class="text-futuristic-mute italic mt-3 text-sm">Consultar</p>';
+
+      const card = document.createElement('div');
+      card.id = `product-${id}`;
+      card.dataset.id = id;
+      card.dataset.reveal = '1';
+      card.className = 'product-card group rounded-2xl flex flex-col';
+      card.innerHTML = `
+        ${mediaHtml}
+        <div class="p-4 flex flex-col flex-grow">
+          <h3 class="text-[15px] leading-snug line-clamp-2 text-futuristic-ink">${name}</h3>
+          <p class="text-futuristic-mute text-xs mt-1 flex-grow line-clamp-3">${description}</p>
+          ${priceHtml}
+        </div>`;
+      container.appendChild(card);
+    });
+  }
+
+  hideLoading('products-loading-spinner');
+  productsInitialLoadComplete = true;
+  checkAndHideMainLoader();
+  enhanceProductCardsForReveal();
+}
+
+function enhanceProductCardsForReveal() {
+  const cards = document.querySelectorAll('.product-card[data-reveal]');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (en.isIntersecting) {
+        en.target.classList.add('reveal-show');
+        obs.unobserve(en.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  cards.forEach(c => {
+    if (!c.dataset.revealInit) {
+      c.dataset.revealInit = '1';
+      obs.observe(c);
+    }
+  });
+}
+
+async function loadAllProducts() {
+  showLoading('products-loading-spinner');
+  try {
+    const rows = await apiGet('/productos');
+    productsFullCache = Array.isArray(rows) ? rows.map(mapProduct) : [];
+    productsCache = productsFullCache.map(p => ({
+      id: p.id,
+      name: normalizeNoAccents(p.name || p.nombre || '').replace(/\s+/g,' ').trim()
+    }));
+    syncProductCachesToWindow();
+    applySortAndRender();
+    try { if (typeof window.__refreshMobileSuggestions === 'function') window.__refreshMobileSuggestions(); } catch {}
+  } catch (e) {
+    console.error('loadAllProducts(API) error:', e);
+    showMessageBox('Error al cargar productos.');
+  } finally {
+    hideLoading('products-loading-spinner');
+    productsInitialLoadComplete = true;
+    checkAndHideMainLoader();
+  }
+}
+
+async function loadProductsByCategory(categoryName) {
+  showLoading('products-loading-spinner');
+  try {
+    // If backend supports filtering, you can change to /productos?categoria=...
+    const rows = await apiGet('/productos');
+    const all = Array.isArray(rows) ? rows.map(mapProduct) : [];
+    const norm = String(categoryName || '').toLowerCase();
+    productsFullCache = all.filter(p => (p.categoryName || '').toLowerCase() === norm);
+    productsCache = productsFullCache.map(p => ({
+      id: p.id,
+      name: normalizeNoAccents(p.name || p.nombre || '').replace(/\s+/g,' ').trim()
+    }));
+    syncProductCachesToWindow();
+    applySortAndRender();
+    try { if (typeof window.__refreshMobileSuggestions === 'function') window.__refreshMobileSuggestions(); } catch {}
+  } catch (e) {
+    console.error('loadProductsByCategory(API) error:', e);
+    showMessageBox('Error al cargar productos por categoría.');
+  } finally {
+    hideLoading('products-loading-spinner');
+    productsInitialLoadComplete = true;
+    checkAndHideMainLoader();
+  }
+}
+
+// --- Product detail modal helpers ---
 const $pd = {
   overlay: document.getElementById('pd-overlay'),
   title: document.getElementById('pd-title'),
@@ -1290,29 +558,143 @@ const $pd = {
   id: document.getElementById('pd-id'),
   stock: document.getElementById('pd-stock'),
   whatsapp: document.getElementById('pd-whatsapp'),
-  add: document.getElementById('pd-add'),
   closeBtn: document.getElementById('pd-close')
 };
 
 function currency(n) {
   try { return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n); } catch { return n; }
 }
-function openPD(){ if($pd.overlay){ $pd.overlay.classList.remove('hidden'); $pd.overlay.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; } }
-function closePD(){ if($pd.overlay){ $pd.overlay.classList.add('hidden'); $pd.overlay.setAttribute('aria-hidden','true'); document.body.style.overflow=''; clearHashParam(); } }
 
+// --- Cart helpers ---
+const CART_KEY = 'ens_cart_v1';
+function loadCart(){
+  try { const raw = localStorage.getItem(CART_KEY); const arr = JSON.parse(raw||'[]'); return Array.isArray(arr) ? arr : []; } catch { return []; }
+}
+let cart = loadCart();
+function saveCart(){ try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch {} updateCartBadge(); renderCart(); }
+function cartTotals(){
+  const subtotal = cart.reduce((acc, it) => acc + (Number(it.price||0) * Number(it.qty||0)), 0);
+  const total = subtotal; // envío calculado luego
+  const count = cart.reduce((a, it) => a + Number(it.qty||0), 0);
+  return { subtotal, total, count };
+}
+function updateCartBadge(){
+  const {count} = cartTotals();
+  const el = document.getElementById('cart-count');
+  const el2 = document.getElementById('cart-count-mobile');
+  if (el) el.textContent = String(count||0);
+  if (el2) el2.textContent = String(count||0);
+}
+function ensureQty(n){ n = Number(n||0); if (!Number.isFinite(n) || n < 1) n = 1; if (n > 999) n = 999; return n; }
+function addToCart(product, qty = 1){
+  if (!product || product.id == null) return;
+  const id = String(product.id);
+  const price = Number(product.price||0) || 0;
+  const imageUrl = product.imageUrl || product.imagen || null;
+  const name = product.name || product.nombre || 'Producto';
+  const i = cart.findIndex(it => String(it.id) === id);
+  if (i >= 0) {
+    cart[i].qty = ensureQty(Number(cart[i].qty||0) + Number(qty||1));
+  } else {
+    cart.push({ id, name, imageUrl, price, qty: ensureQty(qty) });
+  }
+  saveCart();
+  try { showMessageBox('Agregado al carrito', 900); } catch {}
+}
+function removeFromCart(id){ cart = cart.filter(it => String(it.id) !== String(id)); saveCart(); }
+function setQty(id, qty){ const it = cart.find(x => String(x.id) === String(id)); if (!it) return; it.qty = ensureQty(qty); saveCart(); bumpItem(id); }
+function bumpItem(id){ try { const row = document.querySelector(`.cart-item[data-id="${CSS.escape(String(id))}"]`); if (!row) return; row.classList.remove('bump'); void row.offsetWidth; row.classList.add('bump'); } catch {}
+}
+function openCart(){ const ov = document.getElementById('cart-overlay'); if (!ov) return; ov.classList.remove('hidden'); document.body.style.overflow='hidden'; renderCart(); }
+function closeCart(){ const ov = document.getElementById('cart-overlay'); if (!ov) return; ov.classList.add('hidden'); document.body.style.overflow=''; }
+function renderCart(){
+  const box = document.getElementById('cart-items'); if (!box) return;
+  box.innerHTML = '';
+  if (!cart.length) { box.innerHTML = '<p class="text-futuristic-mute">Tu carrito está vacío.</p>'; }
+  cart.forEach(it => {
+    const name = String(it.name||'Producto');
+    const price = Number(it.price||0);
+    const qty = Number(it.qty||0);
+    const img = it.imageUrl || 'https://placehold.co/96x96/cccccc/333333?text=.';
+    const row = document.createElement('div');
+    row.className = 'cart-item rounded-2xl bg-white/5 p-3 flex gap-3 items-center';
+    row.dataset.id = String(it.id);
+    row.innerHTML = `
+      <img src="${img}" alt="${name}" class="w-16 h-16 rounded-lg object-cover" onerror="this.onerror=null;this.src='https://placehold.co/96x96/cccccc/333333?text=.';">
+      <div class="flex-1">
+        <div class="flex items-start justify-between gap-2">
+          <h4 class="text-sm font-medium text-futuristic-ink line-clamp-2">${name}</h4>
+          <button class="p-1.5 rounded-full hover:bg-white/10" data-remove aria-label="Eliminar">❌</button>
+        </div>
+        <div class="mt-1 flex items-center justify-between">
+          <div class="text-futuristic-mute text-sm">${currency(price)}</div>
+          <div class="flex items-center gap-2">
+            <button class="qty-btn" data-dec>-</button>
+            <span class="min-w-[2ch] text-center" data-qty>${qty}</span>
+            <button class="qty-btn" data-inc>+</button>
+          </div>
+        </div>
+      </div>`;
+    box.appendChild(row);
+  });
+  const { subtotal, total } = cartTotals();
+  const subEl = document.getElementById('cart-subtotal'); if (subEl) subEl.textContent = currency(subtotal);
+  const totEl = document.getElementById('cart-total'); if (totEl) totEl.textContent = currency(total);
+}
+let __lastFocusEl = null;
+function openPD(){
+  if($pd.overlay){
+    try { __lastFocusEl = document.activeElement instanceof HTMLElement ? document.activeElement : null; } catch { __lastFocusEl = null; }
+    $pd.overlay.classList.remove('hidden');
+    $pd.overlay.classList.add('show');
+    $pd.overlay.removeAttribute('inert');
+    $pd.overlay.setAttribute('aria-hidden','false');
+    document.body.style.overflow='hidden';
+    // Mover el foco a un control del modal (mejora accesibilidad)
+    try { if ($pd.closeBtn && typeof $pd.closeBtn.focus === 'function') $pd.closeBtn.focus(); } catch {}
+  }
+}
+function closePD(){
+  if($pd.overlay){
+    // Si el foco está dentro del overlay, sácalo antes de ocultar
+    try {
+      const active = document.activeElement;
+      if (active && $pd.overlay.contains(active) && typeof active.blur === 'function') {
+        active.blur();
+      }
+    } catch {}
+    $pd.overlay.classList.add('hidden');
+    $pd.overlay.classList.remove('show');
+    $pd.overlay.setAttribute('inert','');
+    $pd.overlay.setAttribute('aria-hidden','true');
+    document.body.style.overflow='';
+    clearHashParam();
+    // Restaurar foco a un elemento seguro
+    try {
+      if (__lastFocusEl && document.contains(__lastFocusEl)) {
+        __lastFocusEl.focus();
+      } else {
+        const fallback = document.getElementById('search-input-mobile')
+          || document.getElementById('simple-search-input')
+          || document.getElementById('mobile-search-toggle');
+        if (fallback && typeof fallback.focus === 'function') fallback.focus();
+      }
+    } catch {}
+  }
+}
 function setHashParam(id){ const u = new URL(window.location.href); u.searchParams.set('p', id); history.replaceState(null,'',u); }
 function clearHashParam(){ const u = new URL(window.location.href); u.searchParams.delete('p'); history.replaceState(null,'',u); }
 
-function renderThumbs(imgs=[]){
+function renderThumbs(imgs=[]) {
   if(!$pd.thumbs) return;
   $pd.thumbs.innerHTML = '';
   imgs.forEach((src,i) => {
     const b = document.createElement('button');
-    b.className = 'w-16 h-16 rounded-lg overflow-hidden border border-white/20 bg-white/5 hover:border-brand-1'; // Adjusted classes for dark theme
+    b.className = 'w-16 h-16 rounded-lg overflow-hidden border border-white/20 bg-white/5 hover:border-brand-1';
     b.innerHTML = `<img src="${src}" alt="" class="w-full h-full object-cover">`;
-    b.addEventListener('click', ()=> { if($pd.image) $pd.image.src = resolveImageUrl(src); });
+    b.addEventListener('click', ()=> { if($pd.image) $pd.image.src = src; });
     $pd.thumbs.appendChild(b);
-    if(i===0 && $pd.image) $pd.image.src = resolveImageUrl(src);
+    if(i===0 && $pd.image) $pd.image.src = src;
   });
   if(!imgs.length && $pd.image) $pd.image.src = '';
 }
@@ -1320,43 +702,58 @@ function renderThumbs(imgs=[]){
 function renderBadges(prod){
   if(!$pd.badges) return;
   const items = [];
-  if (prod.envio24) items.push('<span class="px-2 py-1 rounded-full text-xs bg-emerald-700/30 text-emerald-300">EnvÃ­o 24/48h</span>'); // Adjusted colors
-  if (prod.garantiaMeses) items.push(`<span class="px-2 py-1 rounded-full text-xs bg-indigo-700/30 text-indigo-300">${prod.garantiaMeses}m GarantÃ­a</span>`); // Adjusted colors
-  if (prod.stock > 0) items.push('<span class="px-2 py-1 rounded-full text-xs bg-blue-700/30 text-blue-300">Stock disponible</span>'); // Adjusted colors
+  if (prod.envio24) items.push('<span class="px-2 py-1 rounded-full text-xs bg-emerald-700/30 text-emerald-300">Envío 24/48h</span>');
+  if (prod.garantiaMeses) items.push(`<span class="px-2 py-1 rounded-full text-xs bg-indigo-700/30 text-indigo-300">${prod.garantiaMeses}m Garantía</span>`);
+  if (prod.stock > 0) items.push('<span class="px-2 py-1 rounded-full text-xs bg-blue-700/30 text-blue-300">Stock disponible</span>');
   $pd.badges.innerHTML = items.join(' ');
 }
 
 function activateTab(tab){
   document.querySelectorAll('.pd-tab').forEach(b => {
-      if (b.dataset.tab === tab) {
-          b.dataset.active = 'true';
-          b.classList.add('text-brand-1', 'border-b-2', 'border-brand-1'); // Active tab style
-          b.classList.remove('text-futuristic-mute');
-      } else {
-          b.dataset.active = 'false';
-          b.classList.remove('text-brand-1', 'border-b-2', 'border-brand-1');
-          b.classList.add('text-futuristic-mute');
-      }
+    if (b.dataset.tab === tab) {
+      b.dataset.active = 'true';
+      b.classList.add('text-brand-1', 'border-b-2', 'border-brand-1');
+      b.classList.remove('text-futuristic-mute');
+    } else {
+      b.dataset.active = 'false';
+      b.classList.remove('text-brand-1', 'border-b-2', 'border-brand-1');
+      b.classList.add('text-futuristic-mute');
+    }
   });
   document.querySelectorAll('.pd-pane').forEach(p => p.classList.add('hidden'));
   const pane = document.getElementById(`pd-pane-${tab}`);
   if(pane) pane.classList.remove('hidden');
 }
 
+function normalizeWarranty(prod){
+  const candidates = [
+    prod.warranty, prod.warrantyMonths, prod.warrantyText,
+    prod.garantia, prod.garantiaMeses, prod.garantiaTexto,
+  ];
+  for (let raw of candidates){
+    if (raw === undefined || raw === null) continue;
+    if (typeof raw === 'number' && !isNaN(raw) && raw > 0) return `${raw} meses de garantía.`;
+    if (typeof raw === 'string') {
+      const txt = raw.trim(); if (!txt) continue; if (/^\d+$/.test(txt)) return `${parseInt(txt,10)} meses de garantía.`; return txt;
+    }
+  }
+  return null;
+}
+
 function renderProductDetail(prod){
   if(!$pd.title) return;
+  try { window.__currentProduct = { id: prod.id, name: prod.name || prod.nombre, price: prod.price ?? prod.precio ?? 0, imageUrl: prod.imageUrl || prod.imagen || null }; } catch {}
   $pd.title.textContent = prod.nombre || prod.title || prod.name || 'Producto';
-  $pd.price.textContent = prod.precio ?? prod.price ?? 'Consultar';
-  $pd.id.textContent = prod.id || 'â€”';
-  $pd.stock.textContent = (prod.stock ?? 'â€”');
+  $pd.price.textContent = (prod.price ?? prod.precio) != null ? currency(prod.price ?? prod.precio) : 'Consultar';
+  if ($pd.id) $pd.id.textContent = prod.id || '-';
+  if ($pd.stock) $pd.stock.textContent = (prod.stock ?? '-');
+  if ($pd.paneDesc) $pd.paneDesc.innerHTML = prod.descripcionLarga || prod.descripcion || prod.description || 'Sin descripción.';
 
-  $pd.paneDesc.innerHTML = prod.descripcionLarga || prod.descripcion || prod.description || 'Sin descripciÃ³n.';
-
-  // --- MOD INICIO: soporte specs/specifications/especificaciones (objeto | array {key,value} | string) ---
+  // specs/specifications/especificaciones (object | array | string)
   (function renderSpecs(){
+    if (!$pd.paneSpecs) return;
     let source = prod.specs ?? prod.specifications ?? prod.especificaciones;
-    let html = 'â€”';
-
+    let html = '-';
     if (source && typeof source === 'object') {
       if (Array.isArray(source)) {
         const items = source
@@ -1364,61 +761,33 @@ function renderProductDetail(prod){
           .map(it => {
             const k = it.key ?? it.clave ?? it.nombre ?? it.name;
             const v = it.value ?? it.valor ?? it.val;
-            if (k != null && v != null) {
-              return `<li><strong>${String(k)}:</strong> ${String(v)}</li>`;
-            }
-            return null;
+            return (k != null && v != null) ? `<li><strong>${String(k)}:</strong> ${String(v)}</li>` : null;
           })
           .filter(Boolean);
-        if (items.length) {
-          html = `<ul class="list-disc pl-5">${items.join('')}</ul>`;
-        }
+        if (items.length) html = `<ul class="list-disc pl-5">${items.join('')}</ul>`;
       } else {
-        const entries = Object.entries(source)
-          .filter(([k,v]) => k && v !== undefined && v !== null);
-        if (entries.length) {
-          html = `<ul class="list-disc pl-5">${entries
-            .map(([k,v])=>`<li><strong>${k}:</strong> ${v}</li>`).join('')}</ul>`;
-        }
+        const entries = Object.entries(source).filter(([k,v]) => k && v !== undefined && v !== null);
+        if (entries.length) html = `<ul class="list-disc pl-5">${entries.map(([k,v])=>`<li><strong>${k}:</strong> ${v}</li>`).join('')}</ul>`;
       }
     } else if (typeof source === 'string') {
-      const txt = source.trim();
-      if (txt) html = txt;
+      const s = source.trim();
+      if (s) {
+        // Convertir posibles bullets o saltos de línea en lista visual
+        const items = s.split(/\r?\n|[•·]+/).map(x => x.trim()).filter(Boolean);
+        if (items.length > 1) {
+          html = `<ul class="list-disc pl-5 space-y-1 text-futuristic-mute">${items.map(i=>`<li>${i}</li>`).join('')}</ul>`;
+        } else {
+          html = s;
+        }
+      } else {
+        html = '-';
+      }
     }
-
     $pd.paneSpecs.innerHTML = html;
   })();
-  // --- MOD FIN ---
 
-  // CAMBIO: normalizar garantÃ­a con prioridades garantia > warranty > garantiaTexto > garantiaMeses
-  function normalizeWarranty(p){
-    const candidates = [
-      p.garantia,
-      p.warranty,
-      p.garantiaTexto,
-      p.garantiaMeses
-    ];
-    for (let raw of candidates){
-      if (raw === undefined || raw === null) continue;
-      // NÃºmero directo
-      if (typeof raw === 'number' && !isNaN(raw) && raw > 0) {
-        return `${raw} meses de garantÃ­a.`;
-      }
-      // String
-      if (typeof raw === 'string') {
-        const txt = raw.trim();
-        if (!txt) continue;
-        if (/^\d+$/.test(txt)) {
-          return `${parseInt(txt,10)} meses de garantÃ­a.`;
-        }
-        return txt; // texto libre
-      }
-    }
-    return null;
-  }
-  $pd.paneWarranty.innerHTML = normalizeWarranty(prod) || 'Consultar garantÃ­a.';
+  if ($pd.paneWarranty) $pd.paneWarranty.innerHTML = normalizeWarranty(prod) || 'Consultar garantía.';
 
-  // --- FIX: reemplaza Array.isClassName por lÃ³gica robusta ---
   let imgs = [];
   if (Array.isArray(prod.imagenes) && prod.imagenes.length) imgs = prod.imagenes;
   else if (Array.isArray(prod.images) && prod.images.length) imgs = prod.images;
@@ -1426,93 +795,161 @@ function renderProductDetail(prod){
   else if (typeof prod.imagen === 'string' && prod.imagen) imgs = [prod.imagen];
   else if (typeof prod.imageUrl === 'string' && prod.imageUrl) imgs = [prod.imageUrl];
   else if (typeof prod.img === 'string' && prod.img) imgs = [prod.img];
-
   imgs = imgs.map(s=>String(s)).filter(Boolean);
-
   renderThumbs(imgs);
   renderBadges(prod);
 
-  const msg = encodeURIComponent(`Hola! Me interesa el producto "${$pd.title.textContent}" (ID ${prod.id}). Â¿Disponibilidad y precio?`);
+  const msg = encodeURIComponent(`Hola! Me interesa el producto "${$pd.title.textContent}" (ID ${prod.id}). ¿Disponibilidad y precio?`);
   if($pd.whatsapp) $pd.whatsapp.href = `https://wa.me/5491159914197?text=${msg}`;
-
   activateTab('desc');
 
-  // Cargar productos similares segn su categora
   try {
-    const catName = prod.categoryName || prod.category || prod.categoria || prod.categoriaNombre;
+    const catName = prod.categoryName || prod.category || prod.categoria || '';
     const excludeId = prod.id;
-    loadSimilarProductsApi(catName, excludeId);
-  } catch(_) { /* noop */ }
+    loadSimilarProducts(catName, excludeId);
+  } catch {}
 }
 
-/* DelegaciÃ³n: abrir modal al clickear .product-card (usa data-id o id product-*) */
+async function fetchProductById(id) {
+  // Try cache first
+  const local = (window.productsFullCache || []).find(p => String(p.id) === String(id));
+  if (local) return local;
+  try {
+    const row = await apiGet(`/productos/${encodeURIComponent(id)}`);
+    return mapProduct(row);
+  } catch (e) {
+    console.error('fetchProductById(API) error:', e);
+    return null;
+  }
+}
+
+async function loadSimilarProducts(categoryName, excludeId) {
+  const wrap = document.getElementById('similar-products-container');
+  if (!wrap) return;
+  if (!categoryName) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = '<p class="col-span-full text-center text-futuristic-mute">Cargando productos similares...</p>';
+  try {
+    const norm = String(categoryName).toLowerCase();
+
+    // 1) Intentar desde el cache actual
+    let list = (window.productsFullCache || []).filter(p => {
+      if (excludeId && String(p.id) === String(excludeId)) return false;
+      return (p.categoryName || '').toLowerCase() === norm;
+    });
+
+    // 2) Si no hay suficientes, obtener del backend y filtrar
+    if (!list.length) {
+      const rows = await apiGet('/productos');
+      const all = Array.isArray(rows) ? rows.map(mapProduct) : [];
+      list = all.filter(p => {
+        if (excludeId && String(p.id) === String(excludeId)) return false;
+        return (p.categoryName || '').toLowerCase() === norm;
+      });
+    }
+
+    // Limitar a 6
+    list = list.slice(0, 6);
+
+    wrap.innerHTML = '';
+    if (!list.length) {
+      wrap.innerHTML = '<p class="col-span-full text-center text-futuristic-mute">No hay productos similares.</p>';
+      return;
+    }
+    list.forEach(p => {
+      const name = p.name || 'Producto';
+      const imageUrl = p.imageUrl || 'https://placehold.co/400x300/cccccc/333333?text=Sin+Imagen';
+      const price = p.price;
+      const priceHtml = (price !== undefined && price !== null)
+        ? `<div class="mt-2"><span class="price-chip"><i class="fa-solid fa-tag text-white/80 text-xs"></i>${currency(price)}</span></div>`
+        : '';
+      const card = document.createElement('div');
+      card.className = 'product-card group rounded-2xl flex flex-col cursor-pointer';
+      card.dataset.id = p.id;
+      card.innerHTML = `
+        <div class="relative aspect-[4/3] overflow-hidden rounded-t-2xl">
+          <img src="${imageUrl}" alt="${name}" class="w-full h-full object-cover" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/400x300/cccccc/333333?text=Sin+Imagen';">
+        </div>
+        <div class="p-3">
+          <h4 class="text-sm font-medium text-futuristic-ink line-clamp-2">${name}</h4>
+          ${priceHtml}
+        </div>`;
+      wrap.appendChild(card);
+    });
+  } catch (e) {
+    console.error('loadSimilarProducts(API) error:', e);
+    wrap.innerHTML = '<p class="col-span-full text-center text-futuristic-mute">No se pudieron cargar productos similares.</p>';
+  }
+}
+
+// --- Delegations / events ---
 document.addEventListener('click', async (e) => {
   const card = e.target.closest('.product-card');
   if(!card) return;
-  // evitar abrir modal si click fue en un enlace interno (ej. botones componentes)
-  if (e.target.closest('a')) return;
+  if (e.target.closest('a')) return; // ignore clicks on inner links
   const id = card.dataset.id || (card.id && card.id.startsWith('product-') ? card.id.replace(/^product-/, '') : null);
   if(!id) return;
   const prod = await fetchProductById(id);
-  if(!prod) { showMessageBox('No se encontrÃ³ el producto.'); return; }
+  if(!prod) { showMessageBox('No se encontró el producto.'); return; }
   renderProductDetail(prod);
   openPD();
   setHashParam(id);
 });
 
-/* Cerrar modal (backdrop, botÃ³n, ESC) */
 document.addEventListener('click', (e) => {
   if(e.target.matches('[data-close]') || e.target.id === 'pd-overlay') closePD();
 });
 if($pd.closeBtn) $pd.closeBtn.addEventListener('click', closePD);
 document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closePD(); });
 
-/* Tabs */
-document.addEventListener('click', (e) => {
+// --- Line 612 onwards ---
+document.addEventListener('click', e => {
   const btn = e.target.closest('.pd-tab');
   if(!btn) return;
   activateTab(btn.dataset.tab);
 });
 
-/* Deep-link: ?p=ID abre el modal directo */
+// --- Cart bindings ---
+document.getElementById('pd-add')?.addEventListener('click', () => {
+  if (window.__currentProduct && window.__currentProduct.id != null) {
+    addToCart(window.__currentProduct, 1);
+  } else {
+    showMessageBox('No se pudo agregar este producto.');
+  }
+});
+document.getElementById('cart-button')?.addEventListener('click', openCart);
+document.getElementById('cart-button-mobile')?.addEventListener('click', openCart);
+document.getElementById('cart-continue')?.addEventListener('click', closeCart);
+document.getElementById('cart-close')?.addEventListener('click', closeCart);
+document.getElementById('cart-overlay')?.addEventListener('click', (e) => { if (e.target && e.target.hasAttribute('data-cart-close')) closeCart(); });
+document.getElementById('cart-items')?.addEventListener('click', (e) => {
+  const row = e.target.closest('.cart-item'); if (!row) return;
+  const id = row.dataset.id;
+  if (e.target.closest('[data-inc]')) { setQty(id, (cart.find(x=>String(x.id)===String(id))?.qty||0)+1); }
+  else if (e.target.closest('[data-dec]')) { setQty(id, (cart.find(x=>String(x.id)===String(id))?.qty||0)-1); }
+  else if (e.target.closest('[data-remove]')) { removeFromCart(id); }
+});
+document.getElementById('cart-checkout')?.addEventListener('click', () => {
+  if (!cart.length) { showMessageBox('Tu carrito está vacío'); return; }
+  const lines = cart.map(it => `• ${it.name} x${it.qty} – ${currency(it.price*it.qty)}`);
+  const { total } = cartTotals();
+  const msg = encodeURIComponent(`Hola! Quiero finalizar compra:\n${lines.join('\n')}\nTotal: ${currency(total)}`);
+  const url = `https://wa.me/5491159914197?text=${msg}`;
+  try { window.open(url, '_blank'); } catch { window.location.href = url; }
+});
+updateCartBadge();
+
+// Open from URL ?p=ID
 (function openFromURL(){
   try {
     const u = new URL(window.location.href);
     const id = u.searchParams.get('p');
     if(!id) return;
-    fetchProductById(id).then(prod => {
-      if(!prod) return;
-      renderProductDetail(prod);
-      openPD();
-    });
-  } catch(e){ /* noop */ }
+    fetchProductById(id).then(prod => { if(!prod) return; renderProductDetail(prod); openPD(); });
+  } catch {}
 })();
 
-// Carga inicial con API: si hay ?cat= filtra; si no, carga general
-(function applyCatQueryIfPresent() {
-  try {
-    const u = new URL(window.location.href);
-    const cat = u.searchParams.get('cat');
-    const path = (window.location.pathname || '').toLowerCase();
-    if (!(path.includes('catalogo.html') || path.includes('/catalogo'))) return;
-
-    if (cat) {
-      const titleEl = document.getElementById('category-title');
-      const categoriesSectionEl = document.getElementById('productos');
-      const categoriesContainerEl = document.getElementById('categories-container');
-      if (titleEl) titleEl.textContent = `Mostrando productos de: ${cat}`;
-      if (categoriesSectionEl) categoriesSectionEl.style.display = 'none';
-      if (categoriesContainerEl) categoriesContainerEl.style.display = 'none';
-      categoriesInitialLoadComplete = true;
-      loadProductsByCategoryApi(cat);
-    } else {
-      loadCategoriesApi();
-      loadAllProductsApi();
-    }
-  } catch (e) { /* noop */ }
-})();
-// Manejar navegaciÃ³n con botÃ³n "AtrÃ¡s" para alternar entre catÃ¡logo general y por categorÃ­a
-window.addEventListener('popstate', async () => {
+// Auto apply ?cat= on catalog pages after init
+window.addEventListener('popstate', () => {
   try {
     const u = new URL(window.location.href);
     const cat = u.searchParams.get('cat');
@@ -1524,325 +961,645 @@ window.addEventListener('popstate', async () => {
       if (categoriesSectionEl) categoriesSectionEl.style.display = 'none';
       if (categoriesContainerEl) categoriesContainerEl.style.display = 'none';
       categoriesInitialLoadComplete = true;
-      await loadProductsByCategoryApi(cat);
+      loadProductsByCategory(cat);
     } else {
+      if (titleEl) titleEl.textContent = 'Todos Nuestros Productos';
       if (categoriesSectionEl) categoriesSectionEl.style.display = '';
       if (categoriesContainerEl) categoriesContainerEl.style.display = '';
-      if (titleEl) titleEl.textContent = 'Todos Nuestros Productos';
-      await loadCategoriesApi();
-      await loadAllProductsApi();
+      loadCategories();
+      loadAllProducts();
     }
-  } catch (_) { /* noop */ }
+  } catch {}
 });
-/* === end product detail modal logic === */
 
-/* === SORT + RENDER (aÃ±adido) === */
-function applySortAndRender() {
-  const container = document.getElementById('contenedor-productos');
-  if (!container) return;
-  const activeFiltered = (typeof window !== 'undefined') ? (window.__filteredList || null) : null;
-  let list = [...(activeFiltered && Array.isArray(activeFiltered) ? activeFiltered : productsFullCache)];
-
-  const getTS = v => {
-    if(!v) return 0;
-    if (typeof v.seconds === 'number') return v.seconds * 1000 + (v.nanoseconds||0)/1e6;
-    if (v instanceof Date) return v.getTime();
-    return 0;
-  };
-
-  list.sort((a,b)=>{
-    if (currentSort === 'recent') return getTS(b.createdAt) - getTS(a.createdAt);
-    if (currentSort === 'old')    return getTS(a.createdAt) - getTS(b.createdAt);
-    if (currentSort === 'az')     return (a.name||'').localeCompare(b.name||'', 'es', {sensitivity:'base'});
-    if (currentSort === 'za')     return (b.name||'').localeCompare(a.name||'', 'es', {sensitivity:'base'});
-    return 0;
-  });
-
-  container.innerHTML = '';
-  if (!list.length) {
-    container.innerHTML = '<p class="col-span-full text-center text-futuristic-mute">No hay productos disponibles.</p>';
-  } else {
-    list.forEach(p => {
-      const {
-        id,
-        name = 'Producto',
-        price,
-        imageUrl,
-        description = '',
-        componentsUrl,
-        videoUrl,
-        category,
-        categoryName
-      } = p;
-
-      const catLabel = categoryName || category; // <--- compat legacy + nuevo
-
-      let mediaHtml = '';
-      if (videoUrl && typeof videoUrl === 'string') {
-        const yt = videoUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/))([\w-]{11})/);
-        if (yt && yt[1]) {
-          mediaHtml = `<div class="media-frame aspect-[4/3]">
-              <iframe class="absolute inset-0 w-full h-full rounded-t-2xl"
-                      src="https://www.youtube.com/embed/${yt[1]}?autoplay=0&mute=1&rel=0"
-                      loading="lazy" allowfullscreen></iframe>
-            </div>`;
-        }
-      }
-      if (!mediaHtml) {
-        mediaHtml = `
-          <div class="media-frame relative aspect-[4/3] overflow-hidden rounded-t-2xl">
-            ${catLabel ? `<span class="cat-badge">${catLabel}</span>` : ''}
-            <img loading="lazy" decoding="async"
-                 src="${imageUrl || 'https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen'}"
-                 alt="${name}"
-                 class="w-full h-full object-cover"
-                 onerror="this.onerror=null;this.src='https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';">
-          </div>`;
-      }
-
-      const priceHtml = price != null
-        ? `<div class="mt-3"><span class="price-chip"><i class="fa-solid fa-tag text-white/80 text-xs"></i>$${Number(price).toLocaleString('es-AR',{minimumFractionDigits:2, maximumFractionDigits:2})}</span></div>`
-        : `<p class="text-futuristic-mute italic mt-3 text-sm">Consultar</p>`; // Adjusted color
-
-      const componentsBtn = componentsUrl ? `
-        <a href="${componentsUrl}" target="_blank" rel="noopener noreferrer"
-           class="mt-4 px-4 py-2 rounded-xl bg-white/5 text-brand-1 text-xs font-medium hover:bg-white/10 transition flex items-center justify-center gap-2 components-btn">
-          <i class="fas fa-microchip text-brand-1/70"></i> Componentes
-        </a>` : ''; // Adjusted colors
-
-      const card = document.createElement('div');
-      card.id = `product-${id}`;
-      card.dataset.id = id;
-      card.dataset.reveal = '1';
-      card.className = "product-card group rounded-2xl flex flex-col";
-      card.innerHTML = `
-        ${mediaHtml}
-        <div class="p-4 flex flex-col flex-grow">
-          <h3 class="text-[15px] leading-snug line-clamp-2 text-futuristic-ink">${name}</h3>
-          <p class="text-futuristic-mute text-xs mt-1 flex-grow line-clamp-3">${description}</p>
-          ${priceHtml}
-          ${componentsBtn}
-        </div>
-      `;
-      container.appendChild(card);
-    });
-  }
-
-  hideLoading('products-loading-spinner');
-  productsInitialLoadComplete = true;
-  checkAndHideMainLoader();
-  enhanceProductCardsForReveal();
-}
-
-// Intersection reveal
-function enhanceProductCardsForReveal() {
-  const cards = document.querySelectorAll('.product-card[data-reveal]');
-  const obs = new IntersectionObserver(entries => {
-    entries.forEach(en => {
-      if (en.isIntersecting) {
-        en.target.classList.add('reveal-show');
-        obs.unobserve(en.target);
-      }
-    });
-  }, { threshold:0.15 });
-  cards.forEach(c => {
-    if (!c.dataset.revealInit) {
-      c.dataset.revealInit = '1';
-      obs.observe(c);
-    }
-  });
-}
-
-// Init sort select (si no estaba)
+// Sorting and simple price filter
 document.addEventListener('DOMContentLoaded', () => {
   const sel = document.getElementById('product-sort');
   if (sel && !sel.dataset.sortInit) {
     sel.dataset.sortInit = '1';
-    sel.addEventListener('change', e => {
-      currentSort = e.target.value;
-      applySortAndRender();
-    });
+    sel.addEventListener('change', e => { currentSort = e.target.value; applySortAndRender(); });
   }
-  // Permitir Enter para aplicar filtro de precio
   const minI = document.getElementById('min-price');
   const maxI = document.getElementById('max-price');
   [minI, maxI].forEach(inp => {
     if (inp && !inp.dataset.bindEnter) {
       inp.dataset.bindEnter = '1';
-      inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') { if (typeof window.applyPriceFilter === 'function') window.applyPriceFilter(); } });
+      inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') { if (typeof window.applyPriceFilter ===
+        'function') window.applyPriceFilter(); } });
     }
   });
+  // init search bindings (desktop + mobile)
+  try { setupSearch(); } catch {}
+  // Observe DOM for dynamically added search inputs (e.g., mobile menu)
+  try {
+    let scheduled = false;
+    const obs = new MutationObserver(() => {
+      if (scheduled) return; scheduled = true;
+      setTimeout(()=>{ scheduled = false; try { setupSearch(); } catch {} }, 150);
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+  } catch {}
 });
 
-// Filtro por rango de precio (sobre el conjunto cargado actual)
 function applyPriceFilter() {
   const minEl = document.getElementById('min-price');
   const maxEl = document.getElementById('max-price');
   const min = minEl ? parseFloat(minEl.value) : NaN;
   const max = maxEl ? parseFloat(maxEl.value) : NaN;
-  const minV = isNaN(min) ? 0 : min;
-  const maxV = isNaN(max) ? Infinity : max;
-
-  try { console.log(`Filtrando por rango de precio: ${minV} - ${maxV}`); } catch(_){}
-
-  if (minV === 0 && maxV === Infinity) {
-    // limpiar filtro
-    if (typeof window !== 'undefined') window.__filteredList = null;
-    applySortAndRender();
-    return;
+  const hasMin = !isNaN(min);
+  const hasMax = !isNaN(max);
+  if (!hasMin && !hasMax) {
+    delete window.__priceMin; delete window.__priceMax;
+  } else {
+    window.__priceMin = hasMin ? min : 0;
+    window.__priceMax = hasMax ? max : Infinity;
   }
-
-  const filtered = (productsFullCache || []).filter(p => {
-    const priceNum = Number(p.price ?? p.precio);
-    const val = isFinite(priceNum) ? priceNum : 0;
-    return val >= minV && val <= maxV;
-  });
-
-  if (typeof window !== 'undefined') window.__filteredList = filtered;
   applySortAndRender();
 }
+window.applyPriceFilter = applyPriceFilter;
 
-// Exponer para onclick en HTML (script type=module)
-if (typeof window !== 'undefined') {
-  window.applyPriceFilter = applyPriceFilter;
+// --- Search ---
+function getSearchInputs(){
+  const sel = [
+    '#search-input', '#search', '#buscador', '#q', '[name="search"]', '[name="q"]', '[data-search-input]', '.search-input',
+    'input[type="search"]', 'input[placeholder*="Buscar" i]', 'input[aria-label*="Buscar" i]'
+  ];
+  const list = new Set();
+  sel.forEach(s => document.querySelectorAll(s).forEach(el => { if (el instanceof HTMLInputElement) list.add(el); }));
+  // Excluir el input móvil específico; tiene su propio typeahead dedicado
+  return Array.from(list).filter(el => el.id !== 'search-input-mobile');
 }
-
-// =====================
-// Capa fetch â†’ API backend
-// =====================
-async function fetchJson(url, opts = {}) {
-  const resp = await fetch(url, { cache: 'no-store', ...opts });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  const ct = resp.headers.get('content-type') || '';
-  return ct.includes('application/json') ? resp.json() : null;
+function isVisible(el){ return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length); }
+function getBestSearchInput(){
+  const inputs = getSearchInputs();
+  if (!inputs.length) return null;
+  const vis = inputs.find(isVisible);
+  return vis || inputs[0];
 }
-
-// Normaliza URLs de imagen: absolutas, relativas y data:
-function resolveImageUrl(p) {
+function parseNumber(v){
+  if (v==null) return NaN; return parseFloat(String(v).replace(/\./g,'').replace(',', '.'));
+}
+async function applySearch(query, opts={}){
   try {
-    if (!p) return '';
-    const s = String(p).trim();
-    if (!s) return '';
-    if (/^(data:|https?:)/i.test(s)) return s;
-    let origin = '';
-    try { origin = new URL(API_BASE).origin; } catch (_) { origin = ''; }
-    if (!origin) return s;
-    if (s.startsWith('/')) return origin + s;
-    return origin + '/' + s.replace(/^\.\//, '');
-  } catch (_) {
-    return p || '';
-  }
-}
-
-async function loadCategoriesApi() {
-  try {
-    showLoading('categories-loading-spinner');
-    let rows;
-    try {
-      rows = await fetchJson(`${API_BASE}/categorias`);
-    } catch (e1) {
-      rows = await fetchJson(`${API_BASE}/categories`);
+    if (!Array.isArray(window.productsFullCache) || window.productsFullCache.length === 0) {
+      await loadAllProducts();
     }
-    const categoriesContainer = document.getElementById('categories-container');
-    const categoriesSubmenu = document.getElementById('categories-submenu');
-    if (categoriesContainer) categoriesContainer.innerHTML = '';
-    if (categoriesSubmenu) categoriesSubmenu.innerHTML = '';
+  } catch {}
+  const raw = String(query||'').trim();
+  let q = raw;
+  // reset structured filters
+  delete window.__searchCategory; delete window.__searchId;
+  // precio:a-b
+  q = q.replace(/(?:^|\s)precio\s*:\s*(\d+[\.,]?\d*)\s*-\s*(\d+[\.,]?\d*)/ig, (_,a,b)=>{
+    const min=parseNumber(a), max=parseNumber(b);
+    if(!isNaN(min)) window.__priceMin = min; if(!isNaN(max)) window.__priceMax = max; return ' ';
+  });
+  // min:x  max:y
+  q = q.replace(/(?:^|\s)min\s*:\s*(\d+[\.,]?\d*)/ig, (_,a)=>{ const v=parseNumber(a); if(!isNaN(v)) window.__priceMin=v; return ' '; });
+  q = q.replace(/(?:^|\s)max\s*:\s*(\d+[\.,]?\d*)/ig, (_,a)=>{ const v=parseNumber(a); if(!isNaN(v)) window.__priceMax=v; return ' '; });
+  // cat:  categoria:
+  q = q.replace(/(?:^|\s)(?:cat|categoria)\s*:\s*([^\s]+)/ig, (_,c)=>{ window.__searchCategory = String(c||'').toLowerCase(); return ' '; });
+  // id:
+  q = q.replace(/(?:^|\s)id\s*:\s*([^\s]+)/ig, (_,id)=>{ window.__searchId = String(id||''); return ' '; });
+  // final free text
+  window.__searchQuery = q.replace(/\s+/g,' ').trim();
+  applySortAndRender();
+  if (opts.sourceId && String(opts.sourceId).toLowerCase().includes('mobile')) { try { closeMobileMenu(); } catch {} }
 
-    (rows || []).forEach((cat) => {
-      const name = cat.name || '';
-      const img = resolveImageUrl(cat.image_url || cat.image_file_path || cat.imageUrl || cat.icon || cat.icon_url || '');
-
-      if (categoriesContainer) {
-        const card = document.createElement('div');
-        card.className = 'category-card rounded-xl overflow-hidden shadow-md bg-white/5 border border-white/10';
-        card.dataset.categoryName = name;
-        card.dataset.originalImage = img;
-        card.innerHTML = `
-          <img
-            src="${img || 'https://placehold.co/600x300/cccccc/333333?text=Categoria'}"
-            alt="${name}"
-            class="w-full h-40 object-cover category-image-animated"
-            loading="lazy"
-            onerror="this.onerror=null;this.src='https://placehold.co/600x300/cccccc/333333?text=Categoria'"
-          />
-          <div class="p-3 text-center text-white/90 font-semibold">${name}</div>`;
-        categoriesContainer.appendChild(card);
+  // Opcional: si se presionó Enter, intentar abrir producto por ID o nombre exacto
+  try {
+    if (opts && opts.enter === true) {
+      const norm = (s) => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g,' ').trim();
+      const base = Array.isArray(window.productsFullCache) ? window.productsFullCache : [];
+      let target = null;
+      // Coincidencia exacta por ID
+      target = base.find(p => String(p.id) === raw);
+      const qn = norm(raw);
+      if (!target && qn) {
+        // Coincidencia exacta por nombre (acento-insensible)
+        target = base.find(p => norm(p.name || p.nombre) === qn);
       }
-
-      if (categoriesSubmenu) {
-        const li = document.createElement('li');
-        li.innerHTML = `<a data-cat="${name}" href="catalogo.html?cat=${encodeURIComponent(name)}" class="text-white/90 hover:text-white">${name}</a>`;
-        categoriesSubmenu.appendChild(li);
+      if (!target && qn) {
+        // Coincidencia parcial por nombre (acento-insensible)
+        target = base.find(p => norm(p.name || p.nombre).includes(qn));
       }
+      if (target) {
+        try {
+          const el = document.getElementById(`product-${target.id}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch {}
+        fetchProductById(target.id).then(prod => { if (prod) { renderProductDetail(prod); openPD(); } });
+      }
+    }
+  } catch {}
+}
+function debounce(fn, wait){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn.apply(null,args), wait); }; }
+function setupSearch(){
+  const inp = getBestSearchInput();
+  const btn = document.getElementById('search-button')
+         || document.getElementById('search-btn')
+         || document.getElementById('search-icon')
+         || document.getElementById('search-submit')
+         || document.querySelector('[data-search-btn],[data-search-trigger],.search-button,.search-btn');
+  const form = document.getElementById('search-form') || (inp && inp.closest('form'));
+  if (inp && !inp.dataset.searchInit){
+    inp.dataset.searchInit='1';
+    inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); applySearch(inp.value, { sourceId: inp.id, enter: true }); }});
+    inp.addEventListener('input', debounce(()=>{ applySearch(inp.value, { sourceId: inp.id }); }, 250));
+  }
+  if (btn && !btn.dataset.searchInit){
+    btn.dataset.searchInit='1';
+    btn.addEventListener('click', (e)=>{ e.preventDefault(); const si=getBestSearchInput(); applySearch(si?si.value:'', { sourceId: si && si.id }); });
+  }
+  // bind all inputs + their forms
+  const inputs = getSearchInputs();
+  inputs.forEach(input => {
+    if (!input.dataset.searchInit) {
+      input.dataset.searchInit = '1';
+      input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); applySearch(input.value, { sourceId: input.id, enter: true }); }});
+      input.addEventListener('input', debounce(()=>{ applySearch(input.value, { sourceId: input.id }); }, 250));
+    }
+    const f = input.closest('form');
+    if (f && !f.dataset.searchInit) {
+      f.dataset.searchInit='1';
+      f.addEventListener('submit', (e)=>{ e.preventDefault(); applySearch(input.value, { sourceId: input.id }); });
+    }
+  });
+}
+window.applySearch = applySearch;
+
+// Global click delegation for various “lupa” triggers
+document.addEventListener('click', (e) => {
+  const trigger = e.target.closest('[data-search-btn],[data-search-trigger],[data-action="search"],#search-button,#search-btn,#search-icon,#search-submit,.search-button,.search-btn,[aria-label="Buscar"],[title="Buscar"],[aria-label="buscar"],[title="buscar"]');
+  if (!trigger) return;
+  const si = getBestSearchInput();
+  applySearch(si?si.value:'', { sourceId: si && si.id });
+});
+
+// Also catch typical fontawesome icons inside buttons
+document.addEventListener('click', (e) => {
+  const icon = e.target.closest('i.fa-search, i.fa-magnifying-glass, .fa-magnifying-glass, svg[data-icon="search"], [data-icon="search"]');
+  if (!icon) return;
+  const si = getBestSearchInput();
+  if (!si) return;
+  e.preventDefault();
+  applySearch(si.value, { sourceId: si.id });
+});
+
+// --- Navigation helpers ---
+function goToCategory(categoryName) {
+  const currentPath = window.location.pathname || '';
+  const onCatalogPage = currentPath.toLowerCase().includes('/catalogo.html') || currentPath.toLowerCase().endsWith('/catalogo') || currentPath.toLowerCase().includes('/catalogo');
+  if (!onCatalogPage) {
+    window.location.href = `/catalogo.html?cat=${encodeURIComponent(categoryName)}`;
+    return;
+  }
+  showMessageBox(`Cargando productos de la categoría: ${categoryName}...`, 900);
+  loadProductsByCategory(categoryName);
+  try { history.pushState({ cat: categoryName }, "", `/catalogo.html?cat=${encodeURIComponent(categoryName)}`);
+    } catch {}
+  closeMobileMenu();
+  const catalogEl = document.getElementById('catalogo-productos');
+  if (catalogEl) catalogEl.scrollIntoView({ behavior: 'smooth' });
+}
+window.goToCategory = goToCategory;
+window.showMessageBox = showMessageBox;
+window.startCategoryImageAnimation = startCategoryImageAnimation;
+window.stopCategoryImageAnimation = stopCategoryImageAnimation;
+window.loadAllProducts = loadAllProducts;
+window.loadProductsByCategory = loadProductsByCategory;
+
+// --- Mobile menu + submenu wiring ---
+document.addEventListener('DOMContentLoaded', function() {
+  const mobileMenuButton = document.getElementById('mobile-menu-button');
+  const categoriesToggleButton = document.getElementById('categories-toggle-button');
+  const categoriesIcon = document.getElementById('categories-toggle-icon');
+  const categoriesMenu = document.getElementById('categories-submenu');
+  if (mobileMenuButton && !mobileMenuButton.dataset.bound) {
+    mobileMenuButton.dataset.bound = '1';
+    let isOpen = false;
+    const mobileNavClose = document.getElementById('mobile-nav-close');
+    if (mobileNavClose) mobileNavClose.addEventListener('click', (e) => { e.stopPropagation(); closeMobileMenu(); isOpen = false; });
+    mobileMenuButton.addEventListener('click', (e) => { e.stopPropagation(); isOpen ? closeMobileMenu() : openMobileMenu(); isOpen = !isOpen; });
+    document.body.addEventListener('click', (e) => {
+      if (!isOpen) return;
+      const { btn, nav } = getMobileMenuEls();
+      if (!nav || !btn) return;
+      if (!nav.contains(e.target) && e.target !== btn && !btn.contains(e.target)) { closeMobileMenu(); isOpen =
+        false; }
     });
-  } catch (e) {
-    console.error('loadCategoriesApi error', e);
-  } finally {
-    hideLoading('categories-loading-spinner');
-    categoriesInitialLoadComplete = true;
-    checkAndHideMainLoader();
+  }
+  if (categoriesToggleButton && categoriesMenu && categoriesIcon && !categoriesToggleButton.dataset.toggleInit)
+    {
+    categoriesToggleButton.dataset.toggleInit = '1';
+    categoriesToggleButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleCategoriesSubmenu();
+    });
+  }
+  const closeImageModalButton = document.getElementById('close-image-modal');
+  const imageFullscreenModal = document.getElementById('image-fullscreen-modal');
+  if (closeImageModalButton && imageFullscreenModal) {
+    closeImageModalButton.addEventListener('click', window.closeFullscreenImage);
+    imageFullscreenModal.addEventListener('click', (e) => { if (e.target === imageFullscreenModal) window.closeFullscreenImage(); });
+  }
+});
+
+// --- App init ---
+function initAppFromAPI() {
+  if (window.__api_init_done) return;
+  window.__api_init_done = true;
+  showLoading('futuristic-loader');
+  try {
+    const u = new URL(window.location.href);
+    const cat = u.searchParams.get('cat') || u.searchParams.get('category');
+    if (cat) {
+      const titleEl = document.getElementById('category-title');
+      if (titleEl) titleEl.textContent = `Mostrando productos de: ${cat}`;
+      const categoriesSectionEl = document.getElementById('productos');
+      const categoriesContainerEl = document.getElementById('categories-container');
+      if (categoriesSectionEl) categoriesSectionEl.style.display = 'none';
+      if (categoriesContainerEl) categoriesContainerEl.style.display = 'none';
+      categoriesInitialLoadComplete = true; // skip categories grid
+      loadProductsByCategory(cat);
+    } else {
+      loadCategories();
+      loadAllProducts();
+    }
+  } catch {
+    loadCategories();
+    loadAllProducts();
   }
 }
+document.addEventListener('DOMContentLoaded', initAppFromAPI);
+// --- Mobile search wiring + text filter (catálogo) ---
+function applyTextSearch(query) {
+  const term = normalizeNoAccents(String(query || '')).replace(/\s+/g,' ').trim();
+  if (!term) {
+    window.__filteredList = null;
+    if (typeof applySortAndRender === 'function') applySortAndRender();
+    return;
+  }
+  const base = Array.isArray(window.productsFullCache) ? window.productsFullCache : [];
+  window.__filteredList = base.filter(p => {
+    const hay = [p.name || p.nombre || '', p.description || p.descripcion || '', p.categoryName || p.categoria || '']
+      .map(x => normalizeNoAccents(x))
+      .join(' ');
+    return hay.includes(term);
+  });
+  if (typeof applySortAndRender === 'function') applySortAndRender();
+}
 
-function mapApiProduct(row) {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description || '',
-    price: row.price,
-    imageUrl: resolveImageUrl(row.image_url || row.image_file_path || row.imageUrl || row.imagen || row.img || ''),
-    categoryName: row.category_name,
-    createdAt: row.created_at ? new Date(row.created_at) : undefined,
-    stock: row.stock_quantity,
-    specifications: row.specifications
+document.addEventListener('DOMContentLoaded', () => {
+  const toggleBtn = document.getElementById('mobile-search-toggle');
+  const mobileSearchWrap = document.getElementById('mobile-search');
+  const input = document.getElementById('search-input-mobile');
+  const results = document.getElementById('search-results-mobile');
+
+  // Modo simple: con sugerencias básicas y abrir primer match
+  if (window.__simpleSearchMode) {
+    // Estado sugerencias
+    let selIndex = -1; let items = [];
+    function hideResults(){ if(results){ results.classList.add('hidden'); results.innerHTML=''; } selIndex=-1; items=[]; }
+    function updateHighlight(){ if(!results) return; Array.from(results.children).forEach((li,idx)=>{ if(!(li instanceof HTMLElement)) return; if(idx===selIndex) li.classList.add('bg-white/10'); else li.classList.remove('bg-white/10'); li.setAttribute('aria-selected', idx===selIndex?'true':'false');}); }
+    function buildSimpleSuggestions(term){
+      const q = normalizeNoAccents(String(term||'')).trim();
+      if (!q) return [];
+      const base = Array.isArray(window.productsFullCache) ? window.productsFullCache : [];
+      const arr = base.map(p=>({p, n: normalizeNoAccents(p.name || p.nombre)}));
+      const pref = arr.filter(x=>x.n.startsWith(q)).map(x=>x.p);
+      if (pref.length) return pref.slice(0,8);
+      const contains = arr.filter(x=>x.n.includes(q)).map(x=>x.p);
+      return contains.slice(0,8);
+    }
+    function renderResults(list){ if(!results) return; results.innerHTML=''; if(!list||!list.length){ hideResults(); return; } items=list; selIndex=0; const frag=document.createDocumentFragment(); list.forEach((p,i)=>{ const li=document.createElement('li'); li.setAttribute('role','option'); li.dataset.id=String(p.id); li.dataset.index=String(i); li.className='px-3 py-2 cursor-pointer hover:bg-white/10'; if(i===selIndex) li.classList.add('bg-white/10'); li.innerHTML=`<div class="flex flex-col"><span class="text-sm">${p.name||''}</span>${(p.categoryName||p.categoria)?`<span class=\"text-xs text-futuristic-mute\">${p.categoryName||p.categoria}</span>`:''}</div>`; li.addEventListener('mousedown',(e)=>{ e.preventDefault(); e.stopPropagation(); openProductById(p.id); hideResults(); }); frag.appendChild(li); }); results.appendChild(frag); results.classList.remove('hidden'); }
+    async function ensureData(){ try { if(!Array.isArray(window.productsFullCache) || !window.productsFullCache.length){ await loadAllProducts(); } } catch {} }
+    const doSimple = async () => { await ensureData(); const m = findFirstMatch(input ? input.value : ''); if (m) { await openProductById(m.id); hideResults(); } else { showMessageBox('Sin resultados para tu búsqueda', 1200); } };
+    if (toggleBtn && mobileSearchWrap && !toggleBtn.dataset.simpleInit) {
+      toggleBtn.dataset.simpleInit = '1';
+      toggleBtn.addEventListener('click', async (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        // Si ya está abierto y hay texto, ejecutar búsqueda simple
+        if (!mobileSearchWrap.classList.contains('hidden')) {
+          if (input && input.value && input.value.trim()) { await doSimple(); return; }
+        }
+        mobileSearchWrap.classList.toggle('hidden');
+        if (!mobileSearchWrap.classList.contains('hidden')) { try { input?.focus(); } catch {} }
+      });
+    }
+    const btnM = document.getElementById('simple-search-btn-mobile');
+    if (btnM && !btnM.dataset.simpleInit) {
+      btnM.dataset.simpleInit = '1';
+      btnM.addEventListener('click', async (e)=>{ e.preventDefault(); e.stopPropagation(); await doSimple(); });
+    }
+    if (input && !input.dataset.simpleInit) {
+      input.dataset.simpleInit = '1';
+      input.addEventListener('input', async ()=>{ await ensureData(); renderResults(buildSimpleSuggestions(input.value)); });
+      input.addEventListener('keydown', async (e)=>{
+        if(e.key==='Enter'){ e.preventDefault(); e.stopPropagation(); if(items && items.length){ const target = items[Math.max(0,selIndex)]; if(target){ await openProductById(target.id); hideResults(); } } else { await doSimple(); } return; }
+        if(e.key==='ArrowDown'){ e.preventDefault(); if(items.length){ selIndex=(selIndex+1)%items.length; updateHighlight(); } return; }
+        if(e.key==='ArrowUp'){ e.preventDefault(); if(items.length){ selIndex=(selIndex-1+items.length)%items.length; updateHighlight(); } return; }
+        if(e.key==='Escape'){ e.preventDefault(); hideResults(); mobileSearchWrap?.classList.add('hidden'); return; }
+      });
+    }
+    // Hotkeys
+    if (!window.__mobileSearchHotkeysBoundSimple) {
+      window.__mobileSearchHotkeysBoundSimple = true;
+      window.addEventListener('keydown', (e) => {
+        const k = String(e.key || '').toLowerCase();
+        if ((e.ctrlKey || e.metaKey) && k === 'k') {
+          e.preventDefault();
+          if (mobileSearchWrap) { mobileSearchWrap.classList.remove('hidden'); try { input?.focus(); } catch {} }
+        }
+        if (k === 'escape') { hideResults(); mobileSearchWrap?.classList.add('hidden'); }
+      });
+    }
+    return; // no continuar con typeahead complejo
+  }
+
+  // Helper: abrir producto por id sin tocar otras lógicas
+  async function openProductById(id) {
+    try {
+      const prod = await fetchProductById(id);
+      if (!prod) return;
+      renderProductDetail(prod);
+      openPD();
+    } catch {}
+  }
+
+  // Sugerencias: por nombre del producto. Prefijo primero; si no hay, contiene.
+  function buildSuggestions(term) {
+    const norm = (s) => String(s||'').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+    const q = norm(term);
+    if (!q) return [];
+    const base = Array.isArray(window.productsFullCache) ? window.productsFullCache : [];
+    const names = base.map(p => ({ p, n: norm(p.name || p.nombre) }));
+    const pref = names.filter(x => x.n.startsWith(q)).map(x => x.p);
+    if (pref.length) return pref.slice(0, 8);
+    const contains = names.filter(x => x.n.includes(q)).map(x => x.p);
+    return contains.slice(0, 8);
+  }
+
+  let selIndex = -1;
+  let items = [];
+  function renderResults(list) {
+    if (!results) return;
+    results.innerHTML = '';
+    if (!list || !list.length) { results.classList.add('hidden'); selIndex = -1; items = []; return; }
+    items = list;
+    selIndex = 0;
+    const frag = document.createDocumentFragment();
+    list.forEach((p, i) => {
+      const li = document.createElement('li');
+      li.setAttribute('role', 'option');
+      li.dataset.id = String(p.id);
+      li.dataset.index = String(i);
+      li.className = 'px-3 py-2 cursor-pointer hover:bg-white/10';
+      if (i === selIndex) li.classList.add('bg-white/10');
+      const cat = p.categoryName || p.categoria || '';
+      li.innerHTML = `<div class="flex flex-col"><span class="text-sm">${p.name || ''}</span>${cat?`<span class="text-xs text-futuristic-mute">${cat}</span>`:''}</div>`;
+      li.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); openProductById(p.id); hideResults(); });
+      frag.appendChild(li);
+    });
+    results.appendChild(frag);
+    results.classList.remove('hidden');
+  }
+  function updateHighlight() {
+    if (!results) return;
+    Array.from(results.children).forEach((li, idx) => {
+      if (!(li instanceof HTMLElement)) return;
+      if (idx === selIndex) li.classList.add('bg-white/10'); else li.classList.remove('bg-white/10');
+      li.setAttribute('aria-selected', idx === selIndex ? 'true' : 'false');
+    });
+  }
+  function hideResults(){ if(results){ results.classList.add('hidden'); results.innerHTML=''; } selIndex=-1; items=[]; }
+
+  // Abrir/cerrar panel de búsqueda móvil
+  if (toggleBtn && mobileSearchWrap && !toggleBtn.dataset.bound) {
+    toggleBtn.dataset.bound = '1';
+    toggleBtn.addEventListener('click', (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      mobileSearchWrap.classList.toggle('hidden');
+      if (!mobileSearchWrap.classList.contains('hidden')) {
+        try { input?.focus(); } catch {}
+      } else { hideResults(); }
+    });
+  }
+
+  // Typeahead en input móvil (sin duplicar listeners)
+  if (input && !input.dataset.typeaheadInit) {
+    input.dataset.typeaheadInit = '1';
+    input.addEventListener('input', (e) => {
+      const list = buildSuggestions(input.value);
+      renderResults(list);
+    });
+    input.addEventListener('keydown', (e) => {
+      const k = e.key;
+      if (k === 'Enter') {
+        e.preventDefault(); e.stopPropagation();
+        if (items && items.length) { const target = items[Math.max(0, selIndex)]; if (target) { openProductById(target.id); hideResults(); } }
+        else { applyTextSearch(input.value); hideResults(); }
+        return;
+      }
+      if (k === 'ArrowDown') { e.preventDefault(); if (items.length){ selIndex = (selIndex+1) % items.length; updateHighlight(); } return; }
+      if (k === 'ArrowUp') { e.preventDefault(); if (items.length){ selIndex = (selIndex-1+items.length) % items.length; updateHighlight(); } return; }
+      if (k === 'Escape') { e.preventDefault(); hideResults(); mobileSearchWrap?.classList.add('hidden'); return; }
+    });
+  }
+
+  // Atajo Ctrl/Cmd+K para abrir búsqueda y ESC para cerrar (una sola vez)
+  if (!window.__mobileSearchHotkeysBound) {
+    window.__mobileSearchHotkeysBound = true;
+    window.addEventListener('keydown', (e) => {
+      const k = String(e.key || '').toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && k === 'k') {
+        e.preventDefault();
+        if (mobileSearchWrap) {
+          mobileSearchWrap.classList.remove('hidden');
+          try { input?.focus(); } catch {}
+        }
+      }
+      if (k === 'escape') { hideResults(); mobileSearchWrap?.classList.add('hidden'); }
+    });
+  }
+
+  // Cerrar sugerencias al hacer click fuera
+  if (!window.__mobileSearchClickAwayBound) {
+    window.__mobileSearchClickAwayBound = true;
+    document.addEventListener('click', (e) => {
+      if (!mobileSearchWrap) return;
+      const within = mobileSearchWrap.contains(e.target);
+      if (!within) hideResults();
+    });
+  }
+  
+  // Exponer refresco para cuando lleguen productos asíncronamente
+  window.__refreshMobileSuggestions = function(){
+    try {
+      if (!input) return;
+      const q = String(input.value || '').trim();
+      if (!q) { hideResults(); return; }
+      const list = buildSuggestions(q);
+      renderResults(list);
+    } catch {}
   };
-}
+});
 
-async function loadAllProductsApi() {
+// --- Simple desktop search bindings ---
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('simple-search-btn');
+  const inp = document.getElementById('simple-search-input');
+  const doSimple = () => {
+    const m = findFirstMatch(inp ? inp.value : '');
+    if (m) openProductById(m.id); else showMessageBox('Sin resultados', 1200);
+  };
+  if (btn && !btn.dataset.simpleInit) { btn.dataset.simpleInit='1'; btn.addEventListener('click', (e)=>{ e.preventDefault(); doSimple(); }); }
+  if (inp && !inp.dataset.simpleInit) { inp.dataset.simpleInit='1'; inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); doSimple(); }}); }
+});
+
+// (Opcional) exponer para usar desde HTML en un botón “Buscar”
+window.applyTextSearch = applyTextSearch;
+
+// =====================
+// Checkout: helpers + bindings
+// =====================
+const ORDERS_KEY = 'ens_orders_v1';
+function loadOrders(){
+  try { const raw = localStorage.getItem(ORDERS_KEY); const arr = JSON.parse(raw||'[]'); return Array.isArray(arr) ? arr : []; } catch { return []; }
+}
+function saveOrders(arr){ try { localStorage.setItem(ORDERS_KEY, JSON.stringify(arr||[])); } catch {} }
+function generateOrderId(){
   try {
-    showLoading('products-loading-spinner');
-    let rows;
-    try {
-      rows = await fetchJson(`${API_BASE}/productos`);
-    } catch (e1) {
-      rows = await fetchJson(`${API_BASE}/products`);
+    const build = () => {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2,'0');
+      const date = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+      const time = `${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+      const rnd = Math.random().toString(36).slice(2,6).toUpperCase();
+      return `ENS-${date}-${time}-${rnd}`;
+    };
+    const existing = new Set((loadOrders()||[]).map(o => String(o.id)));
+    let id = build();
+    let attempts = 0;
+    while (existing.has(String(id)) && attempts < 5) {
+      id = build();
+      attempts++;
     }
-    productsFullCache = (rows || []).map(mapApiProduct);
-    productsCache = productsFullCache.map(p => ({ id: p.id, name: (p.name || '').toLowerCase() }));
-    applySortAndRender();
-  } catch (e) {
-    console.error('loadAllProductsApi error', e);
-  } finally {
-    hideLoading('products-loading-spinner');
-    productsInitialLoadComplete = true;
-    checkAndHideMainLoader();
+    if (!existing.has(String(id))) return id;
+    // Fallback muy improbable
+    return `ENS-${Date.now()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`;
+  } catch {
+    return `ENS-${Date.now()}`;
   }
 }
-
-async function loadProductsByCategoryApi(categoryName) {
-  try {
-    showLoading('products-loading-spinner');
-    let rows;
-    try {
-      rows = await fetchJson(`${API_BASE}/productos`);
-    } catch (e1) {
-      rows = await fetchJson(`${API_BASE}/products`);
-    }
-    const mapped = (rows || []).map(mapApiProduct);
-    const filtered = mapped.filter(p => (p.categoryName || '').toLowerCase() === String(categoryName || '').toLowerCase());
-    if (typeof window !== 'undefined') window.__filteredList = filtered;
-    productsFullCache = mapped;
-    productsCache = mapped.map(p => ({ id: p.id, name: (p.name || '').toLowerCase() }));
-    applySortAndRender();
-  } catch (e) {
-    console.error('loadProductsByCategoryApi error', e);
-  } finally {
-    hideLoading('products-loading-spinner');
-    productsInitialLoadComplete = true;
-    categoriesInitialLoadComplete = true;
-    checkAndHideMainLoader();
-  }
+function openCheckout(){
+  const ov = document.getElementById('checkout-overlay');
+  if (!ov) return;
+  const { total } = cartTotals();
+  const tot = document.getElementById('checkout-total');
+  if (tot) tot.textContent = currency(total);
+  ov.classList.remove('hidden');
+  document.body.style.overflow='hidden';
 }
+function closeCheckout(){ const ov = document.getElementById('checkout-overlay'); if (!ov) return; ov.classList.add('hidden'); document.body.style.overflow=''; }
 
+// Intercept existing checkout click (capture) to show form instead of WhatsApp
+document.getElementById('cart-checkout')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  if (!cart.length) { showMessageBox('Tu carrito está vacío'); return; }
+  e.stopImmediatePropagation();
+  closeCart();
+  openCheckout();
+}, true);
 
+// Checkout bindings
+document.getElementById('checkout-cancel')?.addEventListener('click', closeCheckout);
+document.getElementById('checkout-close')?.addEventListener('click', closeCheckout);
+document.getElementById('checkout-overlay')?.addEventListener('click', (e) => { if (e.target && e.target.hasAttribute('data-checkout-close')) closeCheckout(); });
+document.getElementById('checkout-form')?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!cart.length) { showMessageBox('Tu carrito está vacío'); closeCheckout(); return; }
+  const name = String(document.getElementById('checkout-name')?.value||'').trim();
+  const lastname = String(document.getElementById('checkout-lastname')?.value||'').trim();
+  const dni = String(document.getElementById('checkout-dni')?.value||'').replace(/\D+/g,'');
+  const payment = document.querySelector('input[name="payment"]:checked')?.value||'cash';
 
+  const email = String(document.getElementById('checkout-email')?.value||'').trim();
+  const phoneRaw = String(document.getElementById('checkout-phone')?.value||'').trim();
+  const phoneDigits = phoneRaw.replace(/[^0-9]/g,'');
+  const emailOk = /.+@.+\..+/.test(email);
+  if (!emailOk) { showMessageBox('Ingresa un email valido'); return; }
+  if (phoneDigits.length < 6) { showMessageBox('Ingresa un telefono valido (6+ digitos)'); return; }
+
+  if (!name || !lastname || !dni) { showMessageBox('Completá Nombre, Apellido y DNI'); return; }
+  if (!/^\d{7,10}$/.test(dni)) { showMessageBox('El DNI debe tener entre 7 y 10 dígitos'); return; }
+  if (payment === 'mp') {
+    showMessageBox('La opción de Mercado Pago estará disponible próximamente. Elegí Efectivo por ahora.');
+    return;
+  }
+  const orderId = generateOrderId();
+  const { subtotal, total } = cartTotals();
+  const order = {
+    id: orderId,
+    createdAt: new Date().toISOString(),
+    buyer: { nombre: name, apellido: lastname, dni },
+    payment: 'efectivo',
+    items: cart.map(it => ({ id: it.id, name: it.name, qty: it.qty, price: it.price })),
+    subtotal,
+    total
+  };
+  const orders = loadOrders();
+  orders.push(order);
+  saveOrders(orders);
+  // Clear cart
+  cart = [];
+  saveCart();
+  closeCheckout();
+  showMessageBox(`¡Compra registrada! Número de compra: ${orderId}`);
+});
+
+// Capturing override: enforce stock check and add status
+document.getElementById('checkout-form')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  try { e.stopPropagation(); } catch {}
+  if (!cart.length) { showMessageBox('Tu carrito esta vacio'); closeCheckout(); return; }
+  const name = String(document.getElementById('checkout-name')?.value||'').trim();
+  const lastname = String(document.getElementById('checkout-lastname')?.value||'').trim();
+  const dni = String(document.getElementById('checkout-dni')?.value||'').replace(/\D+/g,'');
+  const email = String(document.getElementById('checkout-email')?.value||'').trim();
+  const phoneRaw = String(document.getElementById('checkout-phone')?.value||'').trim();
+  const phoneDigits = phoneRaw.replace(/[^0-9]/g,'');
+  const payment = document.querySelector('input[name="payment"]:checked')?.value||'cash';
+  if (!name || !lastname || !dni) { showMessageBox('Completa Nombre, Apellido y DNI'); return; }
+  if (!/^\d{7,10}$/.test(dni)) { showMessageBox('El DNI debe tener entre 7 y 10 digitos'); return; }
+  const emailOk = /.+@.+\..+/.test(email);
+  if (!emailOk) { showMessageBox('Ingresa un email valido'); return; }
+  if (phoneDigits.length < 6) { showMessageBox('Ingresa un telefono valido (6+ digitos)'); return; }
+  if (payment === 'mp') { showMessageBox('La opcion de Mercado Pago estara disponible proximamente. Elegi Efectivo por ahora.'); return; }
+  try {
+    const insufficient = [];
+    for (const it of cart){
+      const p = await fetchProductById(it.id);
+      const stock = Number(p?.stock||0) || 0;
+      const need = Number(it.qty||0) || 0;
+      if (stock <= 0 || stock < need) insufficient.push(`${it.name} (stock: ${stock}, necesita: ${need})`);
+    }
+    if (insufficient.length){ showMessageBox('No hay stock suficiente para:\n' + insufficient.join('\n')); return; }
+  } catch {}
+
+  const payload = {
+    buyer: { name, lastname, dni, email, phone: phoneDigits },
+    items: cart.map(it => ({ productId: Number(it.id), quantity: Number(it.qty) }))
+  };
+  try {
+    const resp = await fetch(`${API_BASE}/checkout`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(payload) });
+    let orderNumber = ''; let orderId = '';
+    if (resp.ok) { const data = await resp.json().catch(()=>({})); orderNumber = data?.orderNumber || ''; orderId = (data?.orderId != null) ? String(data.orderId) : ''; }
+    else if (resp.status === 409) { const tx = await resp.text(); showMessageBox(tx || 'Stock insuficiente o conflicto de orden'); return; }
+    else { const tx = await resp.text(); console.error('checkout error', resp.status, tx); showMessageBox('No se pudo registrar la compra. Intenta nuevamente.'); return; }
+    cart = []; saveCart(); closeCheckout();
+    const label = orderNumber || (orderId ? ('ID ' + orderId) : '');
+    showMessageBox(label ? ('Compra registrada! Numero de compra: ' + label) : 'Compra registrada!');
+  } catch (err) { console.error('checkout fetch error', err); showMessageBox('No se pudo registrar la compra (conexion).'); }
+}, true);

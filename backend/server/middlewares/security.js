@@ -12,11 +12,14 @@ const FAILED_LOGIN_THRESHOLD = 5;
  * @param {string} message - El mensaje a enviar en el SMS.
  */
 async function sendSMSNotification(message) {
+  const isProd = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+  const generic = '[Alert] Security event';
+  const payload = isProd ? generic : String(message || generic).slice(0, 200);
   if (!USER_PHONE_NUMBER) {
-    console.warn('[ALERTA SMS] ALERT_PHONE no configurado. Mensaje:', message);
+    console.warn('[ALERTA SMS] ALERT_PHONE no configurado. Mensaje:', payload);
     return;
   }
-  console.log(`[ALERTA SMS - SIMULADO] Enviando SMS a ${USER_PHONE_NUMBER}: ${message}`);
+  console.log(`[ALERTA SMS - SIMULADO] Enviando SMS a ${USER_PHONE_NUMBER}: ${payload}`);
   // TODO: Para producción, integra un servicio de SMS real aquí (ej. Twilio, Vonage).
   // Ejemplo conceptual con Twilio (requeriría instalar 'twilio' y configurar credenciales en .env):
   /*
@@ -64,18 +67,28 @@ const apiGlobalLimiter = rateLimit({
 });
 
 const loggingMiddleware = (req, res, next) => {
-  const ua = req.get('User-Agent');
-  const authHeader = req.get('Authorization');
+  const ua = req.get("User-Agent");
+  const authHeader = req.get("Authorization");
   const redactedAuth = authHeader ? `${authHeader.split(' ')[0]} [REDACTED]` : 'none';
   console.log(`${new Date().toISOString()} - IP: ${req.ip} - ${req.method} ${req.originalUrl} - UA: ${ua} - Auth: ${redactedAuth}`);
   next();
 };
 
+const path = require("path");
+const { URL } = require("url");
 const pathTraversalProtection = (req, res, next) => {
-  if (req.url.includes('..') || req.url.includes('//')) {
-    sendSMSNotification(`Alerta de seguridad: Intento de Path Traversal detectado desde IP ${req.ip} en URL: ${req.originalUrl}`);
-    return res.status(400).send('Ruta inválida');
-  }
+  try {
+    const parsed = new URL(req.originalUrl || '/', 'http://local');
+    let p = parsed.pathname || '/';
+    try { p = decodeURIComponent(p); } catch {}
+    p = p.replace(/%2e/ig, '.').replace(/%2f/ig, '/').replace(/%5c/ig, '\\');
+    const norm = path.posix.normalize(p);
+    const suspicious = /\\/g.test(p) || p.includes('..') || norm.includes('..');
+    if (suspicious) {
+      sendSMSNotification('Path traversal attempt blocked');
+      return res.status(400).send('Ruta inválida');
+    }
+  } catch (_) {}
   next();
 };
 
@@ -88,3 +101,5 @@ module.exports = {
   failedLoginAttempts,
   FAILED_LOGIN_THRESHOLD
 };
+
+

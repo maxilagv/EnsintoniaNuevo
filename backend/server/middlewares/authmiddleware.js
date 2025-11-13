@@ -1,4 +1,14 @@
 const jwt = require('jsonwebtoken');
+let redis = null;
+try {
+  if (process.env.REDIS_URL) {
+    const Redis = require('ioredis');
+    redis = new Redis(process.env.REDIS_URL, { lazyConnect: true });
+    redis.on('error', () => {});
+  }
+} catch (_) {
+  redis = null;
+}
 
 // Claves y par谩metros JWT, desde variables de entorno
 const SECRET = process.env.JWT_SECRET; 
@@ -7,6 +17,7 @@ const JWT_ALG = process.env.JWT_ALG || 'HS256';
 
 // Lista negra de tokens JWT invalidados (en memoria, para un entorno de producci贸n se usar铆a una base de datos o Redis)
 const tokenBlacklist = new Set();
+const tokenJtiBlacklist = new Set();
 
 /**
  * Middleware para verificar el token JWT de acceso.
@@ -16,7 +27,7 @@ const tokenBlacklist = new Set();
  * @param {object} res - Objeto de respuesta de Express.
  * @param {function} next - Funci贸n para pasar el control al siguiente middleware.
  */
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Extraer el token del encabezado 'Bearer <token>'
 
@@ -40,6 +51,24 @@ function authMiddleware(req, res, next) {
     if (process.env.JWT_ISSUER) verifyOptions.issuer = process.env.JWT_ISSUER;
     if (process.env.JWT_AUDIENCE) verifyOptions.audience = process.env.JWT_AUDIENCE;
     const user = jwt.verify(token, SECRET, verifyOptions); // Verificar el token con restricciones
+    // Memoria: bloquear por jti si fue revocado
+    if (tokenJtiBlacklist.size) {
+      const payloadLocal = jwt.decode(token) || {};
+      const jtiLocal = payloadLocal.jti || payloadLocal.jwtid;
+      if (jtiLocal && tokenJtiBlacklist.has(jtiLocal)) {
+        return res.status(401).json({ error: "Token inv醠ido o revocado" });
+      }
+    }
+    if (redis) {
+      try {
+        const payload = jwt.decode(token) || {};
+        const jti = payload.jti || payload.jwtid;
+        if (jti && redis.get) {
+          const hit = await redis.get(`bl:access:${jti}`);
+          if (hit) { return res.status(401).json({ error: "Token inv醠ido o revocado" }); }
+        }
+      } catch (_) {}
+    }
     req.user = user; // Adjuntar la informaci贸n del usuario a la solicitud
     req.token = token; // Adjuntar el token actual para posible invalidaci贸n
     next(); // Continuar con la siguiente funci贸n de middleware o ruta
@@ -55,6 +84,11 @@ function authMiddleware(req, res, next) {
  */
 function addTokenToBlacklist(token) {
   tokenBlacklist.add(token);
+  try {
+    const decoded = jwt.decode(token) || {};
+    const jti = decoded.jti || decoded.jwtid;
+    if (jti) tokenJtiBlacklist.add(jti);
+  } catch (_) {}
   // En un entorno de producci贸n, aqu铆 se implementar铆a la persistencia (ej. Redis)
   // y se podr铆a programar la eliminaci贸n del token de la lista negra despu茅s de su expiraci贸n original.
 }
@@ -63,3 +97,6 @@ module.exports = authMiddleware;
 module.exports.addTokenToBlacklist = addTokenToBlacklist;
 module.exports.SECRET = SECRET; // Exportar SECRET para que el controlador de auth lo use
 module.exports.REFRESH_SECRET = REFRESH_SECRET; // Exportar REFRESH_SECRET
+
+
+

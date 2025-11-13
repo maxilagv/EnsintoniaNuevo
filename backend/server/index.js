@@ -3,6 +3,7 @@ require('dotenv').config();
 
 const express = require('express');
 const helmet = require('helmet');
+const crypto = require('crypto');
 const cors = require('cors');
 const xss = require('xss-clean'); // Importar xss-clean
 const compression = require('compression');
@@ -17,24 +18,11 @@ const productRoutes = require('./routes/productroutes.js');
 const categoryRoutes = require('./routes/categoryroutes.js');
 const publicRoutes = require('./routes/publicroutes.js');
 const orderRoutes = require('./routes/orderroutes.js');
+const adminRoutes = require('./routes/adminroutes.js');
+const userRoutes = require('./routes/userroutes.js');
+const profileRoutes = require('./routes/profileroutes.js');
+const roleRoutes = require('./routes/roleroutes.js');
 const app = express();
-
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'https://ensintonia-nuevo.vercel.app');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  // Loguear absolutamente todas las requests que lleguen
-  console.log(`[REQ] ${req.method} ${req.originalUrl} from ${req.headers.origin || 'no-origin'}`);
-
-  // Responder manualmente las preflight
-  if (req.method === 'OPTIONS') {
-    console.log(`[CORS] Preflight OPTIONS respondido para ${req.originalUrl}`);
-    return res.sendStatus(204);
-  }
-
-  next();
-});
 
 
 
@@ -87,30 +75,44 @@ const cspConnectSrc = (() => {
   return Array.from(set);
 })();
 
-// Configuración de Content Security Policy (CSP)
-app.use(
+const IS_PROD = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+
+// Per-request CSP nonce and policy without 'unsafe-inline'
+app.use((req, res, next) => {
+  const nonce = crypto.randomBytes(16).toString('base64');
+  res.locals.cspNonce = nonce;
   helmet.contentSecurityPolicy({
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://www.gstatic.com"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-imgSrc: [
-  "'self'",
-  "data:",
-  "https://placehold.co",
-  "https://cdn.prod.website-files.com",
-  "https://res.cloudinary.com"
-],
-
+      scriptSrc: [
+        "'self'",
+        `nonce-${nonce}`,
+        "https://cdn.tailwindcss.com",
+        "https://www.gstatic.com"
+      ],
+      styleSrc: [
+        "'self'",
+        `nonce-${nonce}`,
+        "https://cdnjs.cloudflare.com"
+      ],
+      imgSrc: [
+        "'self'",
+        "data:",
+        "https://placehold.co",
+        "https://cdn.prod.website-files.com",
+        "https://res.cloudinary.com"
+      ],
       // Endpoints permitidos para fetch/XHR/WebSocket
       connectSrc: cspConnectSrc,
       fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       frameSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"]
     },
-  })
-);
+  })(req, res, next);
+});
 
 // Lista de or�genes permitidos para CORS (desde .env o por defecto)
 const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS
@@ -140,7 +142,7 @@ for (const o of allowedOrigins) {
   if (rx) allowedOriginRegexps.push(rx); else allowedOriginsSet.add(o);
 }
 // Modo permisivo para demos/despliegues, si se configura
-const corsAllowAll = process.env.CORS_ALLOW_ALL === 'true' || process.env.CORS_ALLOWED_ORIGINS === '*';
+const corsAllowAll = (process.env.CORS_ALLOW_ALL === 'true' || process.env.CORS_ALLOWED_ORIGINS === '*') && !IS_PROD;
 
 // Configuraci�n de CORS
 app.use(cors({
@@ -159,13 +161,29 @@ app.use(cors({
         }
         return callback(new Error('No permitido por CORS'));
       },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+  credentials: !corsAllowAll,
   optionsSuccessStatus: 204
 }));
 // ✅ Forzar respuesta automática a todas las preflight OPTIONS
-app.options('*', cors());
+app.options('*', cors({
+  origin: corsAllowAll
+    ? true
+    : function (origin, callback) {
+        if (!origin) return callback(null, true);
+        if (allowedOriginsSet.has(origin)) return callback(null, true);
+        if (allowedOriginRegexps.some(rx => rx.test(origin))) return callback(null, true);
+        if (process.env.NODE_ENV !== 'production') {
+          console.error(`CORS (preflight): Origen no permitido: ${origin}`);
+        }
+        return callback(new Error('No permitido por CORS'));
+      },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+  credentials: !corsAllowAll,
+  optionsSuccessStatus: 204
+}));
 
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
@@ -225,6 +243,12 @@ app.use('/api', productRoutes);
 app.use('/api', categoryRoutes);
 // Rutas de pedidos (admin)
 app.use('/api', orderRoutes);
+// Rutas admin adicionales
+app.use('/api', adminRoutes);
+// Rutas ABM usuarios y RBAC
+app.use('/api', userRoutes);
+app.use('/api', profileRoutes);
+app.use('/api', roleRoutes);
 
 // Ruta de ejemplo
 app.get('/', (req, res) => {
@@ -262,5 +286,3 @@ server.headersTimeout = headersTimeoutMs;
 
 // Exportar la aplicación para pruebas (si usas supertest)
 module.exports = app;
-
-

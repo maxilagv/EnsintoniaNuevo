@@ -1,18 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const categoryController = require('../controllers/categorycontroller');
-const authMiddleware = require('../middlewares/authmiddleware'); // Importar el middleware de autenticación
+const authMiddleware = require('../middlewares/authmiddleware');
+const { requirePermission } = require('../middlewares/permission');
 
-// Obtener categorías (no requiere autenticación para GET)
+// Public GET
 router.get('/categorias', categoryController.getCategorias);
 
-// Crear categoría (requiere autenticación)
-router.post('/categorias', authMiddleware, categoryController.createCategoria);
-
-// Actualizar categoría (requiere autenticación)
-router.put('/categorias/:id', authMiddleware, categoryController.updateCategoria);
-
-// Eliminar categoría (requiere autenticación)
-router.delete('/categorias/:id', authMiddleware, categoryController.deleteCategoria);
+// Write operations require logistics permission
+router.post('/categorias', authMiddleware, requirePermission('logistica.write'), categoryController.createCategoria);
+router.put('/categorias/:id', authMiddleware, requirePermission('logistica.write'), categoryController.updateCategoria);
+router.delete('/categorias/:id', authMiddleware, requirePermission('logistica.write'), categoryController.deleteCategoria);
 
 module.exports = router;
+

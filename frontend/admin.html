@@ -1,18 +1,24 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ensintonía - Panel de Administración</title>
+    <title>Ensintonia - Panel de Administracion</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      // Requiere login del servidor: si no hay JWT, redirige antes de cargar el panel
-      try {
-        if (!localStorage.getItem('accessToken')) {
-          window.location.href = 'login.html';
+      // Redirección estricta si no hay sesión previa
+      (function(){
+        try {
+          var logged = (localStorage.getItem('loggedIn') === 'true');
+          var token = localStorage.getItem('accessToken');
+          if (!logged || !token) {
+            window.location.replace('login.html');
+          }
+        } catch (e) {
+          try { window.location.replace('login.html'); } catch(_) { window.location.href='login.html'; }
         }
-      } catch (e) {}
+      })();
     </script>
     <!-- Google Fonts: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -195,28 +201,31 @@
 
         <!-- Navegación de secciones -->
         <nav class="flex flex-wrap justify-center gap-4 mb-8">
-            <button class="nav-button active" data-section="createCategory">Crear Categoría</button>
-            <button class="nav-button" data-section="editCategory">Editar Categoría</button>
+            <button class="nav-button active" data-section="createCategory">Crear Categori�a</button>
+            <button class="nav-button" data-section="editCategory">Editar Categori�a</button>
             <button class="nav-button" data-section="createProduct">Crear Producto</button>
             <button class="nav-button" data-section="editProduct">Editar Producto</button>
             <button class="nav-button" data-section="manageStock">Control de Stock</button>
-            <button id="migrateDataButton" class="nav-button bg-purple-600 hover:bg-purple-700 hover:shadow-purple-800/40">Migrar Datos (1 vez)</button>
-            <button id="sendVerificationEmailButton" class="nav-button bg-orange-600 hover:bg-orange-700 hover:shadow-orange-800/40">Enviar Email de Verificación</button> <!-- Nuevo botón -->
-            <button id="logoutButton" class="nav-button bg-red-600 hover:bg-red-700 hover:shadow-red-800/40">Cerrar Sesión</button>
+            <button class="nav-button bg-purple-600 hover:bg-purple-700 hover:shadow-purple-800/40" data-section="orders">Compras</button>
+            <button class="nav-button bg-teal-600 hover:bg-teal-700 hover:shadow-teal-800/40" data-section="finance">Finanzas</button>
+            <button class="nav-button" data-section="supplierPurchases">Compras de Stock</button>
+            <button class="nav-button bg-orange-600 hover:bg-orange-700 hover:shadow-orange-800/40" data-section="customers">Clientes registrados</button>
+            <button class="nav-button bg-indigo-600 hover:bg-indigo-700 hover:shadow-indigo-800/40" data-section="users">Gestion de Usuarios</button>
+            <button id="logoutButton" class="nav-button bg-red-600 hover:bg-red-700 hover:shadow-red-800/40">Cerrar Sesion</button>
         </nav>
 
         <!-- Contenido de las secciones -->
         <div id="sectionsContainer" class="flex-grow">
             <!-- Sección: Crear Categoría -->
             <div id="createCategory" class="section-content">
-                <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Crear Nueva Categoría</h2>
+                <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Crear Nueva Categori�a</h2>
                 <form id="createCategoryForm" class="space-y-6">
                     <div>
-                        <label for="categoryName" class="block text-lg font-medium mb-2">Nombre de la Categoría:</label>
-                        <input type="text" id="categoryName" class="input-field" placeholder="Ej: Electrodomésticos" required>
+                        <label for="categoryName" class="block text-lg font-medium mb-2">Nombre de la Categori�a:</label>
+                        <input type="text" id="categoryName" class="input-field" placeholder="Ej: Electrodomesticos" required>
                     </div>
                     <div class="mb-4">
-                        <label for="categoryImageUrl" class="block text-lg font-medium mb-2">Imagen de la categoría</label>
+                        <label for="categoryImageUrl" class="block text-lg font-medium mb-2">Imagen de la categoria</label>
                         <div class="flex gap-2">
                             <input id="categoryImageUrl" type="text" class="input-field flex-grow" placeholder="URL de imagen..." readonly required>
                             <input id="categoryImageUrl__publicId" type="hidden">
@@ -224,37 +233,37 @@
                         </div>
                         <img id="categoryImageUrl__preview" alt="" style="margin-top:8px;max-height:120px;">
                     </div>
-                    <button type="submit" class="action-button w-full">Crear Categoría</button>
+                    <button type="submit" class="action-button w-full">Crear Categori�a</button>
                 </form>
             </div>
 
             <!-- Sección: Editar Categoría -->
             <div id="editCategory" class="section-content hidden">
-                <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Editar Categoría Existente</h2>
+                <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Editar Categoria Existente</h2>
                 <p class="text-center text-gray-400 mb-6">
-                    Selecciona una categoría de la lista para cargar sus datos y editarla.
+                    Selecciona una categori�a de la lista para cargar sus datos y editarla.
                 </p>
                 <div class="space-y-4">
                     <div>
-                        <label for="searchCategoryToEdit" class="block text-lg font-medium mb-2">Buscar Categoría:</label>
+                        <label for="searchCategoryToEdit" class="block text-lg font-medium mb-2">Buscar Categori�a:</label>
                         <div class="relative">
                             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                             <input type="text" id="searchCategoryToEdit" class="input-field pl-10" placeholder="Escribe para filtrar...">
                         </div>
                     </div>
                     <div>
-                        <label for="selectCategoryToEdit" class="block text-lg font-medium mb-2">Seleccionar Categoría:</label>
+                        <label for="selectCategoryToEdit" class="block text-lg font-medium mb-2">Seleccionar Categori�a:</label>
                         <select id="selectCategoryToEdit" class="input-field">
-                            <option value="">-- Selecciona una categoría --</option>
+                            <option value="">-- Selecciona una categori�a --</option>
                             <!-- Las opciones se cargarán dinámicamente desde Firestore -->
                         </select>
                     </div>
                     <div>
                         <label for="editedCategoryName" class="block text-lg font-medium mb-2">Nuevo Nombre:</label>
-                        <input type="text" id="editedCategoryName" class="input-field" placeholder="Nuevo nombre de la categoría">
+                        <input type="text" id="editedCategoryName" class="input-field" placeholder="Nuevo nombre de la categori�a">
                     </div>
                     <div class="mb-4">
-                        <label for="editedCategoryImageUrl" class="block text-lg font-medium mb-2">Imagen de la categoría</label>
+                        <label for="editedCategoryImageUrl" class="block text-lg font-medium mb-2">Imagen de la categoria</label>
                         <div class="flex gap-2">
                             <input id="editedCategoryImageUrl" type="text" class="input-field flex-grow" placeholder="URL de imagen..." readonly>
                             <input id="editedCategoryImageUrl__publicId" type="hidden">
@@ -262,7 +271,7 @@
                         </div>
                         <img id="editedCategoryImageUrl__preview" alt="" style="margin-top:8px;max-height:120px;">
                     </div>
-                    <button id="saveCategoryChangesButton" class="action-button w-full">Guardar Cambios de Categoría</button>
+                    <button id="saveCategoryChangesButton" class="action-button w-full">Guardar Cambios de Categori�a</button>
                 </div>
             </div>
 
@@ -289,24 +298,24 @@
                     </div>
                     <!-- Campo para seleccionar la categoría del producto (ahora guarda ID) -->
                     <div>
-                        <label for="productCategory" class="block text-lg font-medium mb-2">Categoría:</label>
+                        <label for="productCategory" class="block text-lg font-medium mb-2">Categori�a:</label>
                         <select id="productCategory" class="input-field" required>
-                            <option value="">-- Selecciona una categoría --</option>
+                            <option value="">-- Selecciona una categori�a --</option>
                             <!-- Las opciones se cargarán dinámicamente desde Firestore -->
                         </select>
                     </div>
                     <div>
-                        <label for="productDescription" class="block text-lg font-medium mb-2">Descripción:</label>
+                        <label for="productDescription" class="block text-lg font-medium mb-2">Descripcion:</label>
                         <textarea id="productDescription" class="input-field" rows="3" placeholder="Descripción breve del producto"></textarea>
                     </div>
                     <!-- Nuevo: Especificaciones del producto (texto libre o lista clave: valor) -->
                     <div>
-                        <label for="productSpecifications" class="block text-lg font-medium mb-2">Especificaciones (una por línea, formato Clave: Valor):</label>
+                        <label for="productSpecifications" class="block text-lg font-medium mb-2">Especificaciones (una por li�nea, formato Clave: Valor):</label>
                         <textarea id="productSpecifications" class="input-field" rows="4" placeholder="Ej:\nCapacidad: 300L\nColor: Blanco\nEficiencia: A++"></textarea>
                     </div>
                     <!-- Nuevo: Garantía -->
                     <div>
-                        <label for="productWarranty" class="block text-lg font-medium mb-2">Garantía:</label>
+                        <label for="productWarranty" class="block text-lg font-medium mb-2">Garanti�a:</label>
                         <input type="text" id="productWarranty" class="input-field" placeholder="Ej: 12 meses, 2 años limitada">
                     </div>
                     <div>
@@ -323,7 +332,7 @@
                     </div>
                     <!-- Nuevo: Campo para el estado del producto -->
                     <div>
-                        <label for="productStatus" class="block text-lg font-medium mb-2">Estado de Publicación:</label>
+                        <label for="productStatus" class="block text-lg font-medium mb-2">Estado de Publicacion:</label>
                         <select id="productStatus" class="input-field" required>
                             <option value="draft">Borrador</option>
                             <option value="published">Publicado</option>
@@ -374,25 +383,25 @@
                     </div>
                     <!-- Campo para seleccionar la categoría del producto a editar (ahora guarda ID) -->
                     <div>
-                        <label for="editedProductCategory" class="block text-lg font-medium mb-2">Categoría:</label>
+                        <label for="editedProductCategory" class="block text-lg font-medium mb-2">Categori�a:</label>
                         <select id="editedProductCategory" class="input-field" required>
-                            <option value="">-- Selecciona una categoría --</option>
+                            <option value="">-- Selecciona una categoria --</option>
                             <!-- Las opciones se cargarán dinámicamente desde Firestore -->
                         </select>
                     </div>
                     <div>
-                        <label for="editedProductDescription" class="block text-lg font-medium mb-2">Descripción:</label>
+                        <label for="editedProductDescription" class="block text-lg font-medium mb-2">Descripcion:</label>
                         <textarea id="editedProductDescription" class="input-field" rows="3" placeholder="Nueva descripción del producto"></textarea>
                     </div>
                     <!-- Nuevo: Especificaciones del producto en edición -->
                     <div>
-                        <label for="editedProductSpecifications" class="block text-lg font-medium mb-2">Especificaciones (una por línea, formato Clave: Valor):</label>
+                        <label for="editedProductSpecifications" class="block text-lg font-medium mb-2">Especificaciones (una por li�nea, formato Clave: Valor):</label>
                         <textarea id="editedProductSpecifications" class="input-field" rows="4" placeholder="Actualiza las especificaciones"></textarea>
                     </div>
                     <!-- Nuevo: Garantía en edición -->
                     <div>
-                        <label for="editedProductWarranty" class="block text-lg font-medium mb-2">Garantía:</label>
-                        <input type="text" id="editedProductWarranty" class="input-field" placeholder="Actualiza la garantía">
+                        <label for="editedProductWarranty" class="block text-lg font-medium mb-2">Garanti�a:</label>
+                        <input type="text" id="editedProductWarranty" class="input-field" placeholder="Actualiza la garanti�a">
                     </div>
                     <div>
                         <label for="editedProductStock" class="block text-lg font-medium mb-2">Stock Actual:</label>
@@ -408,7 +417,7 @@
                     </div>
                     <!-- Nuevo: Campo para el estado del producto en edición -->
                     <div>
-                        <label for="editedProductStatus" class="block text-lg font-medium mb-2">Estado de Publicación:</label>
+                        <label for="editedProductStatus" class="block text-lg font-medium mb-2">Estado de Publicacion:</label>
                         <select id="editedProductStatus" class="input-field" required>
                             <option value="draft">Borrador</option>
                             <option value="published">Publicado</option>
@@ -422,30 +431,367 @@
             <!-- Nueva Sección: Control de Stock -->
             <div id="manageStock" class="section-content hidden">
                 <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Control de Stock</h2>
-                <p class="text-center text-gray-400 mb-6">
-                    Gestiona el inventario de tus productos.
-                </p>
-                <div class="space-y-4">
-                    <div>
-                        <label for="selectProductToManageStock" class="block text-lg font-medium mb-2">Seleccionar Producto:</label>
-                        <select id="selectProductToManageStock" class="input-field">
-                            <option value="">-- Selecciona un producto --</option>
-                            <!-- Los productos se cargarán dinámicamente desde Firestore -->
-                        </select>
+                <p class="text-center text-gray-400 mb-6">Vista general del inventario, stock en transito y registro de nuevas llegadas.</p>
+
+                <!-- Inventario actual -->
+                <div class="rounded-xl border border-white/10 bg-white/5 p-4 mb-8">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-xl font-semibold text-cyan-300">Inventario</h3>
+                        <span id="inventoryCount" class="text-sm text-gray-400"></span>
                     </div>
-                    <div>
-                        <label for="currentProductStock" class="block text-lg font-medium mb-2">Stock Actual:</label>
-                        <input type="number" id="currentProductStock" class="input-field" disabled>
-                    </div>
-                    <div>
-                        <label for="stockChangeAmount" class="block text-lg font-medium mb-2">Cambiar Stock por:</label>
-                        <input type="number" id="stockChangeAmount" class="input-field" value="0">
-                    </div>
-                    <div class="flex gap-4">
-                        <button id="increaseStockButton" class="action-button w-1/2 bg-green-600 hover:bg-green-700">Aumentar Stock</button>
-                        <button id="decreaseStockButton" class="action-button w-1/2 bg-red-600 hover:bg-red-700">Disminuir Stock</button>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="text-gray-400 text-left">
+                                <tr>
+                                    <th class="py-2 px-3">Producto</th>
+                                    <th class="py-2 px-3">Precio</th>
+                                    <th class="py-2 px-3">Stock actual</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventoryTableBody" class="divide-y divide-white/10">
+                                <tr>
+                                    <td colspan="3" class="py-3 px-3 text-center text-gray-400">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+
+                <!-- Stock en tránsito -->
+                <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-semibold text-cyan-300">Stock en transito</h3>
+                        <span class="text-sm text-gray-400">Registra lo que viene en camino.</span>
+                    </div>
+
+                    <!-- Alta rápida de tránsito -->
+                    <div class="grid md:grid-cols-3 gap-3 mb-4">
+                        <div>
+                            <label for="addTransitProductSelect" class="block text-sm text-gray-400 mb-1">Producto</label>
+                            <select id="addTransitProductSelect" class="input-field">
+                                <option value="">-- Selecciona un producto --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="addTransitQtyInput" class="block text-sm text-gray-400 mb-1">Cantidad en camino</label>
+                            <input id="addTransitQtyInput" type="number" min="1" value="1" class="input-field" />
+                        </div>
+                        <div class="flex items-end">
+                            <button id="addTransitButton" class="action-button w-full bg-purple-600 hover:bg-purple-700">Agregar en transito</button>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de tránsito -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="text-gray-400 text-left">
+                                <tr>
+                                    <th class="py-2 px-3">Producto</th>
+                                    <th class="py-2 px-3">Precio</th>
+                                    <th class="py-2 px-3">En transito</th>
+                                    <th class="py-2 px-3">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transitTableBody" class="divide-y divide-white/10">
+                                <tr>
+                                    <td colspan="4" class="py-3 px-3 text-center text-gray-400">Sin registros en transito.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Ayuda para "Nuevo stock" -->
+                    <div class="mt-4 text-sm text-gray-400">
+                        <p>
+                            Para registrar una llegada, haz clic en "Registrar llegada". 
+                            Si llega lo previsto, se suma al stock y se quita de tránsito. 
+                            Si llega parcialmente, ingresa la cantidad recibida y el faltante quedara pendiente.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nueva Sección: Compras -->
+            <div id="orders" class="section-content hidden">
+                <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Compras</h2>
+                <p class="text-center text-gray-400 mb-6">Listado de compras realizadas desde el catalogo.</p>
+                <div class="mb-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+                    <input id="orders-search" type="text" placeholder="Buscar por nombre o número de pedido" class="w-full md:w-1/2 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <div class="flex gap-2">
+                        
+                    </div>
+                </div>
+                <div id="ordersList" class="space-y-4"></div>
+            </div>
+
+            <!-- Sección: Finanzas -->
+                        <!-- Secci�n: Compras de Stock -->
+            <div id="supplierPurchases" class="section-content hidden">
+                <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Compras de Stock</h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <h3 class="text-lg font-semibold text-white mb-3">Nueva Compra</h3>
+                        <form id="purchaseForm" class="space-y-3">
+                            <div class="grid md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-sm text-gray-400">Proveedor (Nombre)</label>
+                                    <input id="supName" type="text" class="input-field" placeholder="Proveedor SA" />
+                                </div>
+                                <div>
+                                    <label class="text-sm text-gray-400">CUIT</label>
+                                    <input id="supCuit" type="text" class="input-field" placeholder="20-12345678-9" />
+                                </div>
+                            </div>
+                            <div class="grid md:grid-cols-3 gap-3">
+                                <div>
+                                    <label class="text-sm text-gray-400">Contacto</label>
+                                    <input id="supContact" type="text" class="input-field" placeholder="Nombre" />
+                                </div>
+                                <div>
+                                    <label class="text-sm text-gray-400">Tel�fono</label>
+                                    <input id="supPhone" type="text" class="input-field" placeholder="351..." />
+                                </div>
+                                <div>
+                                    <label class="text-sm text-gray-400">Email</label>
+                                    <input id="supEmail" type="email" class="input-field" placeholder="proveedor@mail.com" />
+                                </div>
+                            </div>
+                            <div class="rounded-xl border border-white/10 p-3">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h4 class="text-sm text-gray-400">�tems</h4>
+                                    <button type="button" id="addPurchaseItem" class="px-2 py-1 rounded border border-white/20 text-white/90 hover:bg-white/10">Agregar</button>
+                                </div>
+                                <div id="purchaseItems" class="space-y-2"></div>
+                            </div>
+                            <div class="grid md:grid-cols-3 gap-3">
+                                <div>
+                                    <label class="text-sm text-gray-400">Moneda</label>
+                                    <input id="purCurrency" type="text" value="ARS" class="input-field" />
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="text-sm text-gray-400">Notas</label>
+                                    <input id="purNotes" type="text" class="input-field" placeholder="Opcional" />
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <button type="submit" class="action-button bg-green-600 hover:bg-green-700">Guardar compra</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <h3 class="text-lg font-semibold text-white mb-3">�ltimas Compras</h3>
+                        <div id="purchasesList" class="space-y-3"></div>
+                    </div>
+                </div>
+            </div><div id="finance" class="section-content hidden">
+                <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Finanzas</h2>
+                <div class="grid md:grid-cols-3 gap-4 mb-6">
+                    <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <div class="text-sm text-gray-400">Ingresos (Bruto)</div>
+                        <div id="financeRevenue" class="text-2xl font-extrabold text-green-300">$0</div>
+                    </div>
+                    <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <div class="text-sm text-gray-400">Compras</div>
+                        <div id="financePurchases" class="text-2xl font-extrabold text-yellow-300">$0</div>
+                    </div>
+                    <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <div class="text-sm text-gray-400">Ganancia Bruta</div>
+                        <div id="financeGross" class="text-2xl font-extrabold text-blue-300">$0</div>
+                    </div>
+                </div>
+                <div class="grid md:grid-cols-4 gap-4 items-end mb-6">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Desde</label>
+                        <input id="financeFrom" type="date" class="input-field">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Hasta</label>
+                        <input id="financeTo" type="date" class="input-field">
+                    </div>
+                    <div class="md:col-span-2 flex gap-3">
+                        <button id="financeRefreshBtn" class="action-button bg-sky-600 hover:bg-sky-700">Actualizar</button>
+                        <span id="financeStatus" class="text-gray-400 self-center"></span>
+                    </div>
+                </div>
+                <div id="financeChartPlaceholder" class="text-center text-gray-400">
+                    Próximamente: gráfico de ingresos vs compras.
+                </div>
+            </div>
+
+            <!-- Nueva Sección: Clientes registrados (placeholder) -->
+            <div id="users" class="section-content hidden">
+                <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Gestion de Usuarios</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <input id="usersSearch" type="text" class="input-field" placeholder="Buscar por nombre, email o usuario...">
+                    <select id="usersStatus" class="input-field">
+                        <option value="">Estado: Todos</option>
+                        <option value="ACTIVE">Activos</option>
+                        <option value="INACTIVE">Inactivos</option>
+                    </select>
+                    <input id="usersDeptFilter" type="text" class="input-field" placeholder="Filtrar por Departamento">
+                    <div class="flex gap-2">
+                      <button id="searchUsersButton" class="action-button flex-1">Buscar</button>
+                      <button id="newUserToggle" class="action-button bg-green-600 hover:bg-green-700 flex-1">Nuevo Usuario</button>
+                    </div>
+                </div>
+
+                <form id="createUserForm" class="space-y-4 mb-8 hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block mb-1">Nombre Completo</label>
+                            <input id="usrName" type="text" class="input-field" required>
+                        </div>
+                        <div>
+                            <label class="block mb-1">Email Corporativo</label>
+                            <input id="usrEmail" type="email" class="input-field" required>
+                        </div>
+                        <div>
+                            <label class="block mb-1">Departamento</label>
+                            <input id="usrDept" type="text" class="input-field">
+                        </div>
+                        <div>
+                            <label class="block mb-1">Cargo</label>
+                            <input id="usrPos" type="text" class="input-field">
+                        </div>
+                        <div>
+                            <label class="block mb-1">Nombre de Usuario</label>
+                            <input id="usrUsername" type="text" class="input-field">
+                        </div>
+                        <div>
+                            <label class="block mb-1">Contrasena Temporal</label>
+                            <input id="usrTempPwd" type="text" class="input-field" placeholder="Temp#2025">
+                        </div>
+                        <div>
+                            <label class="block mb-1">Estado</label>
+                            <select id="usrStatus" class="input-field">
+                                <option value="ACTIVE">Activo</option>
+                                <option value="INACTIVE">Inactivo</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block mb-1">Fecha de Expiracion (opcional)</label>
+                            <input id="usrExpiresAt" type="date" class="input-field">
+                        </div>
+                        <div>
+                            <label class="block mb-1">Rol Principal</label>
+                            <select id="usrPrimaryRole" class="input-field"><option value="">-- Seleccionar --</option></select>
+                        </div>
+                        <div>
+                            <label class="block mb-1">Rol Secundario (opcional)</label>
+                            <select id="usrSecondaryRole" class="input-field"></select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block mb-1">Roles</label>
+                            <select id="usrRoles" class="input-field" multiple></select>
+                        </div>
+                    </div>
+                    <div class="flex gap-3 justify-end">
+                        <button type="button" id="cancelCreateUser" class="action-button bg-gray-600 hover:bg-gray-700">Cancelar</button>
+                        <button type="submit" class="action-button">Crear Usuario</button>
+                    </div>
+                </form>
+
+                <div class="overflow-x-auto">
+                  <table class="min-w-full text-left">
+                    <thead><tr class="text-gray-300">
+                      <th class="px-3 py-2">Nombre</th>
+                      <th class="px-3 py-2">Email</th>
+                      <th class="px-3 py-2">Usuario</th>
+                      <th class="px-3 py-2">Departamento</th>
+                      <th class="px-3 py-2">Cargo</th>
+                      <th class="px-3 py-2">Estado</th>
+                      <th class="px-3 py-2">Acciones</th>
+                    </tr></thead>
+                    <tbody id="usersTableBody"></tbody>
+                  </table>
+                </div>
+
+                <div id="editUserPanel" class="mt-8 hidden">
+                  <h3 class="text-2xl font-bold mb-4 text-blue-200">Editar Usuario</h3>
+                  <input type="hidden" id="editUserId">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label class="block mb-1">Nombre</label>
+                      <input id="editName" class="input-field" type="text">
+                    </div>
+                    <div>
+                      <label class="block mb-1">Email</label>
+                      <input id="editEmail" class="input-field" type="email">
+                    </div>
+                    <div>
+                      <label class="block mb-1">Usuario</label>
+                      <input id="editUsername" class="input-field" type="text">
+                    </div>
+                    <div>
+                      <label class="block mb-1">Departamento</label>
+                      <input id="editDept" class="input-field" type="text">
+                    </div>
+                    <div>
+                      <label class="block mb-1">Cargo</label>
+                      <input id="editPos" class="input-field" type="text">
+                    </div>
+                    <div>
+                      <label class="block mb-1">Estado</label>
+                      <select id="editStatus" class="input-field"><option value="ACTIVE">Activo</option><option value="INACTIVE">Inactivo</option></select>
+                    </div>
+                    <div>
+                      <label class="block mb-1">Expira</label>
+                      <input id="editExpiresAt" type="date" class="input-field">
+                    </div>
+                  </div>
+                  <div class="flex gap-3 justify-end mt-4">
+                    <button id="saveUserChanges" class="action-button">Guardar Cambios</button>
+                  </div>
+
+                  <h4 class="text-xl font-bold mt-8 mb-4 text-blue-200">Asignaciones</h4>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label class="block mb-1">Rol Principal</label>
+                      <div class="flex gap-2">
+                        <select id="editPrimaryRole" class="input-field flex-1"></select>
+                        <button id="assignPrimaryRole" class="action-button">Asignar</button>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block mb-1">Rol Secundario</label>
+                      <div class="flex gap-2">
+                        <select id="editSecondaryRole" class="input-field flex-1"></select>
+                        <button id="assignSecondaryRole" class="action-button">Agregar</button>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block mb-1">Rol</label>
+                      <div class="flex gap-2">
+                        <select id="editRole" class="input-field flex-1"></select>
+                        <button id="assignRole" class="action-button">Asignar</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <h4 class="text-xl font-bold mt-8 mb-4 text-blue-200">Seguridad</h4>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="flex gap-2 items-end">
+                      <div class="flex-1">
+                        <label class="block mb-1">Contrasena Temporal</label>
+                        <input id="editTempPwd" class="input-field" placeholder="Temp#2025">
+                      </div>
+                      <button id="resetPasswordBtn" class="action-button bg-red-600 hover:bg-red-700">Resetear</button>
+                    </div>
+                    <div class="flex items-end">
+                      <button id="revokeSessionsBtn" class="action-button bg-yellow-600 hover:bg-yellow-700">Revocar Sesiones</button>
+                    </div>
+                  </div>
+
+                  <h4 class="text-xl font-bold mt-8 mb-2 text-blue-200">Historial de Cambios</h4>
+                  <div id="userAuditList" class="text-sm text-gray-300 space-y-1 max-h-64 overflow-auto border border-gray-700 rounded-md p-3"></div>
+                </div>
+            </div>
+
+            <div id="customers" class="section-content hidden">
+                <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Clientes registrados</h2>
+                <p class="text-center text-gray-400">Próximamente. Aquí verás los clientes que se registren.</p>
+                <div id="customersList" class="space-y-4"></div>
             </div>
         </div>
     </div>
@@ -515,7 +861,9 @@
       }
     </script>
 
-    <!-- Cargar admin.js solo si hay JWT, para evitar errores al redirigir a login -->
+    <!-- Enlace al archivo JavaScript externo -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="admin.js" type="module"></script>
-</body>
+    <script src="remito-override.js" type="module"></script></body>
 </html>
+

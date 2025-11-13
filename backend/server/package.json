@@ -1,5 +1,5 @@
 {
-  "name": "servidor-muebleria",
+  "name": "servidor-ensintonia",
   "version": "1.0.0",
   "description": "Servidor seguro para aplicación de mueblería",
   "main": "index.js",
@@ -9,7 +9,8 @@
     "dev": "nodemon index.js",
     "migrate": "node scripts/migrate.js",
     "gen-hash": "node scripts/gen-hash.js",
-    "set-admin-password": "node scripts/set-admin-password.js"
+    "set-admin-password": "node scripts/set-admin-password.js",
+    "seed-rbac": "node scripts/seed_rbac.js"
   },
   "keywords": [
     "express",

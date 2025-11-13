@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+﻿const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { check, validationResult } = require('express-validator'); // Importar express-validator
@@ -7,6 +7,7 @@ const { check, validationResult } = require('express-validator'); // Importar ex
 const { sendSMSNotification, failedLoginAttempts, FAILED_LOGIN_THRESHOLD } = require('../middlewares/security.js');
 const { SECRET, REFRESH_SECRET, addTokenToBlacklist } = require('../middlewares/authmiddleware.js');
 const { sendVerificationEmail } = require('../utils/mailer');
+const { query } = require('../db/pg');
 
 const JWT_ALG = process.env.JWT_ALG || 'HS256';
 const JWT_ISSUER = process.env.JWT_ISSUER;
@@ -30,6 +31,139 @@ function generateOtpCode() {
   return num.toString().padStart(6, '0');
 }
 
+// --- Secure variants: rotate/persist refresh + revoke user tokens on logout ---
+async function refreshTokenV2(req, res) {
+  const { refreshToken } = req.body || {};
+  if (!refreshToken) return res.status(401).json({ error: 'Refresh token requerido' });
+  if (!REFRESH_SECRET || !SECRET) return res.status(500).json({ error: 'Configuración del servidor incompleta.' });
+  try {
+    const verifyOptions = { algorithms: [JWT_ALG] };
+    if (JWT_ISSUER) verifyOptions.issuer = JWT_ISSUER;
+    if (JWT_AUDIENCE) verifyOptions.audience = JWT_AUDIENCE;
+    const payload = jwt.verify(refreshToken, REFRESH_SECRET, verifyOptions);
+    const email = String(payload.email || '').toLowerCase();
+    const jti = payload.jti || payload.jwtid || null;
+    if (!jti) return res.status(403).json({ error: 'Token inválido' });
+    const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const { rows } = await query('SELECT id, revoked_at, expires_at FROM RefreshTokens WHERE email = $1 AND jti = $2 AND token_hash = $3 LIMIT 1', [email, jti, hash]);
+    if (!rows.length) return res.status(403).json({ error: 'Token no reconocido' });
+    const rec = rows[0];
+    if (rec.revoked_at) return res.status(403).json({ error: 'Token revocado' });
+    if (new Date(rec.expires_at) < new Date()) return res.status(403).json({ error: 'Token expirado' });
+    await query('UPDATE RefreshTokens SET revoked_at = CURRENT_TIMESTAMP, last_used_at = CURRENT_TIMESTAMP WHERE id = $1', [rec.id]);
+    const accessSignOpts = { algorithm: JWT_ALG, expiresIn: '15m' };
+    if (JWT_ISSUER) accessSignOpts.issuer = JWT_ISSUER;
+    if (JWT_AUDIENCE) accessSignOpts.audience = JWT_AUDIENCE;
+    const accessJti = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
+    const newAccessToken = jwt.sign({ email }, SECRET, { ...accessSignOpts, jwtid: accessJti });
+    const newJti = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
+    const refreshSignOpts = { algorithm: JWT_ALG, expiresIn: '7d', jwtid: newJti };
+    if (JWT_ISSUER) refreshSignOpts.issuer = JWT_ISSUER;
+    if (JWT_AUDIENCE) refreshSignOpts.audience = JWT_AUDIENCE;
+    const newRefreshToken = jwt.sign({ email }, REFRESH_SECRET, refreshSignOpts);
+    const newHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+    const decoded = jwt.decode(newRefreshToken);
+    const exp = decoded && decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7*24*60*60*1000);
+    const ua = req.get('User-Agent') || null;
+    const ip = req.ip || null;
+    await query('INSERT INTO RefreshTokens(email, jti, token_hash, user_agent, ip_address, expires_at) VALUES ($1, $2, $3, $4, $5, $6)', [email, newJti, newHash, ua, ip, exp]);
+    return res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
+  } catch (err) {
+    console.error('Error de verificación de refresh token:', err.message);
+    return res.status(403).json({ error: 'Refresh token inválido o expirado' });
+  }
+}
+
+async function logoutV2(req, res) {
+  const accessToken = req.token;
+  const email = req.user && req.user.email ? String(req.user.email).toLowerCase() : null;
+  try { if (accessToken) addTokenToBlacklist(accessToken); } catch {}
+  if (email) {
+    try { await query('UPDATE RefreshTokens SET revoked_at = CURRENT_TIMESTAMP WHERE email = $1 AND revoked_at IS NULL', [email]); } catch (e) { console.error('[auth] revoke refresh tokens on logout error:', e.message); }
+  }
+  return res.status(200).json({ message: 'Sesión cerrada. Tokens invalidados.' });
+}
+
+// Login de usuarios desde DB (sin 2FA)
+async function loginDb(req, res) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  const { email, password } = req.body || {};
+  const clientIp = req.ip;
+  const emailNorm = String(email || '').trim().toLowerCase();
+
+  if (!failedLoginAttempts.has(clientIp)) {
+    failedLoginAttempts.set(clientIp, 0);
+  }
+
+  if (!SECRET || !REFRESH_SECRET) {
+    console.error('Error: Las variables de entorno JWT_SECRET o REFRESH_TOKEN_SECRET no están definidas.');
+    return res.status(500).json({ error: 'Configuración del servidor incompleta.' });
+  }
+
+  try {
+    const sel = await query(
+      `SELECT id, email, password_hash, status, must_change_password, failed_attempts, locked_until
+         FROM Users WHERE LOWER(email) = $1 AND deleted_at IS NULL LIMIT 1`,
+      [emailNorm]
+    );
+    if (!sel.rows.length) {
+      failedLoginAttempts.set(clientIp, failedLoginAttempts.get(clientIp) + 1);
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
+    const u = sel.rows[0];
+    if (String(u.status || '').toUpperCase() !== 'ACTIVE') {
+      return res.status(403).json({ error: 'Usuario inactivo' });
+    }
+    if (u.locked_until && new Date(u.locked_until) > new Date()) {
+      return res.status(423).json({ error: 'Cuenta bloqueada temporalmente' });
+    }
+    const ok = await bcrypt.compare(String(password || ''), u.password_hash || '');
+    if (!ok) {
+      try { await query('UPDATE Users SET failed_attempts = COALESCE(failed_attempts,0) + 1 WHERE id = $1', [u.id]); } catch {}
+      failedLoginAttempts.set(clientIp, failedLoginAttempts.get(clientIp) + 1);
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
+
+    // Reset fallidos
+    try { await query('UPDATE Users SET failed_attempts = 0, locked_until = NULL WHERE id = $1', [u.id]); } catch {}
+    failedLoginAttempts.delete(clientIp);
+
+    const signOpts = { algorithm: JWT_ALG, expiresIn: '15m' };
+    if (JWT_ISSUER) signOpts.issuer = JWT_ISSUER;
+    if (JWT_AUDIENCE) signOpts.audience = JWT_AUDIENCE;
+    const accessJti = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
+    const accessToken = jwt.sign({ email: u.email }, SECRET, { ...signOpts, jwtid: accessJti });
+
+    const jti = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
+    const refreshSignOpts = { algorithm: JWT_ALG, expiresIn: '7d', jwtid: jti };
+    if (JWT_ISSUER) refreshSignOpts.issuer = JWT_ISSUER;
+    if (JWT_AUDIENCE) refreshSignOpts.audience = JWT_AUDIENCE;
+    const refreshToken = jwt.sign({ email: u.email }, REFRESH_SECRET, refreshSignOpts);
+    try {
+      const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+      const decoded = jwt.decode(refreshToken);
+      const exp = decoded && decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7*24*60*60*1000);
+      const ua = req.get('User-Agent') || null;
+      const ip = req.ip || null;
+      await query(
+        `INSERT INTO RefreshTokens(email, jti, token_hash, user_agent, ip_address, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [emailNorm, jti, hash, ua, ip, exp]
+      );
+    } catch (e) {
+      console.error('[auth] persist refresh token error (loginDb):', e.message);
+    }
+
+    return res.json({ accessToken, refreshToken, user: { id: u.id, email: u.email, mustChangePassword: !!u.must_change_password } });
+  } catch (err) {
+    console.error('DB login error:', err.message);
+    return res.status(500).json({ error: 'Error del servidor' });
+  }
+}
+
 function newTransaction(email) {
   const txId = crypto.randomBytes(16).toString('hex');
   const code = generateOtpCode();
@@ -38,51 +172,7 @@ function newTransaction(email) {
   return { txId, code, expiresAt };
 }
 
-async function sendOtpEmail(email, code) {
-  // Carga perezosa de nodemailer para que no falle si no está instalado
-  let nodemailer;
-  try {
-    nodemailer = require('nodemailer');
-  } catch (e) {
-    console.warn('[2FA] nodemailer no instalado. Simulando envío de email con OTP:', code);
-    return { simulated: true };
-  }
-
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE } = process.env;
-  if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS) {
-    console.warn('[2FA] SMTP no configurado. Simulando envío de email con OTP:', code);
-    return { simulated: true };
-  }
-
-  const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT),
-    secure: SMTP_SECURE === 'true',
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-    pool: true,
-    maxConnections: 1,
-    maxMessages: 5,
-    connectionTimeout: 10000,
-    greetingTimeout: 7000,
-    socketTimeout: 20000
-  });
-
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`[2FA][DEV] Enviando OTP ${code} a ${email}`);
-  }
-  try { await transporter.verify(); } catch (e) { console.warn('[2FA] SMTP verify aviso:', e.message); }
-  const info = await transporter.sendMail({
-    from: `${process.env.SMTP_FROM_NAME || 'Seguridad Tecnocel'} <${process.env.SMTP_FROM_EMAIL || SMTP_USER}>`,
-    to: email,
-    subject: 'Código de verificación (2FA) - Panel Admin',
-    text: `Tu código de verificación es: ${code}. Vence en 5 minutos.`,
-    html: `<p>Tu código de verificación es:</p><p style="font-size:22px;font-weight:700;letter-spacing:2px">${code}</p><p>Vence en 5 minutos.</p>`
-  });
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[2FA][DEV] nodemailer info:', { messageId: info.messageId, accepted: info.accepted, rejected: info.rejected, response: info.response });
-  }
-  return { messageId: info.messageId };
-}
+// (El envío de OTP se maneja a través de utils/mailer.js con sendVerificationEmail)
 
 // Reglas de validación para el login
 const validateLogin = [
@@ -144,13 +234,29 @@ async function login(req, res) {
   if (JWT_ISSUER) commonSignOpts.issuer = JWT_ISSUER;
   if (JWT_AUDIENCE) commonSignOpts.audience = JWT_AUDIENCE;
 
-  const accessToken = jwt.sign({ email }, SECRET, commonSignOpts);
+  const accessJti = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
+  const accessToken = jwt.sign({ email }, SECRET, { ...commonSignOpts, jwtid: accessJti });
 
-  const refreshSignOpts = { algorithm: JWT_ALG, expiresIn: '7d' };
+  const jti = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
+  const refreshSignOpts = { algorithm: JWT_ALG, expiresIn: '7d', jwtid: jti };
   if (JWT_ISSUER) refreshSignOpts.issuer = JWT_ISSUER;
   if (JWT_AUDIENCE) refreshSignOpts.audience = JWT_AUDIENCE;
 
   const refreshToken = jwt.sign({ email }, REFRESH_SECRET, refreshSignOpts);
+  try {
+    const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const decoded = jwt.decode(refreshToken);
+    const exp = decoded && decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7*24*60*60*1000);
+    const ua = req.get('User-Agent') || null;
+    const ip = req.ip || null;
+    await query(
+      `INSERT INTO RefreshTokens(email, jti, token_hash, user_agent, ip_address, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [String(email).toLowerCase(), jti, hash, ua, ip, exp]
+    );
+  } catch (e) {
+    console.error('[auth] persist refresh token error:', e.message);
+  }
 
   res.json({ accessToken, refreshToken }); 
 }
@@ -207,7 +313,7 @@ async function loginStep1(req, res) {
 }
 
 // Paso 2: verificar OTP y emitir tokens
-function loginStep2(req, res) {
+async function loginStep2(req, res) {
   const { txId, code } = req.body || {};
   if (!txId || !code) return res.status(400).json({ error: 'txId y código requeridos' });
 
@@ -237,12 +343,29 @@ function loginStep2(req, res) {
   const commonSignOpts = { algorithm: JWT_ALG, expiresIn: '15m' };
   if (JWT_ISSUER) commonSignOpts.issuer = JWT_ISSUER;
   if (JWT_AUDIENCE) commonSignOpts.audience = JWT_AUDIENCE;
-  const accessToken = jwt.sign({ email: rec.email }, SECRET, commonSignOpts);
+  const accessJti2 = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
+  const accessToken = jwt.sign({ email: rec.email }, SECRET, { ...commonSignOpts, jwtid: accessJti2 });
 
-  const refreshSignOpts = { algorithm: JWT_ALG, expiresIn: '7d' };
+  const jti = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
+  const refreshSignOpts = { algorithm: JWT_ALG, expiresIn: '7d', jwtid: jti };
   if (JWT_ISSUER) refreshSignOpts.issuer = JWT_ISSUER;
   if (JWT_AUDIENCE) refreshSignOpts.audience = JWT_AUDIENCE;
   const refreshToken = jwt.sign({ email: rec.email }, REFRESH_SECRET, refreshSignOpts);
+
+  try {
+    const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const decoded = jwt.decode(refreshToken);
+    const exp = decoded && decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7*24*60*60*1000);
+    const ua = req.get('User-Agent') || null;
+    const ip = req.ip || null;
+    await query(
+      `INSERT INTO RefreshTokens(email, jti, token_hash, user_agent, ip_address, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [String(rec.email).toLowerCase(), jti, hash, ua, ip, exp]
+    );
+  } catch (e) {
+    console.error('[auth] persist refresh token (step2) error:', e.message);
+  }
 
   return res.json({ accessToken, refreshToken });
 }
@@ -268,7 +391,8 @@ function refreshToken(req, res) {
     const newAccessSignOpts = { algorithm: JWT_ALG, expiresIn: '15m' };
     if (JWT_ISSUER) newAccessSignOpts.issuer = JWT_ISSUER;
     if (JWT_AUDIENCE) newAccessSignOpts.audience = JWT_AUDIENCE;
-    const newAccessToken = jwt.sign({ email: user.email }, SECRET, newAccessSignOpts);
+    const accessJti3 = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
+    const newAccessToken = jwt.sign({ email: user.email }, SECRET, { ...newAccessSignOpts, jwtid: accessJti3 });
     res.json({ accessToken: newAccessToken });
   } catch (err) {
     console.error('Error de verificación de refresh token:', err.message);
@@ -291,6 +415,6 @@ module.exports = {
   login: [...validateLogin, login], // Exportar con el middleware de validación
   loginStep1: [...validateLogin, loginStep1],
   loginStep2,
-  refreshToken,
-  logout
+  refreshToken: refreshTokenV2,
+  logout: logoutV2
 };

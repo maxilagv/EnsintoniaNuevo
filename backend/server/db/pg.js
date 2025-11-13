@@ -1,16 +1,36 @@
-import pkg from "pg";
-import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
+const { Pool } = require('pg');
+const path = require('path');
+const fs = require('fs');
+const dotenv = require('dotenv');
 
-const { Pool } = pkg;
+// Intentar cargar .env local del backend/server si existe
+try {
+  dotenv.config({ path: path.resolve(__dirname, '../.env') });
+} catch (_) {}
 
-// Obtener ruta real
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// SSL seguro para Postgres
+function buildSslConfig() {
+  const useSSL = process.env.PGSSL === 'true' || process.env.NODE_ENV === 'production';
+  if (!useSSL) return undefined;
 
-// ✅ Cargar el .env del backend/server
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
+  // Preferir CA provista por entorno
+  const caInline = process.env.PGSSL_CA || process.env.PG_CA;
+  const caFile = process.env.PGSSL_CA_FILE || process.env.PG_CA_FILE;
+  let ca = undefined;
+  if (caInline && caInline.trim()) {
+    ca = caInline;
+  } else if (caFile) {
+    try {
+      ca = fs.readFileSync(path.resolve(caFile), 'utf8');
+    } catch (_) { /* ignore read error, fall back to system CAs */ }
+  }
+
+  // Por defecto, validar certificados del servidor (mitiga MITM)
+  const reject = String(process.env.PGSSL_REJECT_UNAUTHORIZED || '').toLowerCase();
+  const rejectUnauthorized = reject === 'false' ? false : true;
+
+  return ca ? { rejectUnauthorized, ca } : { rejectUnauthorized };
+}
 
 // Crear conexión
 const pool = new Pool({
@@ -19,26 +39,26 @@ const pool = new Pool({
   database: process.env.PGDATABASE,
   user: process.env.PGUSER,
   password: process.env.PGPASSWORD,
-  ssl: { rejectUnauthorized: false },
+  ssl: buildSslConfig(),
 });
 
-export async function query(text, params) {
+async function query(text, params) {
   return pool.query(text, params);
 }
 
-export async function withTransaction(fn) {
+async function withTransaction(fn) {
   const client = await pool.connect();
   try {
-    await client.query("BEGIN");
+    await client.query('BEGIN');
     const result = await fn(client);
-    await client.query("COMMIT");
+    await client.query('COMMIT');
     return result;
   } catch (err) {
-    await client.query("ROLLBACK");
+    await client.query('ROLLBACK');
     throw err;
   } finally {
     client.release();
   }
 }
 
-export { pool };
+module.exports = { pool, query, withTransaction };
