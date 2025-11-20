@@ -155,6 +155,7 @@ window.openFullscreenImage = function(imageUrl, altText) {
   const modal = document.getElementById('image-fullscreen-modal');
   const image = document.getElementById('fullscreen-image');
   if (!modal || !image) return;
+  modal.classList.add('open');
   image.onerror = null;
   image.src = '';
   image.alt = '';
@@ -165,7 +166,6 @@ window.openFullscreenImage = function(imageUrl, altText) {
   };
   image.src = imageUrl;
   image.alt = altText || '';
-  modal.classList.add('open');
   document.body.style.overflow = 'hidden';
 };
 
@@ -304,7 +304,7 @@ async function loadCategories() {
           const imageUrl = cat.image_url || cat.imageUrl || 'https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';
           const desc = cat.description || cat.descripcion || 'Descripción no disponible.';
           const card = document.createElement('div');
-          card.className = 'category-card group rounded-2xl flex flex-col';
+          card.className = 'category-card group rounded-2xl flex flex-col cursor-pointer';
           card.dataset.categoryName = name;
           card.dataset.originalImage = imageUrl;
           card.dataset.productImages = JSON.stringify([imageUrl]);
@@ -312,7 +312,7 @@ async function loadCategories() {
           card.addEventListener('mouseenter', () => startCategoryImageAnimation(card));
           card.addEventListener('mouseleave', () => stopCategoryImageAnimation(card));
           card.innerHTML = `
-            <div class="relative aspect-[4/3] overflow-hidden rounded-t-2xl">
+            <div class="media-frame relative aspect-[4/3] overflow-hidden rounded-t-2xl">
               <img loading="lazy" decoding="async" src="${imageUrl}" alt="${name}"
                    class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02] category-image-animated"
                    onerror="this.onerror=null;this.src='https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';">
@@ -418,12 +418,18 @@ function computeFilteredList(){
       return val >= minV && val <= maxV;
     });
   }
+  try { updateActiveFiltersUI(); } catch {}
   return list;
 }
 
 function applySortAndRender() {
   const container = document.getElementById('contenedor-productos');
   if (!container) return;
+  const grid = container;
+  try {
+    grid.classList.add('transitioning');
+  } catch {}
+
   let list = computeFilteredList();
   list.sort((a,b)=>{
     if (currentSort === 'recent') return getCreatedAtTS(b.createdAt) - getCreatedAtTS(a.createdAt);
@@ -461,10 +467,10 @@ function applySortAndRender() {
       card.id = `product-${id}`;
       card.dataset.id = id;
       card.dataset.reveal = '1';
-      card.className = 'product-card group rounded-2xl flex flex-col';
+      card.className = 'product-card group rounded-2xl flex flex-col cursor-pointer';
       card.innerHTML = `
         ${mediaHtml}
-        <div class="p-4 flex flex-col flex-grow">
+        <div class="p-4 sm:p-5 flex flex-col flex-grow">
           <h3 class="text-[15px] leading-snug line-clamp-2 text-futuristic-ink">${name}</h3>
           <p class="text-futuristic-mute text-xs mt-1 flex-grow line-clamp-3">${description}</p>
           ${priceHtml}
@@ -473,10 +479,12 @@ function applySortAndRender() {
     });
   }
 
-  hideLoading('products-loading-spinner');
-  productsInitialLoadComplete = true;
-  checkAndHideMainLoader();
   enhanceProductCardsForReveal();
+  try {
+    requestAnimationFrame(() => {
+      grid.classList.remove('transitioning');
+    });
+  } catch {}
 }
 
 function enhanceProductCardsForReveal() {
@@ -990,6 +998,28 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   // init search bindings (desktop + mobile)
   try { setupSearch(); } catch {}
+  // clear filters button
+  const clearBtn = document.getElementById('clear-filters-btn');
+  if (clearBtn && !clearBtn.dataset.bindClear) {
+    clearBtn.dataset.bindClear = '1';
+    clearBtn.addEventListener('click', () => {
+      const minEl = document.getElementById('min-price');
+      const maxEl = document.getElementById('max-price');
+      if (minEl) minEl.value = '';
+      if (maxEl) maxEl.value = '';
+      delete window.__priceMin;
+      delete window.__priceMax;
+      delete window.__searchQuery;
+      delete window.__searchCategory;
+      delete window.__searchId;
+      try {
+        const searchInputs = getSearchInputs();
+        searchInputs.forEach(inp => { inp.value = ''; });
+      } catch {}
+      try { updateActiveFiltersUI(); } catch {}
+      applySortAndRender();
+    });
+  }
   // Observe DOM for dynamically added search inputs (e.g., mobile menu)
   try {
     let scheduled = false;
@@ -1014,6 +1044,7 @@ function applyPriceFilter() {
     window.__priceMin = hasMin ? min : 0;
     window.__priceMax = hasMax ? max : Infinity;
   }
+  try { updateActiveFiltersUI(); } catch {}
   applySortAndRender();
 }
 window.applyPriceFilter = applyPriceFilter;
@@ -1039,6 +1070,38 @@ function getBestSearchInput(){
 function parseNumber(v){
   if (v==null) return NaN; return parseFloat(String(v).replace(/\./g,'').replace(',', '.'));
 }
+
+function updateActiveFiltersUI() {
+  const wrap = document.getElementById('active-filters');
+  if (!wrap) return;
+  const chips = [];
+  const hasSearch = !!(window.__searchQuery && window.__searchQuery.trim());
+  const hasCat = !!(window.__searchCategory && window.__searchCategory.trim());
+  const hasId = !!(window.__searchId && window.__searchId.trim());
+  const hasMin = typeof window.__priceMin === 'number';
+  const hasMax = typeof window.__priceMax === 'number' && isFinite(window.__priceMax) && window.__priceMax !== Infinity;
+
+  if (hasSearch) chips.push({ key: 'search', label: `Texto: "${window.__searchQuery}"` });
+  if (hasCat) chips.push({ key: 'cat', label: `Categoría: ${window.__searchCategory}` });
+  if (hasId) chips.push({ key: 'id', label: `ID: ${window.__searchId}` });
+  if (hasMin || hasMax) {
+    const parts = [];
+    if (hasMin) parts.push(`mín ${window.__priceMin}`);
+    if (hasMax) parts.push(`máx ${window.__priceMax}`);
+    chips.push({ key: 'price', label: `Precio ${parts.join(' / ')}` });
+  }
+
+  if (!chips.length) {
+    wrap.innerHTML = '<span class="text-[11px] text-futuristic-mute/80">Sin filtros activos</span>';
+    return;
+  }
+  wrap.innerHTML = chips.map(c => `
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-600/90 text-white shadow-sm text-[11px]">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+      <span>${c.label}</span>
+    </span>
+  `).join('');
+}
 async function applySearch(query, opts={}){
   try {
     if (!Array.isArray(window.productsFullCache) || window.productsFullCache.length === 0) {
@@ -1063,6 +1126,7 @@ async function applySearch(query, opts={}){
   q = q.replace(/(?:^|\s)id\s*:\s*([^\s]+)/ig, (_,id)=>{ window.__searchId = String(id||''); return ' '; });
   // final free text
   window.__searchQuery = q.replace(/\s+/g,' ').trim();
+  try { updateActiveFiltersUI(); } catch {}
   applySortAndRender();
   if (opts.sourceId && String(opts.sourceId).toLowerCase().includes('mobile')) { try { closeMobileMenu(); } catch {} }
 

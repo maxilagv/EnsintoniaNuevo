@@ -44,11 +44,20 @@ async function createOrderUnified(req, res) {
         total += p.price * item.quantity;
       }
 
-      // 3) Descontar stock
+      // 3) Descontar stock usando adjust_product_stock (respeta triggers y evita updates directos)
       for (const item of items) {
+        const qty = Number(item.quantity || 0);
+        if (!qty) continue;
         await client.query(
-          'UPDATE Products SET stock_quantity = stock_quantity - $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-          [item.quantity, item.productId]
+          'SELECT adjust_product_stock($1, $2, $3, $4, $5, $6)',
+          [
+            item.productId,               // p_product_id
+            -qty,                         // p_quantity_change (negativo = salida)
+            'salida',                     // p_movement_type
+            `venta web order`,            // p_reason
+            (req.user && req.user.id) || null, // p_current_user_id
+            req.ip || null                // p_client_ip_address
+          ]
         );
       }
 

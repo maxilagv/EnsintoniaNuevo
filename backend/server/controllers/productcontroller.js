@@ -241,26 +241,45 @@ module.exports = {
       const id = Number(req.params.id);
       if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid product ID' });
       const delta = Number(req.body?.delta);
-      if (!Number.isFinite(delta)) return res.status(400).json({ error: 'delta required' });
+      if (!Number.isFinite(delta) || delta === 0) return res.status(400).json({ error: 'delta required' });
       const reason = req.body?.reason ? String(req.body.reason) : null;
       try {
         const result = await withTransaction(async (client) => {
           const { rows } = await client.query('SELECT stock_quantity FROM Products WHERE id = $1 FOR UPDATE', [id]);
           if (!rows.length) { const e = new Error('Product not found'); e.status = 404; throw e; }
           const current = Number(rows[0].stock_quantity || 0) || 0;
-          let next = current + delta;
-          if (next < 0) next = 0;
-          await client.query('UPDATE Products SET stock_quantity = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [next, id]);
-          // movimiento de ajuste (compra si aumenta, venta si disminuye)
-          const tipo = delta >= 0 ? 'compra' : 'venta';
-          const qty = Math.abs(Math.floor(delta));
-          if (qty > 0) {
+          // Asegurar que el cambio no deje el stock negativo
+          let change = delta;
+          if (current + change < 0) change = -current;
+
+          // Aplicar cambio de stock usando adjust_product_stock (respeta trigger de BD)
+          if (change !== 0) {
             await client.query(
-              `INSERT INTO movimientos(tipo, producto_id, cantidad, precio_unitario, usuario, nota)
-               VALUES ($1, $2, $3, 0, $4, $5)`,
-              [tipo, id, qty, (req.user && req.user.email) || null, reason || 'stock patch']
+              'SELECT adjust_product_stock($1, $2, $3, $4, $5, $6)',
+              [
+                id,
+                change,
+                change > 0 ? 'entrada' : 'salida',
+                reason || 'stock patch',
+                (req.user && req.user.id) || null,
+                req.ip || null
+              ]
             );
+
+            // Registrar tambi�n en movimientos (legado)
+            const tipo = change > 0 ? 'compra' : 'venta';
+            const qty = Math.abs(Math.floor(change));
+            if (qty > 0) {
+              await client.query(
+                `INSERT INTO movimientos(tipo, producto_id, cantidad, precio_unitario, usuario, nota)
+                 VALUES ($1, $2, $3, 0, $4, $5)`,
+                [tipo, id, qty, (req.user && req.user.email) || null, reason || 'stock patch']
+              );
+            }
           }
+
+          const { rows: rowsAfter } = await client.query('SELECT stock_quantity FROM Products WHERE id = $1', [id]);
+          const next = rowsAfter.length ? (Number(rowsAfter[0].stock_quantity || 0) || 0) : current;
           return { old: current, new: next };
         });
         return res.json(result);

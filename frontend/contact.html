@@ -154,29 +154,24 @@
         }
 
         /* --- Estilos para la animación del botón de hamburguesa --- */
-        #mobile-menu-button span {
+        #mobile-menu-button .bar {
             display: block;
-            width: 24px;
             height: 3px;
-            background-color: #374151;
-            border-radius: 2px;
-            transition: all 0.3s ease-in-out;
+            border-radius: 9999px;
+            background-color: var(--brand-400);
+            transition: transform 0.35s ease, opacity 0.25s ease, background-color 0.25s ease;
         }
 
-        #mobile-menu-button span:nth-child(2) {
-            margin: 5px 0;
+        #mobile-menu-button.open .bar:nth-child(1) {
+            transform: translateY(6px) rotate(45deg);
         }
 
-        #mobile-menu-button.open span:nth-child(1) {
-            transform: translateY(8px) rotate(45deg);
-        }
-
-        #mobile-menu-button.open span:nth-child(2) {
+        #mobile-menu-button.open .bar:nth-child(2) {
             opacity: 0;
         }
 
-        #mobile-menu-button.open span:nth-child(3) {
-            transform: translateY(-8px) rotate(-45deg);
+        #mobile-menu-button.open .bar:nth-child(3) {
+            transform: translateY(-6px) rotate(-45deg);
         }
         /* --- Fin de los estilos del botón de hamburguesa --- */
 
@@ -245,38 +240,231 @@
             background-color: rgba(255, 255, 255, 0.5);
         }
     </style>
+
+    <!-- Tema futurista y overrides coherentes con index/catalogo -->
+    <style>
+        :root {
+            --brand-50: #eef6ff;
+            --brand-100: #dbeafe;
+            --brand-200: #bfdbfe;
+            --brand-300: #93c5fd;
+            --brand-400: #60a5fa;
+            --brand-500: #3b82f6;
+            --brand-600: #2563eb;
+            --brand-700: #1d4ed8;
+            --brand-800: #1e40af;
+            --brand-900: #1e3a8a;
+
+            --ink-900: #0f172a;
+            --ink-700: #334155;
+            --ink-500: #64748b;
+
+            --bg-body: radial-gradient(1200px 600px at 10% 10%, rgba(110,231,183,0.06), transparent 12%),
+                       linear-gradient(180deg, #061229 0%, #072447 30%, #0b3b6b 60%, #081133 100%);
+            --text-primary: #e6f0ff;
+            --text-muted: #9fb3d9;
+        }
+
+        html,
+        body {
+            font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: var(--bg-body);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .text-futuristic-ink {
+            color: var(--text-primary) !important;
+        }
+
+        .text-futuristic-mute {
+            color: var(--text-muted) !important;
+        }
+
+        /* Ajustes para tarjetas y hero sobre el nuevo fondo */
+        .new-contact-card {
+            background: rgba(15, 23, 42, 0.7);
+            color: var(--text-primary);
+            border-radius: 1rem;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+        }
+
+        .new-contact-card .card-button {
+            background: linear-gradient(90deg, #60a5fa, #7c3aed, #6ee7b7);
+            color: #ffffff;
+        }
+
+        .contact-hero::before {
+            background: rgba(15, 23, 42, 0.65);
+        }
+
+        /* Header glass + logo futurista (inspirado en catalogo.html) */
+        #main-header {
+            background: rgba(8, 17, 51, 0.75);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-bottom: 1px solid rgba(49, 62, 85, 0.5);
+        }
+
+        #main-header::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #60a5fa, #7c3aed, #6ee7b7);
+            filter: drop-shadow(0 0 10px rgba(124, 58, 237, 0.25));
+            opacity: .9;
+        }
+
+        .logo-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+            transform-origin: center;
+        }
+
+        .logo-big {
+            width: 200px;
+            height: auto;
+            transition: transform .6s cubic-bezier(.2, .9, .2, 1), filter .6s;
+            filter: drop-shadow(0 18px 40px rgba(99, 102, 241, .12));
+            will-change: transform;
+        }
+
+        @media (max-width: 768px) {
+            .logo-big {
+                width: 160px;
+            }
+        }
+
+        .logo-big:hover {
+            transform: translateY(-4px) rotate(-2deg) scale(1.02);
+            filter: drop-shadow(0 26px 60px rgba(124, 58, 237, .14));
+        }
+
+        .neon-text-logo {
+            font-family: 'Orbitron', Inter, sans-serif;
+            font-weight: 700;
+            background: linear-gradient(90deg, #60a5fa, #7c3aed, #6ee7b7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.01em;
+            text-shadow:
+                0 4px 18px rgba(96, 165, 250, 0.1),
+                0 2px 8px rgba(124, 58, 237, 0.08);
+        }
+
+        .brand-underline {
+            display: inline-block;
+            height: 6px;
+            width: 64px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #60a5fa, #7c3aed, #6ee7b7);
+            box-shadow: 0 10px 30px rgba(124, 58, 237, 0.08);
+            transform-origin: left center;
+            animation: underline-slide 3.8s linear infinite alternate;
+            opacity: .95;
+            filter: blur(0.5px);
+            margin-top: 4px;
+        }
+
+        @keyframes underline-slide {
+            0% {
+                transform: translateX(-8px) scaleX(.98);
+                filter: blur(.2px);
+            }
+
+            50% {
+                transform: translateX(8px) scaleX(1.02);
+                filter: blur(1px);
+            }
+
+            100% {
+                transform: translateX(-8px) scaleX(.98);
+            }
+        }
+
+        /* Colores y legibilidad en el panel móvil */
+        #mobile-nav a,
+        #mobile-nav button {
+            color: var(--text-primary) !important;
+            font-size: 0.9rem;
+        }
+
+        #mobile-nav a:hover,
+        #mobile-nav button:hover {
+            color: var(--brand-400) !important;
+        }
+
+        #mobile-nav #categories-submenu a {
+            font-size: 0.85rem;
+            color: #0f172a !important;
+        }
+
+        /* Overlay oscuro para el menú móvil */
+        #mobile-nav-overlay {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        #mobile-nav-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Evita el scroll del cuerpo cuando el menú móvil está abierto */
+        body.nav-open {
+            overflow: hidden;
+        }
+        /* Posicionamiento y fondo del overlay del menú móvil */
+        #mobile-nav-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(6px);
+            z-index: 40;
+        }
+    </style>
 </head>
 <body class="text-gray-800">
 
     <!-- Header y Navegación (replicado de index.html para consistencia) -->
-    <header class="bg-white shadow-xl py-4">
-        <div class="container mx-auto px-4 flex justify-between items-center">
-            <!-- Logo y Nombre de la marca -->
-            <div class="flex items-center">
-                <img src="https://i.postimg.cc/GtWS4w0z/Captura-de-pantalla-2025-08-21-134638.png" alt="Ensintonía Logo" class="h-20 sm:h-24 w-auto mr-4">
-                <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900">Ensintonía</h1>
-            </div>
+    <header id="main-header" class="sticky top-0 z-50 bg-white/80 backdrop-blur glass border-b border-gray-100">
+        <div class="container mx-auto px-4 h-20 flex items-center justify-between transition-all duration-300">
+  <!-- Logo solo -->
+  <a href="index.html" class="flex items-center justify-center">
+    <img src="https://i.postimg.cc/XV4dv1W7/Chat-GPT-Image-31-ago-2025-03-26-38-p-m.png"
+         alt="Ensintonia logo"
+         class="h-16 sm:h-20 w-auto">
+  </a>
 
             <!-- Botón de Hamburguesa para móvil -->
-            <button id="mobile-menu-button" class="sm:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 relative z-50" aria-expanded="false">
-                <span class="block w-6 h-0.5 bg-gray-700 transition-all duration-300 ease-in-out"></span>
-                <span class="block w-6 h-0.5 bg-gray-700 my-1 transition-all duration-300 ease-in-out"></span>
-                <span class="block w-6 h-0.5 bg-gray-700 transition-all duration-300 ease-in-out"></span>
+            <button id="mobile-menu-button" type="button" class="sm:hidden z-50 p-2 rounded-md focus:outline-none" aria-expanded="false" aria-controls="mobile-nav">
+                <span class="bar w-7 h-0.5 bg-white mb-1 rounded transition-all duration-300"></span>
+                <span class="bar w-7 h-0.5 bg-white mb-1 rounded transition-all duration-300"></span>
+                <span class="bar w-7 h-0.5 bg-white rounded transition-all duration-300"></span>
             </button>
 
             <!-- Menú de Navegación para escritorio -->
-            <nav id="desktop-nav" class="hidden sm:flex items-center">
-                <ul class="flex space-x-8">
-                    <li><a href="catalogo.html" class="navbar-link text-xl font-medium text-gray-700 hover:text-blue-600">Catálogo</a></li>
-                    <li><a href="catalogo.html" class="navbar-link text-xl font-medium text-gray-700 hover:text-blue-600">Categorías</a></li>
-                    <li><a href="contact.html" class="navbar-link text-xl font-medium text-gray-700 hover:text-blue-600">Contacto</a></li>
-                </ul>
-            </nav>
+           <nav id="desktop-nav" class="hidden sm:flex items-center text-futuristic-ink">
+    <ul class="flex space-x-8">
+      <li><a href="index.html#quienes-somos" class="navbar-link text-sm font-medium hover:text-brand-400">Quienes
+  somos</a></li>
+      <li><a href="index.html#propuesta-valor" class="navbar-link text-sm font-medium hover:text-brand-400">Propuesta</
+  a></li>
+      <li><a href="catalogo.html" class="navbar-link text-sm font-medium hover:text-brand-400">Catálogo</a></li>
+      <li><a href="contact.html" class="navbar-link text-sm font-medium hover:text-brand-400">Contacto</a></li>
+    </ul>
+  </nav>
         </div>
 
         <!-- Menú de Navegación para móvil (oculto por defecto) -->
-        <nav id="mobile-nav" class="hidden fixed inset-0 bg-white z-40 p-6 flex flex-col items-start space-y-6 transform translate-x-full transition-transform duration-300 ease-in-out">
-            <ul class="flex flex-col space-y-6 w-full mt-10">
+        <nav id="mobile-nav" class="sm:hidden fixed top-0 right-0 h-full w-72 max-w-[80%] shadow-xl border-l z-[55] transform translate-x-full hidden transition-transform duration-300 ease-out flex flex-col bg-[#020617]/95 text-futuristic-ink" aria-hidden="true">
+            <ul class="flex flex-col space-y-4 w-full mt-10 px-4">
                 <li><a href="catalogo.html" class="navbar-link text-2xl font-semibold text-gray-800 hover:text-blue-600 block py-2">Catálogo</a></li>
                 <li><a href="contact.html" class="navbar-link text-2xl font-semibold text-gray-800 hover:text-blue-600 block py-2">Contacto</a></li>
                 <li class="relative w-full">
@@ -475,7 +663,7 @@
          * @function loadCategories
          * @description Carga las categorías desde Firestore y las renderiza en el submenú móvil.
          */
-        async function loadCategories() {
+        async function loadCategoriesFirestore() {
             if (!db) {
                 console.error("Firestore no inicializado en contact.html. No se pueden cargar categorías.");
                 const categoriesLoadingSpinner = document.getElementById('categories-loading-spinner-mobile');
@@ -543,37 +731,60 @@
          * @description Abre el menú de navegación móvil y anima el botón de hamburguesa a una 'X'.
          */
         window.openMobileMenu = function() {
-            const mobileNav = document.getElementById('mobile-nav');
-            const mobileMenuButton = document.getElementById('mobile-menu-button');
+              const mobileNav = document.getElementById('mobile-nav');
+              const mobileMenuButton = document.getElementById('mobile-menu-button');
+              const mobileNavOverlay = document.getElementById('mobile-nav-overlay');
 
-            mobileNav.classList.remove('translate-x-full');
-            mobileNav.classList.add('translate-x-0');
-            mobileNav.classList.remove('hidden');
-            mobileMenuButton.classList.add('open');
-            mobileMenuButton.setAttribute('aria-expanded', 'true');
-        }
+              if (!mobileNav) return;
+
+              mobileNav.classList.remove('translate-x-full');
+              mobileNav.classList.add('translate-x-0');
+              mobileNav.classList.remove('hidden');
+
+              if (mobileNavOverlay) {
+                  mobileNavOverlay.classList.add('open');
+              }
+
+              document.body.classList.add('nav-open');
+
+              if (mobileMenuButton) {
+                  mobileMenuButton.classList.add('open');
+                  mobileMenuButton.setAttribute('aria-expanded', 'true');
+              }
+          }
 
         /**
          * @function closeMobileMenu
          * @description Cierra el menú de navegación móvil y anima la 'X' de vuelta a hamburguesa.
          */
-        window.closeMobileMenu = function() {
-            const mobileNav = document.getElementById('mobile-nav');
-            const mobileMenuButton = document.getElementById('mobile-menu-button');
+          window.closeMobileMenu = function() {
+              const mobileNav = document.getElementById('mobile-nav');
+              const mobileMenuButton = document.getElementById('mobile-menu-button');
+              const mobileNavOverlay = document.getElementById('mobile-nav-overlay');
 
-            mobileNav.classList.remove('translate-x-0');
-            mobileNav.classList.add('translate-x-full');
+              if (!mobileNav) return;
 
-            mobileNav.addEventListener('transitionend', function handler() {
-                mobileNav.classList.add('hidden');
-                mobileNav.removeEventListener('transitionend', handler);
-            }, { once: true });
+              mobileNav.classList.remove('translate-x-0');
+              mobileNav.classList.add('translate-x-full');
+  
+              mobileNav.addEventListener('transitionend', function handler() {
+                  mobileNav.classList.add('hidden');
+                  mobileNav.removeEventListener('transitionend', handler);
+              }, { once: true });
 
-            mobileMenuButton.classList.remove('open');
-            mobileMenuButton.setAttribute('aria-expanded', 'false');
+              if (mobileNavOverlay) {
+                  mobileNavOverlay.classList.remove('open');
+              }
 
-            closeCategoriesSubmenu();
-        }
+              document.body.classList.remove('nav-open');
+
+              if (mobileMenuButton) {
+                  mobileMenuButton.classList.remove('open');
+                  mobileMenuButton.setAttribute('aria-expanded', 'false');
+              }
+  
+              closeCategoriesSubmenu();
+          }
 
         /**
          * @function toggleCategoriesSubmenu
@@ -648,6 +859,14 @@
             const closeImageModalButton = document.getElementById('close-image-modal');
             const imageFullscreenModal = document.getElementById('image-fullscreen-modal');
 
+            // Crear overlay del men�� m��vil si no existe
+            let mobileNavOverlay = document.getElementById('mobile-nav-overlay');
+            if (!mobileNavOverlay) {
+                mobileNavOverlay = document.createElement('div');
+                mobileNavOverlay.id = 'mobile-nav-overlay';
+                document.body.appendChild(mobileNavOverlay);
+            }
+  
             mobileMenuButton.addEventListener('click', function(event) {
                 event.stopPropagation();
                 if (mobileNav.classList.contains('translate-x-0')) {
@@ -662,6 +881,7 @@
                 toggleCategoriesSubmenu();
             });
 
+            // Cerrar men�� al hacer clic fuera o sobre el overlay
             document.body.addEventListener('click', function(event) {
                 if (!mobileNav.contains(event.target) && !mobileMenuButton.contains(event.target)) {
                     closeMobileMenu();
@@ -673,6 +893,12 @@
                     closeCategoriesSubmenu();
                 }
             });
+
+            if (mobileNavOverlay) {
+                mobileNavOverlay.addEventListener('click', function() {
+                    closeMobileMenu();
+                });
+            }
 
             mobileNav.querySelectorAll('a[href]').forEach(link => {
                 link.addEventListener('click', () => {
