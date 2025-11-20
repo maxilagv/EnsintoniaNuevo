@@ -651,7 +651,7 @@ function saveHiddenOrders(list){ try { localStorage.setItem(HIDDEN_ORDERS_KEY, J
 function isOrderHidden(id){ try { return loadHiddenOrders().some(x => String(x) === String(id)); } catch { return false; } }
 function hideOrderId(id){ const arr = loadHiddenOrders(); if (!arr.some(x => String(x)===String(id))) { arr.push(String(id)); saveHiddenOrders(arr); } }
 
-// Stock helpers using existing backend (PUT /productos/:id)
+// Stock helpers using backend stock endpoint (PATCH /productos/:id/stock)
 async function fetchProductRaw(id){
   const resp = await fetchWithAuth(ROUTES.product(id));
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -660,26 +660,29 @@ async function fetchProductRaw(id){
 }
 
 async function updateProductStockAbsolute(id, newStock){
+  // Mantener compatibilidad: convertir a delta y usar PATCH /stock
   const p = await fetchProductRaw(id);
-  const payload = {
-    name: p.name,
-    description: p.description,
-    price: p.price,
-    image_url: p.image_url,
-    category_id: p.category_id,
-    stock_quantity: Math.max(0, Number(newStock||0) || 0),
-    specifications: p.specifications || null
-  };
-  const resp = await fetchWithAuth(ROUTES.product(id), { method:'PUT', body: JSON.stringify(payload) });
+  const current = Number(p.stock_quantity || 0) || 0;
+  const target = Math.max(0, Number(newStock || 0) || 0);
+  const delta = target - current;
+  if (!delta) return true;
+  const resp = await fetchWithAuth(ROUTES.stock(id), {
+    method: 'PATCH',
+    body: JSON.stringify({ delta, reason: 'ajuste de stock (absoluto)' })
+  });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return true;
 }
 
 async function applyStockDeltaViaPut(id, delta){
-  const p = await fetchProductRaw(id);
-  const current = Number(p.stock_quantity||0) || 0;
-  const next = current + (Number(delta||0) || 0);
-  await updateProductStockAbsolute(id, next);
+  const d = Number(delta || 0);
+  if (!d) return true;
+  const resp = await fetchWithAuth(ROUTES.stock(id), {
+    method: 'PATCH',
+    body: JSON.stringify({ delta: d, reason: 'ajuste de stock (admin)' })
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return true;
 }
 function ensureDeleteButtons(kind){
   if (kind === 'category') {

@@ -38,21 +38,33 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
 
   <style>
-    /* Paleta y tokens */
+    /* Paleta y tokens (misma paleta, más ordenada) */
     :root{
+      /* Fondos base */
       --bg-1: #0f172a; /* deep ink */
       --bg-2: #071032; /* deep blue */
+
+      /* Colores de marca */
       --brand-1: #6ee7b7; /* mint */
       --brand-2: #7c3aed; /* purple */
       --accent: linear-gradient(90deg,var(--brand-1),#60a5fa 40%,var(--brand-2));
-      --glass: rgba(255,255,255,0.06);
-      --muted: #94a3b8;
 
+      /* Superficies y bordes (reutilizan colores existentes) */
+      --glass: rgba(255,255,255,0.06);
+      --section-bg-glass: rgba(15,23,42,0.45);
+      --section-border-soft: rgba(49,62,85,0.3);
+
+      /* Sombras principales (tomadas de las cards actuales) */
+      --shadow-card-strong: 0 22px 50px rgba(12,18,32,0.18);
+      --shadow-card-soft: 0 8px 24px rgba(2,6,23,0.08);
+
+      /* Texto */
       --futuristic-ink: #e6f0ff; /* Light white/blue for main text */
       --futuristic-mute: #9fb3d9; /* Muted light blue for secondary text */
+      --muted: #94a3b8;
     }
 
-    /* Fondo azul futurista (forzado con !important para evitar override por Tailwind) */
+    /* Fondo azul futurista (se mantiene la estética actual) */
     body {
       background: radial-gradient(1200px 600px at 10% 10%, rgba(110,231,183,0.06), transparent 12%),
                   linear-gradient(180deg, #061229 0%, #072447 30%, #0b3b6b 60%, #081133 100%) !important;
@@ -64,8 +76,14 @@
     }
 
     /* Ajustes de contraste para textos secundarios */
-    .muted, .text-muted-700 { color: var(--futuristic-mute) !important; }
-    .text-ink { color: var(--futuristic-ink) !important; }
+    .muted,
+    .text-muted-700 {
+      color: var(--futuristic-mute);
+    }
+
+    .text-ink {
+      color: var(--futuristic-ink);
+    }
 
     /* Header / logo: mucho más grande y animado */
     .logo-wrap {
@@ -351,24 +369,42 @@
     #mobile-nav{position:fixed; inset:0; z-index:40; display:none;}
     #mobile-nav[data-state="opening"],
     #mobile-nav[data-state="open"]{display:block;}
-    #mobile-nav .mn-overlay{position:absolute; inset:0; background:rgba(15,23,42,.55); backdrop-filter:blur(4px); opacity:0; transition:opacity .35s;}
+    #mobile-nav .mn-overlay{
+      position:absolute; inset:0;
+      background:rgba(15,23,42,.65);
+      backdrop-filter:blur(6px);
+      opacity:0; transition:opacity .35s;
+    }
     #mobile-nav[data-state="open"] .mn-overlay{opacity:1;}
     #mobile-nav .mn-panel{
       position:absolute; top:0; right:0; height:100%; width:18rem; max-width:100%;
-      background:#ffffff; padding:1.25rem 1.25rem 2.5rem; overflow-y:auto;
-      box-shadow: -8px 0 28px -4px rgba(15,23,42,.25);
+      background: rgba(15,23,42,0.96); padding:1.25rem 1.25rem 2.5rem; overflow-y:auto;
+      box-shadow: -8px 0 28px -4px rgba(0,0,0,.55);
+      border-left: 1px solid rgba(148,163,184,0.35);
       transform:translateX(100%); transition:transform .38s cubic-bezier(.22,.9,.22,1);
       display:flex; flex-direction:column; gap:1rem;
+      color: var(--futuristic-ink);
     }
     body.dark #mobile-nav .mn-panel{background:#0f172a; color:#e2e8f0;}
     #mobile-nav[data-state="open"] .mn-panel{transform:translateX(0);}
 
-    #mobile-nav a{display:block; padding:.6rem .75rem; border-radius:.75rem; font-size:.95rem; font-weight:500; color:#0f172a;}
-    #mobile-nav a:hover{background:#f1f5f9;}
+    #mobile-nav a{
+      display:block; padding:.6rem .75rem; border-radius:.75rem; font-size:.95rem; font-weight:500;
+      color:var(--futuristic-ink);
+      transition: background .2s ease, color .2s ease;
+    }
+    #mobile-nav a:hover,
+    #mobile-nav a:focus-visible{
+      background: rgba(148,163,184,0.16);
+      outline:none;
+    }
     body.dark #mobile-nav a{color:#e2e8f0;}
     body.dark #mobile-nav a:hover{background:#1e293b;}
 
-    #mobile-nav h6{font-size:.68rem; letter-spacing:.08em; font-weight:600; text-transform:uppercase; color:#64748b; margin:.25rem .25rem .15rem;}
+    #mobile-nav h6{
+      font-size:.68rem; letter-spacing:.08em; font-weight:600; text-transform:uppercase;
+      color:#94a3b8; margin:.25rem .25rem .15rem;
+    }
     body.dark #mobile-nav h6{color:#64748b;}
 
     /* Reduce panel en pantallas muy bajas */
@@ -378,9 +414,9 @@
 
     /* Nuevos estilos para las tarjetas de "Quiénes somos" */
     .card-modern {
-      background: rgba(15, 23, 42, 0.7); /* Dark, slightly transparent ink color */
-      border: 1px solid rgba(49, 62, 85, 0.6); /* Darker, subtle border */
-      box-shadow: 0 10px 25px rgba(0,0,0,0.2); /* Stronger shadow */
+      background: var(--section-bg-glass); /* Dark, slightly transparent ink color */
+      border: 1px solid var(--section-border-soft); /* Darker, subtle border */
+      box-shadow: var(--shadow-card-soft); /* Stronger shadow */
       transition: all 0.3s ease-in-out;
       overflow: hidden;
       position: relative;
@@ -420,9 +456,9 @@
 
     /* Estilos para las tarjetas de "Propuesta de valor" y "Logística" */
     .value-card {
-      background: rgba(15, 23, 42, 0.7); /* Dark, slightly transparent ink color */
-      border: 1px solid rgba(49, 62, 85, 0.6); /* Darker, subtle border */
-      box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+      background: var(--section-bg-glass); /* Dark, slightly transparent ink color */
+      border: 1px solid var(--section-border-soft); /* Darker, subtle border */
+      box-shadow: var(--shadow-card-soft);
       transition: all 0.3s ease-in-out;
       color: var(--futuristic-ink); /* Light text for contrast */
     }
@@ -447,16 +483,18 @@
 
     /* Estilos para las categorías y otras tarjetas pequeñas */
     .category-tag {
-      background-color: rgba(255, 255, 255, 0.1); /* Light translucent white */
-      border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle light border */
+      background-color: rgba(15, 23, 42, 0.7); /* Dark glass */
+      border: 1px solid rgba(148, 163, 184, 0.45); /* Soft cool border */
       color: var(--futuristic-ink); /* Light text for contrast */
+      box-shadow: 0 6px 16px rgba(0,0,0,0.2);
       transition: all 0.2s ease-in-out;
+      backdrop-filter: blur(6px);
     }
 
     .category-tag:hover {
-      background-color: rgba(255, 255, 255, 0.2); /* Slightly more opaque white on hover */
+      background-color: rgba(30, 64, 175, 0.9); /* subtle brand-tinted highlight */
       transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.25);
     }
 
     /* Override Tailwind bg-white/60 for sections to use custom dark transparent background */
@@ -464,6 +502,34 @@
       background: rgba(15, 23, 42, 0.45) !important; /* Lighter dark transparent for sections */
       border-top: 1px solid rgba(49, 62, 85, 0.3);
       border-bottom: 1px solid rgba(49, 62, 85, 0.3);
+    }
+
+    /* Mobile-only: ocultar barra neon bajo el logo principal */
+    @media (max-width: 640px) {
+      .brand-underline { display: none; }
+    }
+
+    /* Ajuste fino del hero en m�vil (altura, espaciado y CTAs) */
+    @media (max-width: 640px) {
+      #hero-intro{
+        min-height: auto;
+        padding-top: 3.5rem;
+        padding-bottom: 3rem;
+      }
+      #hero-accent{
+        margin-bottom: 0.75rem;
+      }
+      #hero-sub,
+      #hero-detail{
+        font-size: 0.95rem;
+      }
+      #hero-ctas .btn{
+        width: 100%;
+        display: inline-flex;
+        justify-content: center;
+        padding-top: 0.8rem;
+        padding-bottom: 0.8rem;
+      }
     }
   </style>
 
@@ -482,7 +548,7 @@
 
     /* Header glass + neon line */
     #main-header{
-      background: rgba(8,17,51,0.55);
+      background: rgba(8,17,51,0.7);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       border-bottom: 1px solid rgba(49,62,85,0.35);
@@ -495,28 +561,70 @@
     }
     #main-header.scrolled{ background: rgba(6,18,41,0.75); box-shadow: 0 8px 30px rgba(0,0,0,0.35); border-color: rgba(49,62,85,0.5); }
 
-    /* Nav links underline on hover */
-    .nav-link{ position: relative; display:inline-block; font-weight:500; letter-spacing:.02em; }
-    .nav-link::after{
-      content:''; position:absolute; left:0; bottom:-6px; height:2px; width:100%;
-      background: linear-gradient(90deg,#60a5fa,#7c3aed,#6ee7b7);
-      transform: scaleX(0); transform-origin: left; transition: transform .35s ease; border-radius:999px;
+    /* Estética del botón hamburguesa en móvil: pill glass y barras claras (coherente con catálogo) */
+    @media (max-width: 768px) {
+      #mobile-menu-button {
+        background: rgba(15,23,42,0.9);
+        border-radius: 9999px;
+        border: 1px solid rgba(148,163,184,0.7);
+        box-shadow: 0 10px 28px rgba(15,23,42,0.95);
+        padding: 0.55rem 0.6rem;
+      }
+      #mobile-menu-button .bar{
+        width: 1.75rem;
+        height: 0.11rem;
+        background-color: rgba(248,250,252,0.96);
+      }
+      /* Al abrir menú, resaltar un poco el contorno para que no se pierda sobre el panel */
+      #mobile-menu-button.open{
+        background: rgba(15,23,42,0.4);
+        border-color: rgba(248,250,252,0.9);
+        box-shadow: 0 0 0 1px rgba(148,163,184,0.9);
+      }
     }
-    .nav-link:hover::after{ transform: scaleX(1); }
 
-    /* Apply same effect to existing header nav anchors (no HTML change needed) */
-    #main-header nav a:not(.btn){ position: relative; display:inline-block; font-weight:500; letter-spacing:.02em; }
+    /* Header nav links: underline + focus */
+    #main-header nav a:not(.btn){
+      position: relative;
+      display:inline-block;
+      font-weight:500;
+      letter-spacing:.02em;
+      padding-bottom: 2px;
+      color: var(--futuristic-ink);
+      opacity: 0.9;
+    }
     #main-header nav a:not(.btn)::after{
       content:''; position:absolute; left:0; bottom:-6px; height:2px; width:100%;
       background: linear-gradient(90deg,#60a5fa,#7c3aed,#6ee7b7);
       transform: scaleX(0); transform-origin: left; transition: transform .35s ease; border-radius:999px;
     }
-    #main-header nav a:not(.btn):hover::after{ transform: scaleX(1); }
+    #main-header nav a:not(.btn):hover::after,
+    #main-header nav a:not(.btn):focus-visible::after{
+      transform: scaleX(1);
+    }
+    #main-header nav a:not(.btn):hover,
+    #main-header nav a:not(.btn):focus-visible{
+      opacity: 1;
+      outline: none;
+    }
 
     /* Global type hierarchy */
-    h1{ font-size: 3rem; line-height: 1.1; font-weight: 800; }
-    h2{ font-size: 1.75rem; line-height: 1.25; font-weight: 600; }
-    p{ font-size: 1rem; line-height: 1.6; }
+    h1{
+      font-size: 3rem;
+      line-height: 1.1;
+      font-weight: 800;
+    }
+
+    h2{
+      font-size: 1.75rem;
+      line-height: 1.25;
+      font-weight: 600;
+    }
+
+    p{
+      font-size: 1rem;
+      line-height: 1.6;
+    }
 
     /* Section title divider */
     h2.section-title{ text-align: center; }
@@ -526,6 +634,15 @@
       background: linear-gradient(90deg,#60a5fa,#7c3aed,#6ee7b7);
       background-size: 200% 100%; animation: divider-shift 6s linear infinite;
       box-shadow: 0 8px 20px rgba(124,58,237,0.18);
+    }
+    @media (min-width: 768px){
+      h2.section-title{
+        text-align: left;
+      }
+      h2.section-title::before{
+        margin-left: 0;
+        margin-right: 0;
+      }
     }
     @keyframes divider-shift{ 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
 
@@ -561,16 +678,14 @@
     .value-card:hover, .card-modern:hover{ box-shadow: 0 18px 40px rgba(0,0,0,0.3); }
 
     /* Sections dark glass background variant stays consistent */
-    .section.bg-white\/60{ background: rgba(15,23,42,0.45) !important; border-top: 1px solid rgba(49,62,85,0.3); border-bottom: 1px solid rgba(49,62,85,0.3); }
-
     /* Clickable affordance */
     a, button { cursor: pointer; }
   </style>
 </head>
 
 <body class="font-inter text-[15px] lg:text-base text-ink antialiased bg-gradient-to-b from-white to-brand-50">
-  <header id="main-header" class="sticky top-0 z-50 bg-white/80 backdrop-blur glass border-b border-gray-100">
-    <div class="site-container flex items-center justify-between h-24">
+  <header id="main-header" class="sticky top-0 z-50 border-b border-gray-100">
+    <div class="site-container flex items-center justify-between h-20 lg:h-24 py-3 lg:py-0">
       <a class="flex items-center gap-4 logo-wrap" href="#">
         <img class="logo-big" src="https://i.postimg.cc/YSDhn3jJ/Chat-GPT-Image-31-ago-2025-03-26-38-p-m.png" alt="Ensintonía logo" loading="lazy" decoding="async">
         <div>
@@ -621,7 +736,7 @@
       </svg>
     </div>
 
-    <div class="site-container text-center">
+    <div class="site-container text-center lg:text-left">
       <div class="mx-auto max-w-3xl">
         <div class="accent-line mx-auto mb-6 fade-up-init" id="hero-accent"></div>
         <h1 class="title text-4xl sm:text-5xl font-extrabold text-ink leading-tight mb-4 fade-up-init neon-text hero-title-shadow" id="hero-title">
@@ -631,7 +746,7 @@
           Importadora directa de electrónica y soluciones para el hogar. Calidad, stock real y soporte local para que tu proyecto llegue sin sorpresas.
         </p>
 
-        <div class="flex items-center justify-center gap-4 flex-wrap fade-up-init" id="hero-ctas">
+        <div class="flex items-center justify-center lg:justify-start gap-4 flex-wrap fade-up-init" id="hero-ctas">
           <a id="hero-catalog-btn" href="/catalogo.html" class="btn btn-glow bg-brand-500 hover:bg-brand-600 text-white px-6 py-3 rounded-2xl shadow-sm card-polish btn-glow">
             Ver catálogo
           </a>
@@ -1351,5 +1466,4 @@ if (category) {
 -->
 </body>
 </html>
-
 
