@@ -201,8 +201,8 @@
 
         <!-- Navegación de secciones -->
         <nav class="flex flex-wrap justify-center gap-4 mb-8">
-            <button class="nav-button active" data-section="createCategory">Crear Categori�a</button>
-            <button class="nav-button" data-section="editCategory">Editar Categori�a</button>
+            <button class="nav-button active" data-section="createCategory">Crear Categoria</button>
+            <button class="nav-button" data-section="editCategory">Editar Categoria</button>
             <button class="nav-button" data-section="createProduct">Crear Producto</button>
             <button class="nav-button" data-section="editProduct">Editar Producto</button>
             <button class="nav-button" data-section="manageStock">Control de Stock</button>
@@ -218,10 +218,10 @@
         <div id="sectionsContainer" class="flex-grow">
             <!-- Sección: Crear Categoría -->
             <div id="createCategory" class="section-content">
-                <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Crear Nueva Categori�a</h2>
+                <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Crear Nueva Categoria</h2>
                 <form id="createCategoryForm" class="space-y-6">
                     <div>
-                        <label for="categoryName" class="block text-lg font-medium mb-2">Nombre de la Categori�a:</label>
+                        <label for="categoryName" class="block text-lg font-medium mb-2">Nombre de la Categoria:</label>
                         <input type="text" id="categoryName" class="input-field" placeholder="Ej: Electrodomesticos" required>
                     </div>
                     <div class="mb-4">
@@ -233,7 +233,7 @@
                         </div>
                         <img id="categoryImageUrl__preview" alt="" style="margin-top:8px;max-height:120px;">
                     </div>
-                    <button type="submit" class="action-button w-full">Crear Categori�a</button>
+                    <button type="submit" class="action-button w-full">Crear Categoria</button>
                 </form>
             </div>
 
@@ -241,26 +241,26 @@
             <div id="editCategory" class="section-content hidden">
                 <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Editar Categoria Existente</h2>
                 <p class="text-center text-gray-400 mb-6">
-                    Selecciona una categori�a de la lista para cargar sus datos y editarla.
+                    Selecciona una categoria de la lista para cargar sus datos y editarla.
                 </p>
                 <div class="space-y-4">
                     <div>
-                        <label for="searchCategoryToEdit" class="block text-lg font-medium mb-2">Buscar Categori�a:</label>
+                        <label for="searchCategoryToEdit" class="block text-lg font-medium mb-2">Buscar Categoria:</label>
                         <div class="relative">
                             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                             <input type="text" id="searchCategoryToEdit" class="input-field pl-10" placeholder="Escribe para filtrar...">
                         </div>
                     </div>
                     <div>
-                        <label for="selectCategoryToEdit" class="block text-lg font-medium mb-2">Seleccionar Categori�a:</label>
+                        <label for="selectCategoryToEdit" class="block text-lg font-medium mb-2">Seleccionar Categoria:</label>
                         <select id="selectCategoryToEdit" class="input-field">
-                            <option value="">-- Selecciona una categori�a --</option>
+                            <option value="">-- Selecciona una categoria --</option>
                             <!-- Las opciones se cargarán dinámicamente desde Firestore -->
                         </select>
                     </div>
                     <div>
                         <label for="editedCategoryName" class="block text-lg font-medium mb-2">Nuevo Nombre:</label>
-                        <input type="text" id="editedCategoryName" class="input-field" placeholder="Nuevo nombre de la categori�a">
+                        <input type="text" id="editedCategoryName" class="input-field" placeholder="Nuevo nombre de la categoria">
                     </div>
                     <div class="mb-4">
                         <label for="editedCategoryImageUrl" class="block text-lg font-medium mb-2">Imagen de la categoria</label>
@@ -271,7 +271,7 @@
                         </div>
                         <img id="editedCategoryImageUrl__preview" alt="" style="margin-top:8px;max-height:120px;">
                     </div>
-                    <button id="saveCategoryChangesButton" class="action-button w-full">Guardar Cambios de Categori�a</button>
+                    <button id="saveCategoryChangesButton" class="action-button w-full">Guardar Cambios de Categoria</button>
                 </div>
             </div>
 
@@ -298,9 +298,9 @@
                     </div>
                     <!-- Campo para seleccionar la categoría del producto (ahora guarda ID) -->
                     <div>
-                        <label for="productCategory" class="block text-lg font-medium mb-2">Categori�a:</label>
+                        <label for="productCategory" class="block text-lg font-medium mb-2">Categoria:</label>
                         <select id="productCategory" class="input-field" required>
-                            <option value="">-- Selecciona una categori�a --</option>
+                            <option value="">-- Selecciona una categoria --</option>
                             <!-- Las opciones se cargarán dinámicamente desde Firestore -->
                         </select>
                     </div>
@@ -310,12 +310,12 @@
                     </div>
                     <!-- Nuevo: Especificaciones del producto (texto libre o lista clave: valor) -->
                     <div>
-                        <label for="productSpecifications" class="block text-lg font-medium mb-2">Especificaciones (una por li�nea, formato Clave: Valor):</label>
+                        <label for="productSpecifications" class="block text-lg font-medium mb-2">Especificaciones (una por linea, formato Clave: Valor):</label>
                         <textarea id="productSpecifications" class="input-field" rows="4" placeholder="Ej:\nCapacidad: 300L\nColor: Blanco\nEficiencia: A++"></textarea>
                     </div>
                     <!-- Nuevo: Garantía -->
                     <div>
-                        <label for="productWarranty" class="block text-lg font-medium mb-2">Garanti�a:</label>
+                        <label for="productWarranty" class="block text-lg font-medium mb-2">Garantia:</label>
                         <input type="text" id="productWarranty" class="input-field" placeholder="Ej: 12 meses, 2 años limitada">
                     </div>
                     <div>
@@ -383,7 +383,7 @@
                     </div>
                     <!-- Campo para seleccionar la categoría del producto a editar (ahora guarda ID) -->
                     <div>
-                        <label for="editedProductCategory" class="block text-lg font-medium mb-2">Categori�a:</label>
+                        <label for="editedProductCategory" class="block text-lg font-medium mb-2">Categoria:</label>
                         <select id="editedProductCategory" class="input-field" required>
                             <option value="">-- Selecciona una categoria --</option>
                             <!-- Las opciones se cargarán dinámicamente desde Firestore -->
@@ -395,13 +395,13 @@
                     </div>
                     <!-- Nuevo: Especificaciones del producto en edición -->
                     <div>
-                        <label for="editedProductSpecifications" class="block text-lg font-medium mb-2">Especificaciones (una por li�nea, formato Clave: Valor):</label>
+                        <label for="editedProductSpecifications" class="block text-lg font-medium mb-2">Especificaciones (una por linea, formato Clave: Valor):</label>
                         <textarea id="editedProductSpecifications" class="input-field" rows="4" placeholder="Actualiza las especificaciones"></textarea>
                     </div>
                     <!-- Nuevo: Garantía en edición -->
                     <div>
-                        <label for="editedProductWarranty" class="block text-lg font-medium mb-2">Garanti�a:</label>
-                        <input type="text" id="editedProductWarranty" class="input-field" placeholder="Actualiza la garanti�a">
+                        <label for="editedProductWarranty" class="block text-lg font-medium mb-2">Garantia:</label>
+                        <input type="text" id="editedProductWarranty" class="input-field" placeholder="Actualiza la garantia">
                     </div>
                     <div>
                         <label for="editedProductStock" class="block text-lg font-medium mb-2">Stock Actual:</label>
@@ -548,7 +548,7 @@
                                     <input id="supContact" type="text" class="input-field" placeholder="Nombre" />
                                 </div>
                                 <div>
-                                    <label class="text-sm text-gray-400">Tel�fono</label>
+                                    <label class="text-sm text-gray-400">Telfono</label>
                                     <input id="supPhone" type="text" class="input-field" placeholder="351..." />
                                 </div>
                                 <div>
@@ -558,7 +558,7 @@
                             </div>
                             <div class="rounded-xl border border-white/10 p-3">
                                 <div class="flex items-center justify-between mb-2">
-                                    <h4 class="text-sm text-gray-400">�tems</h4>
+                                    <h4 class="text-sm text-gray-400">items</h4>
                                     <button type="button" id="addPurchaseItem" class="px-2 py-1 rounded border border-white/20 text-white/90 hover:bg-white/10">Agregar</button>
                                 </div>
                                 <div id="purchaseItems" class="space-y-2"></div>
@@ -579,7 +579,7 @@
                         </form>
                     </div>
                     <div class="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <h3 class="text-lg font-semibold text-white mb-3">�ltimas Compras</h3>
+                        <h3 class="text-lg font-semibold text-white mb-3">ultimas Compras</h3>
                         <div id="purchasesList" class="space-y-3"></div>
                     </div>
                 </div>
