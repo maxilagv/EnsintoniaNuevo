@@ -107,6 +107,132 @@ function showMessageBox(message, duration = null) {
   return box;
 }
 
+async function registerClientFromCatalog(payload) {
+  const resp = await fetch(`${API_BASE}/clients/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (resp.ok) return { ok: true };
+  if (resp.status === 400) {
+    const data = await resp.json().catch(() => ({}));
+    const msg = (data && data.error) || 'Datos inválidos, revisá los campos.';
+    return { ok: false, message: msg };
+  }
+  if (resp.status === 409) {
+    const data = await resp.json().catch(() => ({}));
+    const msg = (data && data.error) || 'Ya existe un cliente con ese documento.';
+    return { ok: false, message: msg };
+  }
+  const tx = await resp.text().catch(() => '');
+  console.error('client register error', resp.status, tx);
+  return { ok: false, message: 'No se pudo registrar el cliente. Intenta nuevamente.' };
+}
+
+function setupClientRegistration() {
+  const openBtn = document.getElementById('open-client-register');
+  const overlay = document.getElementById('client-register-overlay');
+  const form = document.getElementById('client-register-form');
+  if (!overlay || !form) return;
+
+  const closeSelectors = ['[data-client-register-close]', '#client-register-close'];
+  function openOverlay() {
+    overlay.classList.remove('hidden');
+  }
+  function closeOverlay() {
+    overlay.classList.add('hidden');
+  }
+
+  if (openBtn && !openBtn.dataset.clientRegisterBound) {
+    openBtn.dataset.clientRegisterBound = '1';
+    openBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      openOverlay();
+    });
+  }
+  closeSelectors.forEach((sel) => {
+    overlay.querySelectorAll(sel).forEach((btn) => {
+      if (!btn.dataset.clientRegisterCloseBound) {
+        btn.dataset.clientRegisterCloseBound = '1';
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          closeOverlay();
+        });
+      }
+    });
+  });
+
+  if (!form.dataset.clientRegisterSubmitBound) {
+    form.dataset.clientRegisterSubmitBound = '1';
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = String(document.getElementById('client-name')?.value || '').trim();
+      const fantasyName = String(document.getElementById('client-fantasy-name')?.value || '').trim();
+      const rawTaxId = String(document.getElementById('client-taxid')?.value || '').trim();
+      const taxId = rawTaxId.replace(/\D+/g, '');
+      const taxIdType = String(document.getElementById('client-taxid-type')?.value || '').trim() || null;
+      const clientType = String(document.getElementById('client-type')?.value || 'FISICA').toUpperCase();
+      const ivaCondition = String(document.getElementById('client-iva')?.value || '').trim();
+      const email = String(document.getElementById('client-email')?.value || '').trim();
+      const phoneRaw = String(document.getElementById('client-phone')?.value || '').trim();
+      const phone = phoneRaw;
+      const address = String(document.getElementById('client-address')?.value || '').trim();
+      const locality = String(document.getElementById('client-locality')?.value || '').trim();
+      const province = String(document.getElementById('client-province')?.value || '').trim();
+      const postalCode = String(document.getElementById('client-postalcode')?.value || '').trim();
+      const notes = String(document.getElementById('client-notes')?.value || '').trim();
+      const accept = document.getElementById('client-accept-terms')?.checked;
+
+      if (!name || !taxId || !ivaCondition || !email || !phone) {
+        showMessageBox('Completá Nombre, documento, IVA, email y teléfono.');
+        return;
+      }
+      if (taxId.length < 6) {
+        showMessageBox('El documento debe tener al menos 6 dígitos.');
+        return;
+      }
+      if (!/.+@.+\..+/.test(email)) {
+        showMessageBox('Ingresá un email válido.');
+        return;
+      }
+      const phoneDigits = phone.replace(/[^0-9]/g, '');
+      if (phoneDigits.length < 6) {
+        showMessageBox('Ingresá un teléfono válido (6+ dígitos).');
+        return;
+      }
+      if (!accept) {
+        showMessageBox('Debés aceptar la política de privacidad para continuar.');
+        return;
+      }
+
+      const payload = {
+        name,
+        fantasyName: fantasyName || undefined,
+        clientType,
+        taxId,
+        taxIdType: taxIdType || undefined,
+        ivaCondition,
+        email,
+        phone,
+        address: address || undefined,
+        locality: locality || undefined,
+        province: province || undefined,
+        postalCode: postalCode || undefined,
+        notes: notes || undefined,
+      };
+
+      const result = await registerClientFromCatalog(payload);
+      if (!result.ok) {
+        showMessageBox(result.message || 'No se pudo registrar el cliente.');
+        return;
+      }
+      form.reset();
+      closeOverlay();
+      showMessageBox('Recibimos tu solicitud de alta de cliente. Te contactaremos a la brevedad.');
+    });
+  }
+}
+
 // --- Category image hover animation ---
 function startCategoryImageAnimation(cardElement) {
   const imgElement = cardElement.querySelector('.category-image-animated');
@@ -1519,6 +1645,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   if (btn && !btn.dataset.simpleInit) { btn.dataset.simpleInit='1'; btn.addEventListener('click', (e)=>{ e.preventDefault(); doSimple(); }); }
   if (inp && !inp.dataset.simpleInit) { inp.dataset.simpleInit='1'; inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); doSimple(); }}); }
+  try { setupClientRegistration(); } catch {}
 });
 
 // (Opcional) exponer para usar desde HTML en un botón “Buscar”

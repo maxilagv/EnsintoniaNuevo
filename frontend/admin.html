@@ -1,6 +1,7 @@
 ﻿<!DOCTYPE html>
 <html lang="es">
 <head>
+    <link rel="icon" type="image/png" href="https://i.postimg.cc/nLpfY67w/Gemini-Generated-Image-3nyj8v3nyj8v3nyj.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ensintonia - Panel de Administracion</title>
@@ -790,8 +791,51 @@
 
             <div id="customers" class="section-content hidden">
                 <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Clientes registrados</h2>
-                <p class="text-center text-gray-400">Próximamente. Aquí verás los clientes que se registren.</p>
-                <div id="customersList" class="space-y-4"></div>
+
+                <!-- Filtros de búsqueda de clientes -->
+                <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+                    <input id="customersSearch" type="text" class="input-field md:col-span-2" placeholder="Buscar por nombre, código, email...">
+                    <input id="customersTaxId" type="text" class="input-field" placeholder="CUIT / CUIL / DNI">
+                    <select id="customersStatus" class="input-field">
+                        <option value="">Estado: Todos</option>
+                        <option value="ACTIVE">Activos</option>
+                        <option value="INACTIVE">Inactivos</option>
+                    </select>
+                    <select id="customersType" class="input-field">
+                        <option value="">Tipo: Todos</option>
+                        <option value="FISICA">Persona Física</option>
+                        <option value="JURIDICA">Persona Jurídica</option>
+                    </select>
+                    <div class="flex gap-2">
+                        <button id="searchCustomersButton" class="action-button flex-1">Buscar</button>
+                        <button id="resetCustomersButton" class="action-button bg-gray-600 hover:bg-gray-700 flex-1">Limpiar</button>
+                    </div>
+                </div>
+
+                <!-- Tabla de clientes -->
+                <div class="overflow-x-auto mb-6">
+                    <table class="min-w-full text-sm">
+                        <thead>
+                            <tr class="bg-slate-800 text-left">
+                                <th class="px-3 py-2">Código</th>
+                                <th class="px-3 py-2">Nombre</th>
+                                <th class="px-3 py-2">Documento</th>
+                                <th class="px-3 py-2">Email</th>
+                                <th class="px-3 py-2">Teléfono</th>
+                                <th class="px-3 py-2">Estado</th>
+                                <th class="px-3 py-2 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customersTableBody" class="divide-y divide-slate-700">
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Panel de detalle de cliente -->
+                <div id="customersDetail" class="bg-slate-900/60 border border-slate-700 rounded-lg p-4 text-sm text-gray-200 hidden">
+                    <h3 class="text-xl font-semibold mb-3 text-blue-300">Detalle del cliente</h3>
+                    <div id="customersDetailContent" class="space-y-1"></div>
+                </div>
             </div>
         </div>
     </div>

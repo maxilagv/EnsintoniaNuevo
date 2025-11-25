@@ -22,6 +22,7 @@ const adminRoutes = require('./routes/adminroutes.js');
 const userRoutes = require('./routes/userroutes.js');
 const profileRoutes = require('./routes/profileroutes.js');
 const roleRoutes = require('./routes/roleroutes.js');
+const clientRoutes = require('./routes/clientroutes.js');
 const app = express();
 
 
@@ -249,6 +250,8 @@ app.use('/api', adminRoutes);
 app.use('/api', userRoutes);
 app.use('/api', profileRoutes);
 app.use('/api', roleRoutes);
+// Rutas Clientes
+app.use('/api', clientRoutes);
 
 // Ruta de ejemplo
 app.get('/', (req, res) => {

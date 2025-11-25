@@ -25,7 +25,7 @@
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet" />
         <!-- Font Awesome CDN para iconos -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" href="https://i.postimg.cc/sXRFDbfv/Gemini-Generated-Image-6b363b6b363b6b36.png" />
         <!-- Base visual del catálogo: tema y tipografía -->
         <style>
             :root {
@@ -800,9 +800,25 @@
                     </div>
                 </a>
                 <nav class="hidden md:flex items-center gap-6">
-                    <a href="index.html#quienes-somos" class="navbar-link text-sm font-medium">Quienes somos</a> <a href="index.html#propuesta-valor" class="navbar-link text-sm font-medium">Propuesta</a>
-                    <a href="#catalogo-productos" class="navbar-link text-sm font-medium">Catalogo</a> <a href="contact.html" class="navbar-link text-sm font-medium">Contacto</a>
-                    <a href="https://wa.me/5491159914197" target="_blank" rel="noopener" class="ml-4 px-4 py-2 rounded-full bg-green-600 text-white text-sm shadow-sm hover:bg-green-700 transition btn">WhatsApp</a>
+                    <a href="index.html#quienes-somos" class="navbar-link text-sm font-medium">Quienes somos</a>
+                    <a href="index.html#propuesta-valor" class="navbar-link text-sm font-medium">Propuesta</a>
+                    <a href="#catalogo-productos" class="navbar-link text-sm font-medium">Catalogo</a>
+                    <a href="contact.html" class="navbar-link text-sm font-medium">Contacto</a>
+                    <button
+                        id="open-client-register"
+                        type="button"
+                        class="ml-2 px-4 py-2 rounded-full bg-brand-600 text-white text-sm shadow-sm hover:bg-brand-700 transition btn"
+                    >
+                        Registrarme como cliente
+                    </button>
+                    <a
+                        href="https://wa.me/5491159914197"
+                        target="_blank"
+                        rel="noopener"
+                        class="px-4 py-2 rounded-full bg-green-600 text-white text-sm shadow-sm hover:bg-green-700 transition btn"
+                    >
+                        WhatsApp
+                    </a>
                 </nav>
                 <!-- desktop simple search -->
                 <div class="hidden md:flex items-center gap-2 ml-4">
@@ -1295,6 +1311,172 @@
                             <button type="button" id="checkout-cancel" class="px-4 py-2 rounded-xl border border-white/20 text-futuristic-ink hover:bg-white/10">Cancelar</button>
                             <button type="submit" id="checkout-confirm" class="btn-checkout px-4 py-2 rounded-xl text-white font-semibold">Confirmar compra</button>
                         </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- Registro de Cliente Overlay -->
+        <div id="client-register-overlay" class="fixed inset-0 z-[135] hidden" aria-hidden="true">
+            <div class="absolute inset-0 bg-black/60" data-client-register-close></div>
+            <div class="relative mx-auto my-8 w-[95%] max-w-2xl bg-gray-900/90 backdrop-blur-md border border-white/15 rounded-2xl shadow-2xl p-4 md:p-6">
+                <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                    <h2 class="text-xl font-semibold text-futuristic-ink">Registrarme como cliente</h2>
+                    <button id="client-register-close" class="p-2 rounded hover:bg-white/10" aria-label="Cerrar" data-client-register-close>&times;</button>
+                </div>
+                <form id="client-register-form" class="pt-4 space-y-4">
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="client-name" class="block text-sm text-futuristic-mute mb-1">Nombre / Razón social</label>
+                            <input
+                                id="client-name"
+                                type="text"
+                                required
+                                class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-brand-1"
+                                placeholder="Ej: Juan Pérez o Mi Empresa SA"
+                            />
+                        </div>
+                        <div>
+                            <label for="client-fantasy-name" class="block text-sm text-futuristic-mute mb-1">Nombre fantasía / Apellido (opcional)</label>
+                            <input
+                                id="client-fantasy-name"
+                                type="text"
+                                class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-brand-1"
+                                placeholder="Opcional"
+                            />
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="client-taxid" class="block text-sm text-futuristic-mute mb-1">CUIT / CUIL / DNI</label>
+                            <input
+                                id="client-taxid"
+                                type="text"
+                                inputmode="numeric"
+                                required
+                                class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-brand-1"
+                                placeholder="Solo números, sin puntos"
+                            />
+                            <p class="text-xs text-futuristic-mute mt-1">Al menos 6 dígitos.</p>
+                        </div>
+                        <div>
+                            <label for="client-taxid-type" class="block text-sm text-futuristic-mute mb-1">Tipo de documento</label>
+                            <select
+                                id="client-taxid-type"
+                                class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink focus:outline-none focus:ring-2 focus:ring-brand-1"
+                            >
+                                <option value="">Seleccionar</option>
+                                <option value="DNI">DNI</option>
+                                <option value="CUIT">CUIT</option>
+                                <option value="CUIL">CUIL</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="client-type" class="block text-sm text-futuristic-mute mb-1">Tipo de cliente</label>
+                            <select
+                                id="client-type"
+                                class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink focus:outline-none focus:ring-2 focus:ring-brand-1"
+                            >
+                                <option value="FISICA">Persona física</option>
+                                <option value="JURIDICA">Persona jurídica</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="client-iva" class="block text-sm text-futuristic-mute mb-1">Condición IVA</label>
+                            <select
+                                id="client-iva"
+                                required
+                                class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink focus:outline-none focus:ring-2 focus:ring-brand-1"
+                            >
+                                <option value="">Seleccionar</option>
+                                <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
+                                <option value="MONOTRIBUTO">Monotributo</option>
+                                <option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option>
+                                <option value="EXENTO">Exento</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="client-email" class="block text-sm text-futuristic-mute mb-1">Email</label>
+                            <input
+                                id="client-email"
+                                type="email"
+                                required
+                                class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-brand-1"
+                                placeholder="tu@email.com"
+                            />
+                        </div>
+                        <div>
+                            <label for="client-phone" class="block text-sm text-futuristic-mute mb-1">Teléfono</label>
+                            <input
+                                id="client-phone"
+                                type="tel"
+                                required
+                                class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-brand-1"
+                                placeholder="Ej: 3512345678"
+                            />
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="client-address" class="block text-sm text-futuristic-mute mb-1">Dirección (opcional)</label>
+                            <input
+                                id="client-address"
+                                type="text"
+                                class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-brand-1"
+                                placeholder="Calle y número"
+                            />
+                        </div>
+                        <div>
+                            <label for="client-locality" class="block text-sm text-futuristic-mute mb-1">Localidad (opcional)</label>
+                            <input
+                                id="client-locality"
+                                type="text"
+                                class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-brand-1"
+                                placeholder="Ciudad / Localidad"
+                            />
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="client-province" class="block text-sm text-futuristic-mute mb-1">Provincia (opcional)</label>
+                            <input
+                                id="client-province"
+                                type="text"
+                                class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-brand-1"
+                                placeholder="Provincia"
+                            />
+                        </div>
+                        <div>
+                            <label for="client-postalcode" class="block text-sm text-futuristic-mute mb-1">Código postal (opcional)</label>
+                            <input
+                                id="client-postalcode"
+                                type="text"
+                                class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-brand-1"
+                                placeholder="CP"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label for="client-notes" class="block text-sm text-futuristic-mute mb-1">Observaciones (opcional)</label>
+                        <textarea
+                            id="client-notes"
+                            rows="3"
+                            class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-brand-1"
+                            placeholder="Comentarios adicionales (horarios, datos de contacto, etc.)"
+                        ></textarea>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <input id="client-accept-terms" type="checkbox" class="mt-1 accent-brand-1" required />
+                        <label for="client-accept-terms" class="text-xs text-futuristic-mute">
+                            Acepto que mis datos sean utilizados para gestionar mi alta como cliente según la política de privacidad.
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-end gap-2">
+                        <button type="button" class="px-4 py-2 rounded-xl border border-white/20 text-futuristic-ink hover:bg-white/10" data-client-register-close>Cancelar</button>
+                        <button type="submit" class="btn-checkout px-4 py-2 rounded-xl text-white font-semibold">Enviar solicitud</button>
                     </div>
                 </form>
             </div>

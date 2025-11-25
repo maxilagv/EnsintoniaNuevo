@@ -1,12 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const order = require('../controllers/ordercontroller_v3');
+const clients = require('../controllers/clientcontroller');
 const { apiLimiter } = require('../middlewares/security');
 const { check, validationResult } = require('express-validator');
 const { query } = require('../db/pg');
 
 // Checkout público
 router.post('/checkout', apiLimiter, order.validateCheckout, order.createOrderV2);
+
+// Registro público de clientes (desde catálogo)
+router.post('/clients/register', apiLimiter, clients.createClientPublic);
 
 // Contacto público: guarda mensajes en ContactMessages
 router.post(
@@ -40,3 +44,4 @@ router.post(
 );
 
 module.exports = router;
+

@@ -93,6 +93,9 @@ const ROUTES = {
   backup: () => `${API_BASE}/backup`,             // POST
   migrate: () => `${API_BASE}/migraciones/run`,   // POST (opcional)
   analyticsOverview: (qs = '') => `${API_BASE}/analytics/overview${qs ? ('?' + qs) : ''}`,
+  // Clientes
+  clients: (qs = '') => `${API_BASE}/clients${qs ? ('?' + qs) : ''}`,
+  client: (id) => `${API_BASE}/clients/${encodeURIComponent(id)}`,
   // ABM Usuarios
   users: (qs = '') => `${API_BASE}/users${qs ? ('?' + qs) : ''}`,
   user: (id) => `${API_BASE}/users/${encodeURIComponent(id)}`,
@@ -183,7 +186,10 @@ function showSection(sectionId) {
     loadContactMessages();
   } else if (sectionId === 'orders') {
     loadOrdersAdminServer();
-  } else if (sectionId === 'supplierPurchases') { loadPurchases(); } else if (sectionId === 'customers') {
+  } else if (sectionId === 'supplierPurchases') {
+    loadPurchases();
+  } else if (sectionId === 'customers') {
+    try { initCustomersUiOnce(); } catch {}
     loadCustomersAdmin();
   } else if (sectionId === 'finance') {
     loadFinanceOverview();
@@ -244,7 +250,7 @@ const currentProductStockInput = document.getElementById('currentProductStock');
 const stockChangeAmountInput = document.getElementById('stockChangeAmount');
 const increaseStockButton = document.getElementById('increaseStockButton');
 const decreaseStockButton = document.getElementById('decreaseStockButton');
-// Mejoras de stock: tablas de inventario y tr?nsito
+// Mejoras de stock: tablas de inventario y tránsito
 const inventoryTableBody = document.getElementById('inventoryTableBody');
 const inventoryCountEl = document.getElementById('inventoryCount');
 const transitTableBody = document.getElementById('transitTableBody');
@@ -254,6 +260,14 @@ const addTransitButton = document.getElementById('addTransitButton');
 // Finanzas
 const financeRevenueEl = document.getElementById('financeRevenue');
 const financePurchasesEl = document.getElementById('financePurchases');
+// Clientes
+const customersSearchInput = document.getElementById('customersSearch');
+const customersTaxIdInput = document.getElementById('customersTaxId');
+const customersStatusSelect = document.getElementById('customersStatus');
+const customersTypeSelect = document.getElementById('customersType');
+const customersTableBody = document.getElementById('customersTableBody');
+const customersDetailBox = document.getElementById('customersDetail');
+const customersDetailContent = document.getElementById('customersDetailContent');
 
 /* ===========================
    Gestion de Usuarios (ABM)
@@ -283,6 +297,108 @@ function initUsersUiOnce(){
   btnAssignRole?.addEventListener('click', onAssignRole);
   btnResetPwd?.addEventListener('click', onResetPassword);
   btnRevoke?.addEventListener('click', onRevokeSessions);
+}
+
+/* ===========================
+   Clientes (Listado / consulta)
+=========================== */
+let customersUiBound = false;
+function initCustomersUiOnce(){
+  if (customersUiBound) return;
+  customersUiBound = true;
+  const btnSearch = document.getElementById('searchCustomersButton');
+  const btnReset = document.getElementById('resetCustomersButton');
+  btnSearch?.addEventListener('click', () => loadCustomersAdmin());
+  btnReset?.addEventListener('click', () => {
+    if (customersSearchInput) customersSearchInput.value = '';
+    if (customersTaxIdInput) customersTaxIdInput.value = '';
+    if (customersStatusSelect) customersStatusSelect.value = '';
+    if (customersTypeSelect) customersTypeSelect.value = '';
+    loadCustomersAdmin();
+  });
+}
+
+function readCustomersFilters(){
+  const params = new URLSearchParams();
+  const q = customersSearchInput?.value.trim() || '';
+  const taxId = customersTaxIdInput?.value.trim().replace(/\\D+/g,'') || '';
+  const status = customersStatusSelect?.value || '';
+  const clientType = customersTypeSelect?.value || '';
+  if (q) params.set('q', q);
+  if (taxId) params.set('taxId', taxId);
+  if (status) params.set('status', status);
+  if (clientType) params.set('clientType', clientType);
+  return params.toString();
+}
+
+async function loadCustomersAdmin(){
+  if (!customersTableBody) return;
+  try {
+    const qs = readCustomersFilters();
+    const resp = await fetchWithAuth(ROUTES.clients(qs));
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const rows = await resp.json();
+    customersTableBody.innerHTML = '';
+    (rows || []).forEach(c => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="px-3 py-2 font-mono text-xs text-gray-300">${escapeHtml(c.code||'')}</td>
+        <td class="px-3 py-2">${escapeHtml(c.name||'')}</td>
+        <td class="px-3 py-2">${escapeHtml(c.tax_id||'')}</td>
+        <td class="px-3 py-2 text-gray-300">${escapeHtml(c.email||'')}</td>
+        <td class="px-3 py-2">${escapeHtml(c.phone||'')}</td>
+        <td class="px-3 py-2">
+          <span class="px-2 py-1 rounded-full text-xs ${c.status==='ACTIVE' ? 'bg-green-700 text-green-100' : 'bg-gray-700 text-gray-200'}">
+            ${escapeHtml(c.status||'')}
+          </span>
+        </td>
+        <td class="px-3 py-2 text-center">
+          <button class="action-button bg-sky-600 hover:bg-sky-700 text-xs" data-act="detail" data-id="${c.id}">Ver detalle</button>
+        </td>`;
+      customersTableBody.appendChild(tr);
+    });
+    customersTableBody.addEventListener('click', onCustomersTableClick, { once: true });
+  } catch (err) {
+    console.error('loadCustomersAdmin', err);
+    showMessageBox('No se pudieron cargar clientes', 'error');
+  }
+}
+
+async function onCustomersTableClick(e){
+  const btn = e.target?.closest('button[data-act]');
+  if (!btn) return;
+  const id = btn.getAttribute('data-id');
+  const act = btn.getAttribute('data-act');
+  if (act !== 'detail' || !id) return;
+  try {
+    const resp = await fetchWithAuth(ROUTES.client(id));
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const c = await resp.json();
+    if (!customersDetailBox || !customersDetailContent) return;
+    customersDetailContent.innerHTML = `
+      <div><span class="font-semibold">Código:</span> ${escapeHtml(c.code||'')}</div>
+      <div><span class="font-semibold">Nombre:</span> ${escapeHtml(c.name||'')}</div>
+      <div><span class="font-semibold">Nombre fantasía:</span> ${escapeHtml(c.fantasy_name||'')}</div>
+      <div><span class="font-semibold">Tipo:</span> ${escapeHtml(c.client_type||'')}</div>
+      <div><span class="font-semibold">Documento:</span> ${escapeHtml(c.tax_id||'')} ${escapeHtml(c.tax_id_type||'')}</div>
+      <div><span class="font-semibold">Condición IVA:</span> ${escapeHtml(c.iva_condition||'')}</div>
+      <div><span class="font-semibold">Email:</span> ${escapeHtml(c.email||'')}</div>
+      <div><span class="font-semibold">Teléfono:</span> ${escapeHtml(c.phone||'')}</div>
+      <div><span class="font-semibold">Dirección:</span> ${escapeHtml(c.address||'')}</div>
+      <div><span class="font-semibold">Localidad:</span> ${escapeHtml(c.locality||'')}</div>
+      <div><span class="font-semibold">Provincia:</span> ${escapeHtml(c.province||'')}</div>
+      <div><span class="font-semibold">Código Postal:</span> ${escapeHtml(c.postal_code||'')}</div>
+      <div><span class="font-semibold">Contacto:</span> ${escapeHtml(c.contact_name||'')}</div>
+      <div><span class="font-semibold">Límite de crédito:</span> ${c.credit_limit != null ? ('$' + Number(c.credit_limit).toFixed(2)) : '-'}</div>
+      <div><span class="font-semibold">Estado:</span> ${escapeHtml(c.status||'')}</div>
+      <div><span class="font-semibold">Fecha alta:</span> ${c.created_at ? escapeHtml(new Date(c.created_at).toLocaleString()) : '-'}</div>
+      <div><span class="font-semibold">Notas:</span> ${escapeHtml(c.notes||'')}</div>
+    `;
+    customersDetailBox.classList.remove('hidden');
+  } catch (err) {
+    console.error('loadCustomerDetail', err);
+    showMessageBox('No se pudo cargar el detalle del cliente', 'error');
+  }
 }
 
 async function loadProfilesAndRoles(){
@@ -351,6 +467,8 @@ async function initPermissionsGates(){
     { section: 'manageStock', perm: 'logistica.read' },
     { section: 'orders', perm: 'ventas.read' },
     { section: 'supplierPurchases', perm: 'compras.read' },
+    // Clientes: por ahora se controla con administracion.read hasta que definamos permisos clientes.*
+    { section: 'customers', perm: 'administracion.read' },
     { section: 'finance', perm: 'administracion.read' },
     { section: 'users', perm: 'administracion.users.read' }
   ];
@@ -1854,15 +1972,6 @@ function deleteOrderFromPanel(orderId){
   saveLocalOrders(orders);
   showMessageBox('Orden eliminada del panel', 'success');
   loadOrdersAdmin();
-}
-
-/* ===========================
-   Clientes (placeholder)
-=========================== */
-async function loadCustomersAdmin(){
-  const box = document.getElementById('customersList');
-  if (!box) return;
-  box.innerHTML = '<p class="text-center text-gray-400">Aun no implementado.</p>';
 }
 
 function escapeHtml(s) {
