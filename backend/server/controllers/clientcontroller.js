@@ -143,7 +143,7 @@ async function createClientHandler(req, res) {
            postal_code, contact_name, notes,
            credit_limit, birthdate, status
          )
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
          RETURNING id`,
         [
           code,
@@ -233,15 +233,16 @@ async function createClientPublicHandler(req, res) {
     const code = await generateUniqueClientCode(clientType);
 
     const result = await withTransaction(async (client) => {
+      // 1) Crear cliente con el mismo esquema que createClientHandler
       const ins = await client.query(
         `INSERT INTO Clients(
            code, name, fantasy_name, client_type,
            tax_id, tax_id_type, iva_condition,
            email, phone, address, locality, province,
            postal_code, contact_name, notes,
-           credit_limit, birthdate, status, origin
+           credit_limit, birthdate, status
          )
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
          RETURNING id`,
         [
           code,
@@ -261,11 +262,20 @@ async function createClientPublicHandler(req, res) {
           notes,
           creditLimit != null ? creditLimit : null,
           birthdate,
-          'PENDING',
-          'WEB',
+          'ACTIVE',
         ]
       );
-      return ins.rows[0].id;
+      const newId = ins.rows[0].id;
+
+      // 2) Intentar marcar origen/status espec��ficos para web (si la BD lo permite)
+      try {
+        await client.query('UPDATE Clients SET origin = $1 WHERE id = $2', ['WEB', newId]);
+        await client.query("UPDATE Clients SET status = 'PENDING' WHERE id = $1", [newId]);
+      } catch (err) {
+        console.warn('[clients] public origin/status update failed:', err.message);
+      }
+
+      return newId;
     });
 
     await audit('PUBLIC_WEB', 'CLIENT_CREATE_PUBLIC', 'client', result, {
@@ -286,7 +296,7 @@ async function createClientPublicHandler(req, res) {
       }
       return res.status(409).json({ error: 'Registro duplicado' });
     }
-    console.error('[clients] create public error:', e.message);
+    console.error('[clients] create public error:', e);
     return res.status(500).json({ error: 'Error creando cliente' });
   }
 }
