@@ -9,5 +9,5 @@ const detected = (typeof window !== 'undefined' && window.__API_BASE)
 
 // Nota: evitamos same-origin automático para no apuntar a servidores estáticos
 // (ej. 127.0.0.1:5500). Usa __API_BASE o localhost:3000 por defecto.
-export const API_BASE = detected || 'https://ensintonianuevo-4f5p.onrender.com';
+export const API_BASE = detected || 'https://ensintonianuevo-4f5p.onrender.com/api';
 
