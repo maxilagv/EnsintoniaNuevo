@@ -353,7 +353,13 @@ async function loadCustomersAdmin(){
           </span>
         </td>
         <td class="px-3 py-2 text-center">
-          <button class="action-button bg-sky-600 hover:bg-sky-700 text-xs" data-act="detail" data-id="${c.id}">Ver detalle</button>
+          <div class="flex flex-wrap gap-2 justify-center">
+            <button class="action-button bg-sky-600 hover:bg-sky-700 text-xs" data-act="detail" data-id="${c.id}">Ver detalle</button>
+            <button class="action-button ${c.status==='ACTIVE'?'bg-red-600 hover:bg-red-700':'bg-green-600 hover:bg-green-700'} text-xs" data-act="toggle" data-id="${c.id}">
+              ${c.status==='ACTIVE' ? 'Desactivar' : 'Activar'}
+            </button>
+            <button class="action-button bg-indigo-600 hover:bg-indigo-700 text-xs" data-act="orders" data-id="${c.id}">Historial</button>
+          </div>
         </td>`;
       customersTableBody.appendChild(tr);
     });
@@ -369,7 +375,19 @@ async function onCustomersTableClick(e){
   if (!btn) return;
   const id = btn.getAttribute('data-id');
   const act = btn.getAttribute('data-act');
-  if (act !== 'detail' || !id) return;
+  if (!id) return;
+  if (act === 'detail') {
+    return loadCustomerDetail(id);
+  }
+  if (act === 'toggle') {
+    return toggleCustomerStatus(id);
+  }
+  if (act === 'orders') {
+    return loadCustomerOrders(id);
+  }
+}
+
+async function loadCustomerDetail(id){
   try {
     const resp = await fetchWithAuth(ROUTES.client(id));
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -398,6 +416,72 @@ async function onCustomersTableClick(e){
   } catch (err) {
     console.error('loadCustomerDetail', err);
     showMessageBox('No se pudo cargar el detalle del cliente', 'error');
+  }
+}
+
+async function toggleCustomerStatus(id){
+  try {
+    const resp = await fetchWithAuth(`${ROUTES.client(id)}/status`, { method: 'PATCH' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json().catch(()=>({}));
+    showMessageBox(`Cliente ${data.status === 'ACTIVE' ? 'activado' : 'desactivado'}`, 'success');
+    loadCustomersAdmin();
+  } catch (err) {
+    console.error('toggleCustomerStatus', err);
+    showMessageBox('No se pudo cambiar el estado del cliente', 'error');
+  }
+}
+
+async function loadCustomerOrders(id){
+  try {
+    const resp = await fetchWithAuth(`${ROUTES.client(id)}/orders`);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!customersDetailBox || !customersDetailContent) return;
+
+    const orders = Array.isArray(data.orders) ? data.orders : [];
+    let html = `
+      <div class="mb-2">
+        <div><span class="font-semibold">Cliente:</span> ${escapeHtml(data.client?.code || '')} - ${escapeHtml(data.client?.name || '')}</div>
+        <div><span class="font-semibold">Documento:</span> ${escapeHtml(data.client?.tax_id || '')}</div>
+        <div><span class="font-semibold">Total de compras:</span> ${orders.length}</div>
+      </div>
+    `;
+    if (!orders.length) {
+      html += '<div class="text-gray-400">Este cliente aún no tiene compras registradas.</div>';
+    } else {
+      html += '<div class="mt-2 space-y-3 max-h-64 overflow-auto">';
+      for (const o of orders){
+        const when = o.order_date ? new Date(o.order_date).toLocaleString() : '-';
+        const items = Array.isArray(o.items) ? o.items : [];
+        html += `
+          <div class="border border-slate-700 rounded-md p-2">
+            <div class="flex justify-between text-sm">
+              <div><span class="font-semibold">Nº orden:</span> ${escapeHtml(o.order_number || String(o.id || ''))}</div>
+              <div><span class="font-semibold">Fecha:</span> ${escapeHtml(when)}</div>
+            </div>
+            <div class="text-sm"><span class="font-semibold">Estado:</span> ${escapeHtml(o.status || '')}</div>
+            <div class="text-sm mb-1"><span class="font-semibold">Total:</span> $${o.total_amount != null ? Number(o.total_amount).toFixed(2) : '-'}</div>
+            <div class="text-xs text-gray-300">
+              <div class="font-semibold mb-1">Productos:</div>
+              ${items.map(it => `
+                <div class="flex justify-between">
+                  <span>${escapeHtml(it.product_name || '')}</span>
+                  <span>x${it.quantity} @ $${Number(it.unit_price || 0).toFixed(2)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+      html += '</div>';
+    }
+
+    customersDetailContent.innerHTML = html;
+    customersDetailBox.classList.remove('hidden');
+  } catch (err) {
+    console.error('loadCustomerOrders', err);
+    showMessageBox('No se pudo cargar el historial de compras del cliente', 'error');
   }
 }
 
