@@ -440,7 +440,7 @@ async function loadCategories() {
           card.innerHTML = `
             <div class="media-frame relative aspect-[4/3] overflow-hidden rounded-t-2xl">
               <img loading="lazy" decoding="async" src="${imageUrl}" alt="${name}"
-                   class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02] category-image-animated"
+                   class="main-media w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02] category-image-animated"
                    onerror="this.onerror=null;this.src='https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';">
               <img src="https://i.postimg.cc/sXRFDbfv/Gemini-Generated-Image-6b363b6b363b6b36.png"
                    alt="Ensintonia"
