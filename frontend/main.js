@@ -442,9 +442,9 @@ async function loadCategories() {
               <img loading="lazy" decoding="async" src="${imageUrl}" alt="${name}"
                    class="main-media w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02] category-image-animated"
                    onerror="this.onerror=null;this.src='https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';">
-              <img src="https://i.postimg.cc/sXRFDbfv/Gemini-Generated-Image-6b363b6b363b6b36.png"
+              <img src="https://i.postimg.cc/QM75FdZN/en-sintonia-png-pub.png"
                    alt="Ensintonia"
-                   class="pointer-events-none absolute top-1.5 right-1.5 w-6 h-6 rounded-full shadow-md opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-200">
+                   class="pointer-events-none absolute top-1.5 right-1.5 w-7 h-7 rounded-full shadow-md opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-200">
             </div>
             <div class="p-6 sm:p-7">
               <h3 class="text-xl sm:text-2xl font-semibold mb-2 line-clamp-2 text-futuristic-ink">${name}</h3>
