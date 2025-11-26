@@ -131,6 +131,7 @@ async function registerClientFromCatalog(payload) {
 
 function setupClientRegistration() {
   const openBtn = document.getElementById('open-client-register');
+  const openBtnMobile = document.getElementById('open-client-register-mobile');
   const overlay = document.getElementById('client-register-overlay');
   const form = document.getElementById('client-register-form');
   if (!overlay || !form) return;
@@ -143,13 +144,19 @@ function setupClientRegistration() {
     overlay.classList.add('hidden');
   }
 
-  if (openBtn && !openBtn.dataset.clientRegisterBound) {
-    openBtn.dataset.clientRegisterBound = '1';
-    openBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      openOverlay();
-    });
+  function bindOpenButton(btn) {
+    if (btn && !btn.dataset.clientRegisterBound) {
+      btn.dataset.clientRegisterBound = '1';
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        openOverlay();
+        try { closeMobileMenu(); } catch {}
+      });
+    }
   }
+
+  bindOpenButton(openBtn);
+  bindOpenButton(openBtnMobile);
   closeSelectors.forEach((sel) => {
     overlay.querySelectorAll(sel).forEach((btn) => {
       if (!btn.dataset.clientRegisterCloseBound) {
