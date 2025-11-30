@@ -1,0 +1,41 @@
+        <!-- Login Cliente Overlay -->
+        <div id="client-login-overlay" class="fixed inset-0 z-[136] hidden" aria-hidden="true">
+            <div class="absolute inset-0 bg-black/60" data-client-login-close></div>
+            <div class="relative mx-auto my-8 w-[95%] max-w-md bg-gray-900/90 backdrop-blur-md border border-white/15 rounded-2xl shadow-2xl p-4 md:p-6">
+                <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                    <h2 class="text-xl font-semibold text-futuristic-ink">Iniciar sesión</h2>
+                    <button id="client-login-close" class="p-2 rounded hover:bg-white/10" aria-label="Cerrar" data-client-login-close>&times;</button>
+                </div>
+                <form id="client-login-form" class="pt-4 space-y-4">
+                    <div>
+                        <label for="client-login-email" class="block text-sm text-futuristic-mute mb-1">Email</label>
+                        <input
+                            id="client-login-email"
+                            type="email"
+                            required
+                            class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-brand-1"
+                            placeholder="tu@email.com"
+                        />
+                    </div>
+                    <div>
+                        <label for="client-login-password" class="block text-sm text-futuristic-mute mb-1">Contraseña</label>
+                        <input
+                            id="client-login-password"
+                            type="password"
+                            required
+                            class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-brand-1"
+                            placeholder="Tu contraseña"
+                        />
+                    </div>
+                    <div class="flex items-center justify-between text-xs text-futuristic-mute">
+                        <button type="button" id="client-login-open-register" class="underline hover:text-brand-1">No tengo cuenta, registrarme</button>
+                        <span></span>
+                    </div>
+                    <div class="flex items-center justify-end gap-2">
+                        <button type="button" class="px-4 py-2 rounded-xl border border-white/20 text-futuristic-ink hover:bg-white/10" data-client-login-close>Cancelar</button>
+                        <button type="submit" class="btn-checkout px-4 py-2 rounded-xl text-white font-semibold">Iniciar sesión</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+

@@ -1,4 +1,5 @@
 const { body, validationResult } = require('express-validator');
+const bcrypt = require('bcryptjs');
 const { query, withTransaction } = require('../db/pg');
 const { audit } = require('../utils/audit');
 

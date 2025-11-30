@@ -1,16 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const order = require('../controllers/ordercontroller_v3');
-const clients = require('../controllers/clientcontroller');
+const clientsPublic = require('../controllers/clientpubliccontroller');
 const { apiLimiter } = require('../middlewares/security');
+const auth = require('../middlewares/authmiddleware');
 const { check, validationResult } = require('express-validator');
 const { query } = require('../db/pg');
 
-// Checkout público
-router.post('/checkout', apiLimiter, order.validateCheckout, order.createOrderV2);
+// Checkout público: requiere usuario autenticado vinculado a cliente
+router.post('/checkout', apiLimiter, auth, order.validateCheckout, order.createOrderV2);
 
 // Registro público de clientes (desde catálogo)
-router.post('/clients/register', apiLimiter, clients.createClientPublic);
+router.post('/clients/register', apiLimiter, clientsPublic.createClientPublicWithUser);
 
 // Contacto público: guarda mensajes en ContactMessages
 router.post(

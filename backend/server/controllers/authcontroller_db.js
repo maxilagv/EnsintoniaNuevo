@@ -31,7 +31,7 @@ async function loginDb(req, res) {
 
   try {
     const sel = await query(
-      `SELECT id, email, username, password_hash, status, must_change_password, failed_attempts, locked_until
+      `SELECT id, email, username, client_id, password_hash, status, must_change_password, failed_attempts, locked_until
          FROM Users WHERE (LOWER(email) = $1 OR LOWER(username) = $1) AND deleted_at IS NULL LIMIT 1`,
       [ident]
     );
@@ -57,7 +57,8 @@ async function loginDb(req, res) {
     if (JWT_ISSUER) signOpts.issuer = JWT_ISSUER;
     if (JWT_AUDIENCE) signOpts.audience = JWT_AUDIENCE;
     const accessJti = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
-    const accessToken = jwt.sign({ email: u.email }, SECRET, { ...signOpts, jwtid: accessJti });
+    const accessPayload = { email: u.email, userId: u.id, clientId: u.client_id || null };
+    const accessToken = jwt.sign(accessPayload, SECRET, { ...signOpts, jwtid: accessJti });
 
     const jti = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
     const refreshSignOpts = { algorithm: JWT_ALG, expiresIn: '7d', jwtid: jti };
@@ -79,7 +80,16 @@ async function loginDb(req, res) {
       console.error('[auth-db] persist refresh token error:', e.message);
     }
 
-    return res.json({ accessToken, refreshToken, user: { id: u.id, email: u.email, mustChangePassword: !!u.must_change_password } });
+    return res.json({
+      accessToken,
+      refreshToken,
+      user: {
+        id: u.id,
+        email: u.email,
+        clientId: u.client_id || null,
+        mustChangePassword: !!u.must_change_password
+      }
+    });
   } catch (err) {
     console.error('[auth-db] login error:', err.message);
     return res.status(500).json({ error: 'Error del servidor' });

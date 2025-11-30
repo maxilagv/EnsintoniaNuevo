@@ -129,12 +129,77 @@ async function registerClientFromCatalog(payload) {
   return { ok: false, message: 'No se pudo registrar el cliente. Intenta nuevamente.' };
 }
 
+function getClientAccessToken() {
+  try {
+    return localStorage.getItem('clientAccessToken') || '';
+  } catch {
+    return '';
+  }
+}
+
+function saveClientSession(data) {
+  try {
+    const { accessToken, refreshToken, user } = data || {};
+    if (!accessToken || !refreshToken) return;
+    localStorage.setItem('clientLoggedIn', 'true');
+    localStorage.setItem('clientAccessToken', accessToken);
+    localStorage.setItem('clientRefreshToken', refreshToken);
+    if (user) localStorage.setItem('clientUser', JSON.stringify(user));
+  } catch {}
+}
+
+function clearClientSession() {
+  try {
+    localStorage.removeItem('clientLoggedIn');
+    localStorage.removeItem('clientAccessToken');
+    localStorage.removeItem('clientRefreshToken');
+    localStorage.removeItem('clientUser');
+  } catch {}
+}
+
+function updateClientAuthUi() {
+  let logged = false;
+  try {
+    logged = localStorage.getItem('clientLoggedIn') === 'true' && !!localStorage.getItem('clientAccessToken');
+  } catch {
+    logged = false;
+  }
+  const btnRegister = document.getElementById('open-client-register');
+  const btnRegisterMobile = document.getElementById('open-client-register-mobile');
+  const btnLogin = document.getElementById('open-client-login');
+  const btnLoginMobile = document.getElementById('open-client-login-mobile');
+  if (logged) {
+    if (btnRegister) btnRegister.classList.add('hidden');
+    if (btnRegisterMobile) btnRegisterMobile.classList.add('hidden');
+    if (btnLogin) btnLogin.textContent = 'Mi cuenta';
+    if (btnLoginMobile) btnLoginMobile.textContent = 'Mi cuenta';
+  } else {
+    if (btnRegister) btnRegister.classList.remove('hidden');
+    if (btnRegisterMobile) btnRegisterMobile.classList.remove('hidden');
+    if (btnLogin) btnLogin.textContent = 'Iniciar sesión';
+    if (btnLoginMobile) btnLoginMobile.textContent = 'Iniciar sesión';
+  }
+}
+
 function setupClientRegistration() {
   const openBtn = document.getElementById('open-client-register');
   const openBtnMobile = document.getElementById('open-client-register-mobile');
   const overlay = document.getElementById('client-register-overlay');
   const form = document.getElementById('client-register-form');
   if (!overlay || !form) return;
+
+  if (!form.dataset.clientRegisterLoginRowInject) {
+    form.dataset.clientRegisterLoginRowInject = '1';
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-end text-xs text-futuristic-mute mt-1';
+    row.innerHTML = 'Ya tenes una cuenta? <button type="button" id="client-register-open-login" class="underline hover:text-brand-1 ml-1">Iniciar sesion</button>';
+    const last = form.lastElementChild;
+    if (last) {
+      form.insertBefore(row, last);
+    } else {
+      form.appendChild(row);
+    }
+  }
 
   const closeSelectors = ['[data-client-register-close]', '#client-register-close'];
   function openOverlay() {
@@ -169,6 +234,18 @@ function setupClientRegistration() {
     });
   });
 
+  const switchToLogin = document.getElementById('client-register-open-login');
+  if (switchToLogin && !switchToLogin.dataset.clientRegisterOpenLoginBound) {
+    switchToLogin.dataset.clientRegisterOpenLoginBound = '1';
+    switchToLogin.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeOverlay();
+      try { setupClientLogin(); } catch {}
+      const loginOverlay = document.getElementById('client-login-overlay');
+      if (loginOverlay) loginOverlay.classList.remove('hidden');
+    });
+  }
+
   if (!form.dataset.clientRegisterSubmitBound) {
     form.dataset.clientRegisterSubmitBound = '1';
     form.addEventListener('submit', async (e) => {
@@ -189,6 +266,17 @@ function setupClientRegistration() {
       const postalCode = String(document.getElementById('client-postalcode')?.value || '').trim();
       const notes = String(document.getElementById('client-notes')?.value || '').trim();
       const accept = document.getElementById('client-accept-terms')?.checked;
+      const password = String(document.getElementById('client-password')?.value || '').trim();
+      const passwordConfirm = String(document.getElementById('client-password-confirm')?.value || '').trim();
+
+      if (!password || password.length < 8) {
+        showMessageBox('La contrasena debe tener al menos 8 caracteres.');
+        return;
+      }
+      if (password !== passwordConfirm) {
+        showMessageBox('Las contrasenas no coinciden.');
+        return;
+      }
 
       if (!name || !taxId || !ivaCondition || !email || !phone) {
         showMessageBox('Completá Nombre, documento, IVA, email y teléfono.');
@@ -226,6 +314,7 @@ function setupClientRegistration() {
         province: province || undefined,
         postalCode: postalCode || undefined,
         notes: notes || undefined,
+        password,
       };
 
       const result = await registerClientFromCatalog(payload);
@@ -233,9 +322,26 @@ function setupClientRegistration() {
         showMessageBox(result.message || 'No se pudo registrar el cliente.');
         return;
       }
+
+      // Autologin del cliente reci�n creado
+      try {
+        const respLogin = await fetch(`${API_BASE}/login-db`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        if (respLogin.ok) {
+          const data = await respLogin.json().catch(() => null);
+          if (data && data.accessToken && data.refreshToken) {
+            saveClientSession(data);
+          }
+        }
+      } catch (_) {}
+
       form.reset();
       closeOverlay();
-      showMessageBox('Recibimos tu solicitud de alta de cliente. Te contactaremos a la brevedad.');
+      updateClientAuthUi();
+      showMessageBox('Recibimos tu solicitud de alta de cliente. Ya pod�s iniciar compras.');
     });
   }
 }
@@ -358,6 +464,99 @@ function closeCategoriesSubmenu() {
     categoriesSubmenu.classList.add('hidden');
     categoriesToggleIcon.classList.remove('fa-chevron-up');
     categoriesToggleIcon.classList.add('fa-chevron-down');
+  }
+}
+
+// --- Login de cliente (catalogo) ---
+function setupClientLogin() {
+  const overlay = document.getElementById('client-login-overlay');
+  const form = document.getElementById('client-login-form');
+  const openBtn = document.getElementById('open-client-login');
+  const openBtnMobile = document.getElementById('open-client-login-mobile');
+  const openRegisterBtn = document.getElementById('client-login-open-register');
+  if (!overlay || !form) return;
+
+  const closeSelectors = ['[data-client-login-close]', '#client-login-close'];
+
+  function openOverlay() {
+    overlay.classList.remove('hidden');
+  }
+  function closeOverlay() {
+    overlay.classList.add('hidden');
+  }
+
+  function bindOpen(btn) {
+    if (btn && !btn.dataset.clientLoginBound) {
+      btn.dataset.clientLoginBound = '1';
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        openOverlay();
+        try { closeMobileMenu(); } catch {}
+      });
+    }
+  }
+
+  bindOpen(openBtn);
+  bindOpen(openBtnMobile);
+
+  closeSelectors.forEach((sel) => {
+    overlay.querySelectorAll(sel).forEach((btn) => {
+      if (!btn.dataset.clientLoginCloseBound) {
+        btn.dataset.clientLoginCloseBound = '1';
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          closeOverlay();
+        });
+      }
+    });
+  });
+
+  if (openRegisterBtn && !openRegisterBtn.dataset.clientLoginOpenRegisterBound) {
+    openRegisterBtn.dataset.clientLoginOpenRegisterBound = '1';
+    openRegisterBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeOverlay();
+      const registerOverlay = document.getElementById('client-register-overlay');
+      if (registerOverlay) registerOverlay.classList.remove('hidden');
+    });
+  }
+
+  if (!form.dataset.clientLoginSubmitBound) {
+    form.dataset.clientLoginSubmitBound = '1';
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = String(document.getElementById('client-login-email')?.value || '').trim();
+      const password = String(document.getElementById('client-login-password')?.value || '').trim();
+      if (!email || !password) {
+        showMessageBox('Ingresa email y contrase�a.');
+        return;
+      }
+      try {
+        const resp = await fetch(`${API_BASE}/login-db`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => null);
+          const msg = (data && data.error) || 'Usuario o contrase�a incorrectos.';
+          showMessageBox(msg);
+          return;
+        }
+        const data = await resp.json().catch(() => null);
+        if (!data || !data.accessToken || !data.refreshToken) {
+          showMessageBox('Respuesta inv�lida del servidor.');
+          return;
+        }
+        saveClientSession(data);
+        closeOverlay();
+        updateClientAuthUi();
+        showMessageBox('Sesi�n iniciada. Ya pod�s realizar compras.');
+      } catch (err) {
+        console.error('client login error', err);
+        showMessageBox('No se pudo iniciar sesi�n. Intenta nuevamente.');
+      }
+    });
   }
 }
 
@@ -1655,7 +1854,9 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   if (btn && !btn.dataset.simpleInit) { btn.dataset.simpleInit='1'; btn.addEventListener('click', (e)=>{ e.preventDefault(); doSimple(); }); }
   if (inp && !inp.dataset.simpleInit) { inp.dataset.simpleInit='1'; inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); doSimple(); }}); }
+  try { updateClientAuthUi(); } catch {}
   try { setupClientRegistration(); } catch {}
+  try { setupClientLogin(); } catch {}
 });
 
 // (Opcional) exponer para usar desde HTML en un botón “Buscar”
@@ -1794,7 +1995,17 @@ document.getElementById('checkout-form')?.addEventListener('submit', async (e) =
     items: cart.map(it => ({ productId: Number(it.id), quantity: Number(it.qty) }))
   };
   try {
-    const resp = await fetch(`${API_BASE}/checkout`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(payload) });
+    const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+    const token = getClientAccessToken();
+    if (!token) {
+      showMessageBox('Para finalizar la compra, inici� sesi�n como cliente.');
+      try { setupClientLogin(); } catch {}
+      const loginOverlay = document.getElementById('client-login-overlay');
+      if (loginOverlay) loginOverlay.classList.remove('hidden');
+      return;
+    }
+    headers.Authorization = `Bearer ${token}`;
+    const resp = await fetch(`${API_BASE}/checkout`, { method: 'POST', headers, body: JSON.stringify(payload) });
     let orderNumber = ''; let orderId = '';
     if (resp.ok) { const data = await resp.json().catch(()=>({})); orderNumber = data?.orderNumber || ''; orderId = (data?.orderId != null) ? String(data.orderId) : ''; }
     else if (resp.status === 409) { const tx = await resp.text(); showMessageBox(tx || 'Stock insuficiente o conflicto de orden'); return; }

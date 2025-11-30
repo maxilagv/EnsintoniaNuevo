@@ -23,6 +23,59 @@ async function createOrderUnified(req, res) {
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
   const { buyer = {}, items = [] } = req.body || {};
+
+  // El checkout requiere que el usuario est� autenticado y vinculado a un cliente
+  const authUser = req.user || {};
+  const emailToken = authUser && authUser.email ? String(authUser.email).trim().toLowerCase() : null;
+  if (!emailToken) {
+    return res.status(401).json({ error: 'No autenticado' });
+  }
+
+  let userId = null;
+  let clientId = null;
+  try {
+    const { rows: users } = await query(
+      `SELECT id, client_id
+         FROM Users
+        WHERE LOWER(email) = $1
+          AND deleted_at IS NULL
+        LIMIT 1`,
+      [emailToken]
+    );
+    if (!users.length) {
+      return res.status(403).json({ error: 'Usuario no registrado en el sistema' });
+    }
+    userId = users[0].id;
+    clientId = users[0].client_id;
+  } catch (err) {
+    console.error('Error buscando usuario para checkout:', err.message);
+    return res.status(500).json({ error: 'No se pudo validar el usuario' });
+  }
+
+  if (!clientId) {
+    return res.status(403).json({ error: 'Tu usuario no est�� asociado a un cliente. Registrate como cliente para poder comprar.' });
+  }
+
+  try {
+    const { rows: clients } = await query(
+      `SELECT id, status
+         FROM Clients
+        WHERE id = $1
+          AND deleted_at IS NULL`,
+      [clientId]
+    );
+    if (!clients.length) {
+      return res.status(403).json({ error: 'Cliente no encontrado o eliminado' });
+    }
+    const status = String(clients[0].status || '').toUpperCase();
+    if (status !== 'ACTIVE') {
+      return res.status(403).json({ error: 'Tu cliente a�n no est�� activo para realizar compras' });
+    }
+  } catch (err) {
+    console.error('Error validando cliente para checkout:', err.message);
+    return res.status(500).json({ error: 'No se pudo validar el cliente' });
+  }
+
   try {
     const result = await withTransaction(async (client) => {
       // 1) Cargar productos y bloquear filas
@@ -55,7 +108,7 @@ async function createOrderUnified(req, res) {
             -qty,                         // p_quantity_change (negativo = salida)
             'salida',                     // p_movement_type
             `venta web order`,            // p_reason
-            (req.user && req.user.id) || null, // p_current_user_id
+            userId,                       // p_current_user_id
             req.ip || null                // p_client_ip_address
           ]
         );
@@ -97,11 +150,21 @@ async function createOrderUnified(req, res) {
 
       // 6) Crear orden con todos los campos
       const insOrder = await client.query(
-        `INSERT INTO Orders(user_id, order_date, status, total_amount,
+        `INSERT INTO Orders(user_id, client_id, order_date, status, total_amount,
                             buyer_name, buyer_lastname, buyer_dni, buyer_email, buyer_phone)
-         VALUES (NULL, CURRENT_TIMESTAMP, $1, $2, $3, $4, $5, $6, $7)
+         VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4, $5, $6, $7, $8, $9)
          RETURNING id`,
-        ['PAID', total, buyerName, buyerLastname || null, buyerDni || null, buyerEmail || null, buyerPhone || null]
+        [
+          userId,
+          clientId,
+          'PAID',
+          total,
+          buyerName,
+          buyerLastname || null,
+          buyerDni || null,
+          buyerEmail || null,
+          buyerPhone || null,
+        ]
       );
       const orderId = insOrder.rows[0].id;
       if (buyerCode) await client.query('UPDATE Orders SET buyer_code = $1 WHERE id = $2', [buyerCode, orderId]);

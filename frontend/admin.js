@@ -96,6 +96,7 @@ const ROUTES = {
   // Clientes
   clients: (qs = '') => `${API_BASE}/clients${qs ? ('?' + qs) : ''}`,
   client: (id) => `${API_BASE}/clients/${encodeURIComponent(id)}`,
+  clientUser: (id) => `${API_BASE}/clients/${encodeURIComponent(id)}/user`,
   // ABM Usuarios
   users: (qs = '') => `${API_BASE}/users${qs ? ('?' + qs) : ''}`,
   user: (id) => `${API_BASE}/users/${encodeURIComponent(id)}`,
@@ -413,9 +414,167 @@ async function loadCustomerDetail(id){
       <div><span class="font-semibold">Notas:</span> ${escapeHtml(c.notes||'')}</div>
     `;
     customersDetailBox.classList.remove('hidden');
+
+    // Cargar panel de usuario asociado
+    try { await loadCustomerUserPanel(id); } catch (e) { console.error('loadCustomerUserPanel', e); }
   } catch (err) {
     console.error('loadCustomerDetail', err);
     showMessageBox('No se pudo cargar el detalle del cliente', 'error');
+  }
+}
+
+async function loadCustomerUserPanel(clientId){
+  if (!customersDetailContent) return;
+  try {
+    const resp = await fetchWithAuth(ROUTES.clientUser(clientId));
+    if (!resp.ok) {
+      // Si no hay endpoint o no autorizado, no bloquear detalle
+      return;
+    }
+    const data = await resp.json().catch(() => null);
+    if (!data) return;
+
+    let html = '<hr class="my-3 border-slate-700" />';
+    html += '<div class="mt-2">';
+    html += '<div class="font-semibold mb-2 text-blue-300">Usuario de acceso del cliente</div>';
+
+    if (!data.user) {
+      const email = escapeHtml(data.clientEmail || '');
+      html += `<div class="text-xs text-gray-400 mb-2">Este cliente aún no tiene un usuario para iniciar sesión. Podés crearlo desde aquí.</div>`;
+      html += `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+          <div>
+            <label class="block text-xs mb-1">Email de usuario</label>
+            <input id="customerUserEmail" type="email" class="input-field py-1.5 px-2 text-xs" placeholder="email@cliente.com" value="${email}">
+          </div>
+          <div>
+            <label class="block text-xs mb-1">Contraseña</label>
+            <input id="customerUserPassword" type="password" class="input-field py-1.5 px-2 text-xs" placeholder="Mínimo 8 caracteres">
+          </div>
+          <div>
+            <label class="block text-xs mb-1">Repetir contraseña</label>
+            <input id="customerUserPassword2" type="password" class="input-field py-1.5 px-2 text-xs" placeholder="Repetir contraseña">
+          </div>
+        </div>
+        <div class="flex justify-end">
+          <button id="customerUserCreateBtn" class="action-button bg-emerald-600 hover:bg-emerald-700 text-xs">Crear usuario</button>
+        </div>
+      `;
+    } else {
+      const u = data.user;
+      html += `
+        <div class="mb-2 text-sm">
+          <div><span class="font-semibold">Usuario:</span> ${escapeHtml(u.email || '')}</div>
+          <div><span class="font-semibold">Estado:</span> ${escapeHtml(u.status || '')}</div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+          <div>
+            <label class="block text-xs mb-1">Nueva contraseña</label>
+            <input id="customerUserNewPassword" type="password" class="input-field py-1.5 px-2 text-xs" placeholder="Mínimo 8 caracteres">
+          </div>
+          <div>
+            <label class="block text-xs mb-1">Repetir contraseña</label>
+            <input id="customerUserNewPassword2" type="password" class="input-field py-1.5 px-2 text-xs" placeholder="Repetir contraseña">
+          </div>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button id="customerUserResetPwdBtn" class="action-button bg-indigo-600 hover:bg-indigo-700 text-xs" data-user-id="${u.id}">Cambiar contraseña</button>
+        </div>
+      `;
+    }
+
+    html += '</div>';
+
+    // Append panel (no borrar detalle existente)
+    customersDetailContent.insertAdjacentHTML('beforeend', html);
+
+    // Bind create user
+    const createBtn = document.getElementById('customerUserCreateBtn');
+    if (createBtn && !createBtn.dataset.bound) {
+      createBtn.dataset.bound = '1';
+      createBtn.addEventListener('click', async () => {
+        const emailInput = document.getElementById('customerUserEmail');
+        const pwdInput = document.getElementById('customerUserPassword');
+        const pwd2Input = document.getElementById('customerUserPassword2');
+        const email = emailInput?.value.trim() || '';
+        const pwd = pwdInput?.value || '';
+        const pwd2 = pwd2Input?.value || '';
+        if (!email || !/.+@.+\..+/.test(email)) {
+          showMessageBox('Ingresá un email válido', 'warning');
+          return;
+        }
+        if (!pwd || pwd.length < 8) {
+          showMessageBox('La contraseña debe tener al menos 8 caracteres', 'warning');
+          return;
+        }
+        if (pwd !== pwd2) {
+          showMessageBox('Las contraseñas no coinciden', 'warning');
+          return;
+        }
+        try {
+          const resp = await fetchWithAuth(ROUTES.clientUser(clientId), {
+            method: 'POST',
+            body: JSON.stringify({ email, password: pwd }),
+          });
+          if (!resp.ok) {
+            let msg = 'No se pudo crear el usuario del cliente';
+            try {
+              const dataErr = await resp.json();
+              if (dataErr && dataErr.error) msg = dataErr.error;
+            } catch {}
+            showMessageBox(msg, 'error');
+            return;
+          }
+          showMessageBox('Usuario creado y vinculado al cliente', 'success');
+          // Recargar detalle para mostrar el panel de cambio de contraseña
+          loadCustomerDetail(clientId);
+        } catch (err) {
+          console.error('create client user', err);
+          showMessageBox('No se pudo crear el usuario del cliente', 'error');
+        }
+      });
+    }
+
+    const resetBtn = document.getElementById('customerUserResetPwdBtn');
+    if (resetBtn && !resetBtn.dataset.bound) {
+      resetBtn.dataset.bound = '1';
+      resetBtn.addEventListener('click', async () => {
+        const userId = resetBtn.getAttribute('data-user-id');
+        const pwdInput = document.getElementById('customerUserNewPassword');
+        const pwd2Input = document.getElementById('customerUserNewPassword2');
+        const pwd = pwdInput?.value || '';
+        const pwd2 = pwd2Input?.value || '';
+        if (!pwd || pwd.length < 8) {
+          showMessageBox('La contraseña debe tener al menos 8 caracteres', 'warning');
+          return;
+        }
+        if (pwd !== pwd2) {
+          showMessageBox('Las contraseñas no coinciden', 'warning');
+          return;
+        }
+        try {
+          const resp = await fetchWithAuth(ROUTES.userResetPwd(userId), {
+            method: 'POST',
+            body: JSON.stringify({ tempPassword: pwd }),
+          });
+          if (!resp.ok) {
+            let msg = 'No se pudo cambiar la contraseña del usuario';
+            try {
+              const dataErr = await resp.json();
+              if (dataErr && dataErr.error) msg = dataErr.error;
+            } catch {}
+            showMessageBox(msg, 'error');
+            return;
+          }
+          showMessageBox('Contraseña actualizada para el usuario del cliente', 'success');
+        } catch (err) {
+          console.error('reset client user password', err);
+          showMessageBox('No se pudo cambiar la contraseña del usuario', 'error');
+        }
+      });
+    }
+  } catch (err) {
+    console.error('loadCustomerUserPanel', err);
   }
 }
 
