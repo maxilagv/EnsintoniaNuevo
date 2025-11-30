@@ -317,6 +317,10 @@ function initCustomersUiOnce(){
     if (customersTypeSelect) customersTypeSelect.value = '';
     loadCustomersAdmin();
   });
+  // Delegación de clicks en la tabla de clientes (ver detalle / activar / historial)
+  if (customersTableBody) {
+    customersTableBody.addEventListener('click', onCustomersTableClick);
+  }
 }
 
 function readCustomersFilters(){
@@ -364,7 +368,6 @@ async function loadCustomersAdmin(){
         </td>`;
       customersTableBody.appendChild(tr);
     });
-    customersTableBody.addEventListener('click', onCustomersTableClick, { once: true });
   } catch (err) {
     console.error('loadCustomersAdmin', err);
     showMessageBox('No se pudieron cargar clientes', 'error');

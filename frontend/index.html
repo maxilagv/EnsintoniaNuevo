@@ -652,23 +652,6 @@
     .btn-glow::after{ opacity: 0; }
     .btn-glow:hover::after{ opacity: 1; }
 
-    /* Animated gradient CTA */
-    .gradient-cta{
-      background: linear-gradient(90deg,#3b82f6,#8b5cf6,#3b82f6);
-      background-size: 200% 100%; animation: gradient-x 6s ease infinite;
-      box-shadow: 0 10px 30px rgba(59,130,246,0.25), 0 6px 18px rgba(139,92,246,0.22);
-    }
-    .gradient-cta:hover{ box-shadow: 0 16px 40px rgba(59,130,246,0.35), 0 10px 24px rgba(139,92,246,0.28); }
-    @keyframes gradient-x{ 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
-
-    /* Apply animated gradient CTA to catalog hero button (no HTML change) */
-    #hero-catalog-btn{
-      background: linear-gradient(90deg,#3b82f6,#8b5cf6,#3b82f6);
-      background-size: 200% 100%; animation: gradient-x 6s ease infinite;
-      box-shadow: 0 10px 30px rgba(59,130,246,0.25), 0 6px 18px rgba(139,92,246,0.22);
-    }
-    #hero-catalog-btn:hover{ box-shadow: 0 16px 40px rgba(59,130,246,0.35), 0 10px 24px rgba(139,92,246,0.28); }
-
     /* Hero vertical centering */
     #hero-intro{ min-height: 70vh; display: flex; align-items: center; }
     #hero-intro > .site-container{ width: 100%; }
@@ -748,9 +731,6 @@
         </p>
 
         <div class="flex items-center justify-center lg:justify-start gap-4 flex-wrap fade-up-init" id="hero-ctas">
-          <a id="hero-catalog-btn" href="/catalogo.html" class="btn btn-glow bg-brand-500 hover:bg-brand-600 text-white px-6 py-3 rounded-2xl shadow-sm card-polish btn-glow">
-            Ver catálogo
-          </a>
           <a href="https://wa.me/5491159914197" target="_blank" rel="noopener" class="btn btn-outline border border-gray-200 px-5 py-3 rounded-2xl text-ink hover:bg-gray-50 card-polish">
             Escribinos por WhatsApp
           </a>

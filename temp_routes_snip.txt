@@ -1,6 +1,0 @@
-const ROUTES = {
-  categories: () => `${API_BASE}/categorias`,
-  category: (id) => `${API_BASE}/categorias/${encodeURIComponent(id)}`,
-  products: () => `${API_BASE}/productos`,
-  product: (id) => `${API_BASE}/productos/${encodeURIComponent(id)}`,
-  stock: (id) => `${API_BASE}/productos/${encodeURIC

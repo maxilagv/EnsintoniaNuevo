@@ -204,9 +204,11 @@ function setupClientRegistration() {
   const closeSelectors = ['[data-client-register-close]', '#client-register-close'];
   function openOverlay() {
     overlay.classList.remove('hidden');
+    try { document.body.style.overflow = 'hidden'; } catch {}
   }
   function closeOverlay() {
     overlay.classList.add('hidden');
+    try { document.body.style.overflow = ''; } catch {}
   }
 
   function bindOpenButton(btn) {
@@ -480,9 +482,11 @@ function setupClientLogin() {
 
   function openOverlay() {
     overlay.classList.remove('hidden');
+    try { document.body.style.overflow = 'hidden'; } catch {}
   }
   function closeOverlay() {
     overlay.classList.add('hidden');
+    try { document.body.style.overflow = ''; } catch {}
   }
 
   function bindOpen(btn) {
@@ -1844,6 +1848,81 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 });
 
+function updateClientLogoutUi() {
+  let logged = false;
+  try {
+    logged = localStorage.getItem('clientLoggedIn') === 'true' && !!localStorage.getItem('clientAccessToken');
+  } catch {
+    logged = false;
+  }
+  const btnLogout = document.getElementById('client-logout-btn');
+  const btnLogoutMobile = document.getElementById('client-logout-btn-mobile');
+  if (logged) {
+    if (btnLogout) btnLogout.classList.remove('hidden');
+    if (btnLogoutMobile) btnLogoutMobile.classList.remove('hidden');
+  } else {
+    if (btnLogout) btnLogout.classList.add('hidden');
+    if (btnLogoutMobile) btnLogoutMobile.classList.add('hidden');
+  }
+}
+
+function setupClientLogout() {
+  const loginBtn = document.getElementById('open-client-login');
+  if (loginBtn && !document.getElementById('client-logout-btn')) {
+    const btn = document.createElement('button');
+    btn.id = 'client-logout-btn';
+    btn.type = 'button';
+    btn.className = 'ml-2 px-3 py-1.5 rounded-full bg-gray-700 text-white text-xs md:text-sm shadow-sm hover:bg-gray-800 transition btn whitespace-nowrap hidden';
+    btn.textContent = 'Cerrar sesi�n';
+    if (loginBtn.parentNode) {
+      loginBtn.parentNode.insertBefore(btn, loginBtn.nextSibling);
+    }
+  }
+
+  const loginMobile = document.getElementById('open-client-login-mobile');
+  if (loginMobile && !document.getElementById('client-logout-btn-mobile')) {
+    const targetLi = loginMobile.closest('li');
+    const parentList = targetLi && targetLi.parentNode ? targetLi.parentNode : null;
+    const btn = document.createElement('button');
+    btn.id = 'client-logout-btn-mobile';
+    btn.type = 'button';
+    btn.className = 'w-full flex items-center justify-between py-2 font-medium hover:text-brand-1 hidden';
+    btn.innerHTML = '<span>Cerrar sesi�n</span>';
+    if (parentList && targetLi) {
+      const li = document.createElement('li');
+      li.appendChild(btn);
+      parentList.insertBefore(li, targetLi.nextSibling);
+    } else if (loginMobile.parentNode) {
+      loginMobile.parentNode.insertBefore(btn, loginMobile.nextSibling);
+    }
+  }
+
+  const logoutBtn = document.getElementById('client-logout-btn');
+  if (logoutBtn && !logoutBtn.dataset.clientLogoutBound) {
+    logoutBtn.dataset.clientLogoutBound = '1';
+    logoutBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      clearClientSession();
+      updateClientAuthUi();
+      updateClientLogoutUi();
+      showMessageBox('Cerraste la sesi�n.');
+    });
+  }
+
+  const logoutMobile = document.getElementById('client-logout-btn-mobile');
+  if (logoutMobile && !logoutMobile.dataset.clientLogoutBound) {
+    logoutMobile.dataset.clientLogoutBound = '1';
+    logoutMobile.addEventListener('click', (e) => {
+      e.preventDefault();
+      clearClientSession();
+      updateClientAuthUi();
+      updateClientLogoutUi();
+      try { closeMobileMenu(); } catch {}
+      showMessageBox('Cerraste la sesi�n.');
+    });
+  }
+}
+
 // --- Simple desktop search bindings ---
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('simple-search-btn');
@@ -1854,9 +1933,11 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   if (btn && !btn.dataset.simpleInit) { btn.dataset.simpleInit='1'; btn.addEventListener('click', (e)=>{ e.preventDefault(); doSimple(); }); }
   if (inp && !inp.dataset.simpleInit) { inp.dataset.simpleInit='1'; inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); doSimple(); }}); }
-  try { updateClientAuthUi(); } catch {}
   try { setupClientRegistration(); } catch {}
   try { setupClientLogin(); } catch {}
+  try { setupClientLogout(); } catch {}
+  try { updateClientAuthUi(); } catch {}
+  try { updateClientLogoutUi(); } catch {}
 });
 
 // (Opcional) exponer para usar desde HTML en un botón “Buscar”
