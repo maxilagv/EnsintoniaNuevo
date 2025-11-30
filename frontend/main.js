@@ -343,7 +343,8 @@ function setupClientRegistration() {
       form.reset();
       closeOverlay();
       updateClientAuthUi();
-      showMessageBox('Recibimos tu solicitud de alta de cliente. Ya pod�s iniciar compras.');
+      updateClientLogoutUi();
+      showMessageBox('Recibimos tu solicitud de alta de cliente. Ya puedes iniciar  a comprar.');
     });
   }
 }
@@ -555,10 +556,11 @@ function setupClientLogin() {
         saveClientSession(data);
         closeOverlay();
         updateClientAuthUi();
-        showMessageBox('Sesi�n iniciada. Ya pod�s realizar compras.');
+        updateClientLogoutUi();
+        showMessageBox('Sesion iniciada. Ya puedes realizar compras.');
       } catch (err) {
         console.error('client login error', err);
-        showMessageBox('No se pudo iniciar sesi�n. Intenta nuevamente.');
+        showMessageBox('No se pudo iniciar sesion. Intenta nuevamente.');
       }
     });
   }
@@ -1873,7 +1875,7 @@ function setupClientLogout() {
     btn.id = 'client-logout-btn';
     btn.type = 'button';
     btn.className = 'ml-2 px-3 py-1.5 rounded-full bg-gray-700 text-white text-xs md:text-sm shadow-sm hover:bg-gray-800 transition btn whitespace-nowrap hidden';
-    btn.textContent = 'Cerrar sesi�n';
+    btn.textContent = 'Cerrar sesion';
     if (loginBtn.parentNode) {
       loginBtn.parentNode.insertBefore(btn, loginBtn.nextSibling);
     }
@@ -1887,7 +1889,7 @@ function setupClientLogout() {
     btn.id = 'client-logout-btn-mobile';
     btn.type = 'button';
     btn.className = 'w-full flex items-center justify-between py-2 font-medium hover:text-brand-1 hidden';
-    btn.innerHTML = '<span>Cerrar sesi�n</span>';
+    btn.innerHTML = '<span>Cerrar sesion</span>';
     if (parentList && targetLi) {
       const li = document.createElement('li');
       li.appendChild(btn);
