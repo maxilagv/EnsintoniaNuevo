@@ -1907,7 +1907,7 @@ function setupClientLogout() {
       clearClientSession();
       updateClientAuthUi();
       updateClientLogoutUi();
-      showMessageBox('Cerraste la sesi�n.');
+      showMessageBox('Cerraste la sesion.');
     });
   }
 
@@ -1920,7 +1920,7 @@ function setupClientLogout() {
       updateClientAuthUi();
       updateClientLogoutUi();
       try { closeMobileMenu(); } catch {}
-      showMessageBox('Cerraste la sesi�n.');
+      showMessageBox('Cerraste la sesion.');
     });
   }
 }
