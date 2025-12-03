@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const order = require('../controllers/ordercontroller_v3');
 const clientsPublic = require('../controllers/clientpubliccontroller');
+const sellers = require('../controllers/sellercontroller');
 const { apiLimiter } = require('../middlewares/security');
 const auth = require('../middlewares/authmiddleware');
 const { check, validationResult } = require('express-validator');
@@ -9,6 +10,7 @@ const { query } = require('../db/pg');
 
 // Checkout público: requiere usuario autenticado vinculado a cliente
 router.post('/checkout', apiLimiter, auth, order.validateCheckout, order.createOrderV2);
+router.get('/sellers', apiLimiter, sellers.listSellersPublic);
 
 // Registro público de clientes (desde catálogo)
 router.post('/clients/register', apiLimiter, clientsPublic.createClientPublicWithUser);
@@ -45,4 +47,3 @@ router.post(
 );
 
 module.exports = router;
-

@@ -186,7 +186,7 @@ function showSection(sectionId) {
   } else if (sectionId === 'messages') {
     loadContactMessages();
   } else if (sectionId === 'orders') {
-    loadOrdersAdminServer();
+    loadOrdersAdminServer2();
   } else if (sectionId === 'supplierPurchases') {
     loadPurchases();
   } else if (sectionId === 'customers') {
@@ -2456,7 +2456,15 @@ async function loadOrdersAdminServer2(){
   const box = document.getElementById('ordersList');
   if (!box) return;
   try {
-    const url = API_BASE + '/pedidos';
+    const fromEl = document.getElementById('orders-from');
+    const toEl = document.getElementById('orders-to');
+    const params = new URLSearchParams();
+    const from = fromEl && fromEl.value ? new Date(fromEl.value) : null;
+    const to = toEl && toEl.value ? new Date(toEl.value) : null;
+    if (from && !isNaN(from.getTime())) params.set('from', from.toISOString());
+    if (to && !isNaN(to.getTime())) params.set('to', to.toISOString());
+    const qs = params.toString();
+    const url = API_BASE + '/pedidos' + (qs ? ('?' + qs) : '');
     const resp = await fetchWithAuth(url);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const rows = await resp.json();
@@ -2531,6 +2539,65 @@ function exportOrdersCSV(){
 
 document.getElementById('orders-search')?.addEventListener('input', filterOrdersAndRender);
 document.getElementById('orders-export-csv')?.addEventListener('click', exportOrdersCSV);
+document.getElementById('orders-filter-apply')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  loadOrdersAdminServer2();
+});
+document.getElementById('orders-filter-today')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  try {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const iso = `${y}-${m}-${d}`;
+    const fromEl = document.getElementById('orders-from');
+    const toEl = document.getElementById('orders-to');
+    if (fromEl) fromEl.value = iso;
+    if (toEl) toEl.value = iso;
+  } catch (_){}
+  loadOrdersAdminServer2();
+});
+document.getElementById('orders-print')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  try {
+    const rows = __ordersCache || [];
+    if (!rows.length) { showMessageBox('No hay compras para imprimir','info'); return; }
+    const w = window.open('', '_blank');
+    if (!w) return;
+    const lines = rows.map(o => {
+      const when = o.createdAt ? new Date(o.createdAt).toLocaleString() : '';
+      const total = currency(o.total || 0);
+      const buyerName = `${o?.buyer?.nombre||''} ${o?.buyer?.apellido||''}`.trim();
+      return `<tr>
+        <td style="padding:4px 8px;border:1px solid #ccc;">${o.orderNumber || o.id}</td>
+        <td style="padding:4px 8px;border:1px solid #ccc;">${when}</td>
+        <td style="padding:4px 8px;border:1px solid #ccc;">${buyerName}</td>
+        <td style="padding:4px 8px;border:1px solid #ccc;">${total}</td>
+      </tr>`;
+    }).join('');
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Historial de compras</title></head><body>
+      <h1 style="font-family:Arial, sans-serif;">Historial de compras</h1>
+      <table style="border-collapse:collapse;font-family:Arial, sans-serif;font-size:12px;">
+        <thead>
+          <tr>
+            <th style="padding:4px 8px;border:1px solid #ccc;">N° Pedido</th>
+            <th style="padding:4px 8px;border:1px solid #ccc;">Fecha</th>
+            <th style="padding:4px 8px;border:1px solid #ccc;">Cliente</th>
+            <th style="padding:4px 8px;border:1px solid #ccc;">Total</th>
+          </tr>
+        </thead>
+        <tbody>${lines}</tbody>
+      </table>
+    </body></html>`);
+    w.document.close();
+    w.focus();
+    w.print();
+  } catch (err) {
+    console.error('orders-print error', err);
+    showMessageBox('No se pudo abrir impresión','error');
+  }
+});
 
 // ===== Compras de Stock (Suppliers + Purchases) =====
 async function addPurchaseItemRow(){

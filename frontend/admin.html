@@ -515,11 +515,18 @@
             <!-- Nueva Sección: Compras -->
             <div id="orders" class="section-content hidden">
                 <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Compras</h2>
-                <p class="text-center text-gray-400 mb-6">Listado de compras realizadas desde el catalogo.</p>
+                <p class="text-center text-gray-400 mb-6">Listado de compras realizadas desde el catálogo.</p>
                 <div class="mb-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-                    <input id="orders-search" type="text" placeholder="Buscar por nombre o número de pedido" class="w-full md:w-1/2 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <div class="flex flex-col md:flex-row gap-2 md:items-center md:w-2/3">
+                        <input id="orders-search" type="text" placeholder="Buscar por nombre o número de pedido" class="w-full md:w-1/2 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        <input id="orders-from" type="date" class="px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        <input id="orders-to" type="date" class="px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
                     <div class="flex gap-2">
-                        
+                        <button id="orders-filter-today" class="action-button bg-blue-600 hover:bg-blue-700 text-xs">Hoy</button>
+                        <button id="orders-filter-apply" class="action-button bg-sky-600 hover:bg-sky-700 text-xs">Filtrar</button>
+                        <button id="orders-export-csv" class="action-button bg-emerald-600 hover:bg-emerald-700 text-xs">Exportar CSV</button>
+                        <button id="orders-print" class="action-button bg-indigo-600 hover:bg-indigo-700 text-xs">Imprimir</button>
                     </div>
                 </div>
                 <div id="ordersList" class="space-y-4"></div>

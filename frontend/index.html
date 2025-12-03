@@ -4,11 +4,11 @@
   <link rel="icon" type="image/png" href="https://i.postimg.cc/nLpfY67w/Gemini-Generated-Image-3nyj8v3nyj8v3nyj.png">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Ensintonía — Importadora directa de electrónica y hogar</title>
+  <title>Ensintonia Importadora directa de electronica y hogar</title>
 
-  <!-- Tailwind (CDN, rápido para prototipo) -->
+  <!-- Tailwind (CDN, r�pido para prototipo) -->
   <script>
-    // Asegura el objeto global antes de asignar la configuración
+    // Asegura el objeto global antes de asignar la configuraci�n
     window.tailwind = window.tailwind || {};
     window.tailwind.config = {
       theme: {
@@ -39,7 +39,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
 
   <style>
-    /* Paleta y tokens (misma paleta, más ordenada) */
+    /* Paleta y tokens (misma paleta, m�s ordenada) */
     :root{
       /* Fondos base */
       --bg-1: #0f172a; /* deep ink */
@@ -65,7 +65,7 @@
       --muted: #94a3b8;
     }
 
-    /* Fondo azul futurista (se mantiene la estética actual) */
+    /* Fondo azul futurista (se mantiene la est�tica actual) */
     body {
       background: radial-gradient(1200px 600px at 10% 10%, rgba(110,231,183,0.06), transparent 12%),
                   linear-gradient(180deg, #061229 0%, #072447 30%, #0b3b6b 60%, #081133 100%) !important;
@@ -86,7 +86,7 @@
       color: var(--futuristic-ink);
     }
 
-    /* Header / logo: mucho más grande y animado */
+    /* Header / logo: mucho m�s grande y animado */
     .logo-wrap {
       display:flex;
       align-items:center;
@@ -155,6 +155,7 @@
     .hero-deco {
       position:absolute; right:-6rem; top:-6rem; width:36rem; height:36rem; opacity:.06; pointer-events:none; filter: blur(18px); transform: rotate(18deg);
       animation: slow-rotate 40s linear infinite; /* New animation */
+      z-index: 1;
     }
     @keyframes slow-rotate {
       from { transform: rotate(0deg); }
@@ -288,9 +289,9 @@
     .bg-white * , .bg-white\/60 * { color: inherit; }
 
 
-    /* Mobile-first polish: centrar y hacer estético en pantallas pequeñas */
+    /* Mobile-first polish: centrar y hacer est�tico en pantallas peque�as */
     @media (max-width: 640px) {
-      /* Container: padding cómodo y ancho completo */
+      /* Container: padding c�modo y ancho completo */
       .site-container {
         padding-left: 1rem;
         padding-right: 1rem;
@@ -298,20 +299,20 @@
         margin: 0 auto;
       }
 
-      /* Header: mayor altura, logo más grande visualmente centrado */
+      /* Header: mayor altura, logo m�s grande visualmente centrado */
       #main-header .site-container { height: 72px; gap: 0.5rem; }
       .logo-big { width: 115px !important; height: auto; }
       .logo-wrap { gap: 0.6rem; align-items: center; }
 
-      /* Títulos: menor tamaño pero con mayor contraste y centrado */
+      /* T�tulos: menor tama�o pero con mayor contraste y centrado */
       #hero-title { font-size: 1.6rem; line-height: 1.05; text-align: center; }
       #hero-sub, #hero-detail { font-size: 0.98rem; text-align: center; }
 
-      /* Hero CTAs: apilados y full width para tocar fácil con el pulgar */
+      /* Hero CTAs: apilados y full width para tocar f�cil con el pulgar */
       #hero-ctas { flex-direction: column; gap: 0.75rem; align-items: stretch; }
       #hero-ctas .btn { width: 100%; display: inline-flex; justify-content: center; }
 
-      /* Accent line centrado y más sutil */
+      /* Accent line centrado y m�s sutil */
       .accent-line { margin: 0.6rem auto 1rem auto; width: 48px; height: 3px; }
 
       /* Ocultar decoraciones pesadas para no competir con el contenido */
@@ -327,35 +328,35 @@
         box-shadow: 0 8px 24px rgba(2,6,23,0.08) !important;
       }
       .card-polish.reveal-init { transform: translateY(10px) scale(0.999) !important; filter: none !important; }
-      .card-polish.tilt { transition: none; transform: none !important; } /* desactivar tilt en móvil */
+      .card-polish.tilt { transition: none; transform: none !important; } /* desactivar tilt en m�vil */
 
-      /* Grid de categorías / productos: una columna con gap */
+      /* Grid de categor�as / productos: una columna con gap */
       #categories-container, #contenedor-productos {
         display: grid;
         grid-template-columns: 1fr;
         gap: 14px;
       }
 
-      /* Centrar texto en tarjetas para estética móvil */
+      /* Centrar texto en tarjetas para est�tica m�vil */
       .product-card .p-6, .product-card .p-4 { text-align: left; } /* mantener left para legibilidad */
       .product-card h3 { font-size: 1.05rem; }
       .product-card p { font-size: 0.95rem; }
 
-      /* Botones pequeños dentro de cards: full width y mayor toque */
+      /* Botones peque�os dentro de cards: full width y mayor toque */
       .product-card .btn, .product-card a { width: 100%; display: inline-flex; justify-content: center; }
 
-      /* Nav móvil: mejorar espaciado y centrar elementos */
+      /* Nav m�vil: mejorar espaciado y centrar elementos */
       #mobile-nav { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
       #mobile-nav a { padding: 0.75rem 1rem; border-radius: 0.75rem; }
 
-      /* Input search móvil: full width y mayor hit area */
+      /* Input search m�vil: full width y mayor hit area */
       #search-input-mobile { width: 100%; padding-left: 1rem; padding-right: 1rem; border-radius: 12px; }
 
-      /* Reducir animaciones al mínimo para ahorro de CPU en móviles */
+      /* Reducir animaciones al m�nimo para ahorro de CPU en m�viles */
       .card-polish::before, .card-polish .shimmer { display: none; }
       .card-polish.float-subtle { animation: none; }
 
-      /* Ajustes tipográficos para legibilidad */
+      /* Ajustes tipogr�ficos para legibilidad */
       body { -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
       .muted { opacity: 0.9; }
     }
@@ -366,7 +367,7 @@
     #mobile-menu-button.open .bar:nth-child(2){opacity:0;}
     #mobile-menu-button.open .bar:nth-child(3){transform:translateY(-6px) rotate(-45deg);}
 
-    /* Panel móvil */
+    /* Panel m�vil */
     #mobile-nav{position:fixed; inset:0; z-index:40; display:none;}
     #mobile-nav[data-state="opening"],
     #mobile-nav[data-state="open"]{display:block;}
@@ -413,7 +414,7 @@
       #mobile-nav .mn-panel{padding-bottom:4rem;}
     }
 
-    /* Nuevos estilos para las tarjetas de "Quiénes somos" */
+    /* Nuevos estilos para las tarjetas de "Qui�nes somos" */
     .card-modern {
       background: var(--section-bg-glass); /* Dark, slightly transparent ink color */
       border: 1px solid var(--section-border-soft); /* Darker, subtle border */
@@ -455,7 +456,59 @@
       color: var(--futuristic-mute); /* Muted light blue for readability */
     }
 
-    /* Estilos para las tarjetas de "Propuesta de valor" y "Logística" */
+    /* Tarjeta de foto principal en "Qui?nes somos" */
+    .about-photo-card{
+      position: relative;
+      border-radius: 1.5rem;
+      overflow: hidden;
+      box-shadow: var(--shadow-card-strong);
+      border: 1px solid rgba(148,163,184,0.45);
+      background: radial-gradient(circle at top, rgba(30,64,175,0.85), rgba(15,23,42,0.98));
+      min-height: 260px;
+    }
+    .about-photo-card img{
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transform-origin: center;
+      transition: transform .5s ease;
+    }
+    .about-photo-card::after{
+      content:'';
+      position:absolute;
+      inset:0;
+      background: radial-gradient(circle at top, rgba(15,23,42,0.15), transparent 55%);
+      mix-blend-mode: soft-light;
+      pointer-events:none;
+    }
+    .about-photo-card:hover img{
+      transform: scale(1.03);
+    }
+    .about-photo-caption{
+      position:absolute;
+      left:1.25rem;
+      bottom:1.25rem;
+      padding:0.55rem 0.9rem;
+      border-radius:999px;
+      background: rgba(15,23,42,0.9);
+      border:1px solid rgba(148,163,184,0.7);
+      font-size:0.8rem;
+      display:inline-flex;
+      align-items:center;
+      gap:0.4rem;
+      color:var(--futuristic-ink);
+      box-shadow: 0 16px 40px rgba(15,23,42,0.9);
+    }
+    .about-photo-caption-dot{
+      width:0.5rem;
+      height:0.5rem;
+      border-radius:999px;
+      background: linear-gradient(135deg,#60a5fa,#6ee7b7);
+      box-shadow: 0 0 8px rgba(96,165,250,0.8);
+    }
+
+    /* Estilos para las tarjetas de "Propuesta de valor" y "Log�stica" */
     .value-card {
       background: var(--section-bg-glass); /* Dark, slightly transparent ink color */
       border: 1px solid var(--section-border-soft); /* Darker, subtle border */
@@ -482,7 +535,7 @@
       color: var(--futuristic-mute); /* Muted light blue for descriptions */
     }
 
-    /* Estilos para las categorías y otras tarjetas pequeñas */
+    /* Estilos para las categor�as y otras tarjetas peque�as */
     .category-tag {
       background-color: rgba(15, 23, 42, 0.7); /* Dark glass */
       border: 1px solid rgba(148, 163, 184, 0.45); /* Soft cool border */
@@ -510,7 +563,7 @@
       .brand-underline { display: none; }
     }
 
-    /* Ajuste fino del hero en m�vil (altura, espaciado y CTAs) */
+    /* Ajuste fino del hero en m?vil (altura, espaciado y CTAs) */
     @media (max-width: 640px) {
       #hero-intro{
         min-height: auto;
@@ -547,22 +600,16 @@
       mix-blend-mode: screen; opacity: 0.08; z-index: 0;
     }
 
-    /* Header glass + neon line */
+    /* Header glass (sin barra neon inferior) */
     #main-header{
       background: rgba(8,17,51,0.7);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       border-bottom: 1px solid rgba(49,62,85,0.35);
     }
-    #main-header::after{
-      content: '';
-      position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
-      background: linear-gradient(90deg,#60a5fa,#7c3aed,#6ee7b7);
-      filter: drop-shadow(0 0 10px rgba(124,58,237,0.25)); opacity:.9;
-    }
     #main-header.scrolled{ background: rgba(6,18,41,0.75); box-shadow: 0 8px 30px rgba(0,0,0,0.35); border-color: rgba(49,62,85,0.5); }
 
-    /* Estética del botón hamburguesa en móvil: pill glass y barras claras (coherente con catálogo) */
+    /* Est�tica del bot�n hamburguesa en m�vil: pill glass y barras claras (coherente con cat�logo) */
     @media (max-width: 768px) {
       #mobile-menu-button {
         background: rgba(15,23,42,0.9);
@@ -576,7 +623,7 @@
         height: 0.11rem;
         background-color: rgba(248,250,252,0.96);
       }
-      /* Al abrir menú, resaltar un poco el contorno para que no se pierda sobre el panel */
+      /* Al abrir men�, resaltar un poco el contorno para que no se pierda sobre el panel */
       #mobile-menu-button.open{
         background: rgba(15,23,42,0.4);
         border-color: rgba(248,250,252,0.9);
@@ -652,9 +699,36 @@
     .btn-glow::after{ opacity: 0; }
     .btn-glow:hover::after{ opacity: 1; }
 
-    /* Hero vertical centering */
-    #hero-intro{ min-height: 70vh; display: flex; align-items: center; }
-    #hero-intro > .site-container{ width: 100%; }
+    /* Respeto a usuarios con movimiento reducido */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    /* Hero: full viewport height + overlay */
+    #hero-intro{
+      min-height: 100vh;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    #hero-intro::before{
+      content:'';
+      position:absolute;
+      inset:0;
+      background: radial-gradient(circle at top, rgba(15,23,42,0.45), rgba(8,11,33,0.9));
+      pointer-events:none;
+      z-index:0;
+    }
+    #hero-intro > .site-container{
+      width: 100%;
+      position: relative;
+      z-index: 1;
+    }
 
     /* Cards: consistent icon size and hover glow */
     .value-card svg{ color: var(--brand-1); width: 2rem; height: 2rem; }
@@ -671,19 +745,18 @@
   <header id="main-header" class="sticky top-0 z-50 border-b border-gray-100">
     <div class="site-container flex items-center justify-between h-20 lg:h-24 py-3 lg:py-0">
       <a class="flex items-center gap-4 logo-wrap" href="#">
-        <img class="logo-big" src="https://i.postimg.cc/YSDhn3jJ/Chat-GPT-Image-31-ago-2025-03-26-38-p-m.png" alt="Ensintonía logo" loading="lazy" decoding="async">
+        <img class="logo-big" src="https://i.postimg.cc/YSDhn3jJ/Chat-GPT-Image-31-ago-2025-03-26-38-p-m.png" alt="Ensinton�a logo" loading="lazy" decoding="async">
         <div>
-          <div class="neon-text hero-title-shadow text-2xl leading-tight">Ensintonía</div>
-          <div class="text-sm muted -mt-1">Importadora directa • Electrónica & Hogar</div>
-          <div class="mt-2 brand-underline"></div>
+          <div class="neon-text hero-title-shadow text-2xl leading-tight">Ensintonia</div>
+          <div class="text-sm muted -mt-1">Importadora directa  Electronica & Hogar</div>
         </div>
       </a>
 
       <nav class="hidden md:flex items-center gap-6">
-        <a href="#quienes-somos" class="text-sm text-ink hover:text-brand-700 transition">Quiénes somos</a>
+        <a href="#quienes-somos" class="text-sm text-ink hover:text-brand-700 transition">Quiines somos</a>
         <a href="#propuesta-valor" class="text-sm text-ink hover:text-brand-700 transition">Propuesta</a>
-        <a id="catalog-link-header" href="/catalogo.html" class="text-sm text-ink hover:text-brand-700 transition">Catálogo</a>
-        <a href="#contacto" class="text-sm text-ink hover:text-brand-700 transition">Contacto</a>
+        <a id="catalog-link-header" href="/catalogo.html" class="text-sm text-ink hover:text-brand-700 transition">Catalogo</a>
+        <a href="/contact.html" class="text-sm text-ink hover:text-brand-700 transition">Contacto</a>
         <a href="https://wa.me/5491159914197" target="_blank" rel="noopener" class="ml-4 px-4 py-2 rounded-full bg-green-600 text-white text-sm shadow-sm hover:bg-green-700 transition btn">WhatsApp</a>
       </nav>
 
@@ -704,7 +777,7 @@
   <!-- Mobile search (hidden on md+) -->
   <div id="mobile-search" class="md:hidden px-4 py-3 hidden">
     <div class="relative">
-      <input id="search-input-mobile" type="search" placeholder="Buscar… (Ctrl+K)" autocomplete="off"
+      <input id="search-input-mobile" type="search" placeholder="Buscar (Ctrl+K)" autocomplete="off"
              class="w-full rounded-2xl border border-gray-200 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-300" />
     </div>
   </div>
@@ -722,12 +795,11 @@
 
     <div class="site-container text-center lg:text-left">
       <div class="mx-auto max-w-3xl">
-        <div class="accent-line mx-auto mb-6 fade-up-init" id="hero-accent"></div>
         <h1 class="title text-4xl sm:text-5xl font-extrabold text-ink leading-tight mb-4 fade-up-init neon-text hero-title-shadow" id="hero-title">
-          Somos <span class="brand">Ensintonía</span>
+          Somos <span class="brand">Ensintonia</span>
         </h1>
         <p class="subtitle text-lg muted mb-8 fade-up-init" id="hero-sub">
-          Importadora directa de electrónica y soluciones para el hogar. Calidad, stock real y soporte local para que tu proyecto llegue sin sorpresas.
+          Importadora directa de electronica y soluciones para el hogar. Calidad, stock real y soporte local para que tu proyecto llegue sin sorpresas.
         </p>
 
         <div class="flex items-center justify-center lg:justify-start gap-4 flex-wrap fade-up-init" id="hero-ctas">
@@ -737,7 +809,7 @@
         </div>
 
         <p class="mt-8 text-sm muted fade-up-init" id="hero-detail">
-          Desde componentes electrónicos hasta soluciones para el hogar: trabajamos con fabricantes internacionales para ofrecer productos confiables, entrega eficiente y respaldo local.
+          Desde componentes electronicos hasta soluciones para el hogar: trabajamos con fabricantes internacionales para ofrecer productos confiables, entrega eficiente y respaldo local.
         </p>
       </div>
     </div>
@@ -746,29 +818,49 @@
   <!-- QUIENES SOMOS -->
   <section id="quienes-somos" class="section py-16">
     <div class="site-container">
-      <div class="grid lg:grid-cols-2 gap-8 items-center">
+      <div class="grid lg:grid-cols-2 gap-10 items-center">
         <div>
-          <h2 class="section-title text-2xl font-bold mb-4">Quiénes somos</h2>
-          <p class="text-muted-700 mb-4">En Ensintonía nacimos con una idea simple: acercar tecnología confiable al mejor precio posible, sin dolores de cabeza. Operamos desde Sarratea, Quilmes Oeste, combinando importación directa, selección de marcas y un servicio posventa que responde.</p>
-          <p class="text-muted-700">Nuestra propuesta mezcla <strong>stock real</strong>, <strong>asesoría honesta</strong> y <strong>logística simple</strong>. Si buscás electrónica para uso personal o para tu negocio, queremos que encuentres lo esencial: buen producto, buen precio y buena atención.</p>
+          <h2 class="section-title text-2xl font-bold mb-4">Quienes somos</h2>
+          <p class="text-muted-700 mb-4">
+            Somos Ensintonia, un local especializado en electronica y productos para el hogar, con atencion personalizada y garantia real.
+          </p>
+          <p class="text-muted-700 mb-4">
+            Nacimos con una idea simple: acercar tecnologia confiable al mejor precio posible, sin dolores de cabeza. Operamos desde Sarratea, Quilmes Oeste, combinando importacion directa, seleccion de marcas y un servicio posventa que responde.
+          </p>
+          <p class="text-muted-700">
+            Nuestra propuesta mezcla <strong>stock real</strong>, <strong>asesoria honesta</strong> y <strong>logistica simple</strong>. Si buscas electronica para uso personal o para tu negocio, queremos que encuentres lo esencial: buen producto, buen precio y buena atencion.
+          </p>
         </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div class="p-6 rounded-2xl shadow-sm card-modern">
-            <h3 class="font-semibold mb-2">Importación & distribución</h3>
-            <p class="text-sm text-muted-700">Líneas de audio, hogar y accesorios con lotes escalables.</p>
-          </div>
-          <div class="p-6 rounded-2xl shadow-sm card-modern">
-            <h3 class="font-semibold mb-2">Asesoría de compra</h3>
-            <p class="text-sm text-muted-700">Te ayudamos a elegir con datos reales y expectativas claras.</p>
-          </div>
-          <div class="p-6 rounded-2xl shadow-sm card-modern">
-            <h3 class="font-semibold mb-2">Posventa</h3>
-            <p class="text-sm text-muted-700">Soporte humano y gestión de garantías.</p>
-          </div>
-          <div class="p-6 rounded-2xl shadow-sm card-modern">
-            <h3 class="font-semibold mb-2">Alianzas B2B</h3>
-            <p class="text-sm text-muted-700">Precios por volumen y reposición programada.</p>
-          </div>
+        <figure class="about-photo-card">
+          <img
+            src="https://i.postimg.cc/3xstCqpK/Captura-de-pantalla-1-12-2025-2243-www-instagram-com.jpg"
+            alt="Local Ensintonia en Quilmes Oeste, especializado en electronica y hogar"
+            loading="lazy"
+            decoding="async"
+          >
+          <figcaption class="about-photo-caption">
+            <span class="about-photo-caption-dot"></span>
+            <span>Local Ensintonia &bull; Quilmes Oeste</span>
+          </figcaption>
+        </figure>
+      </div>
+
+      <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="p-6 rounded-2xl shadow-sm card-modern">
+          <h3 class="font-semibold mb-2">Importacion & distribucion</h3>
+          <p class="text-sm text-muted-700">Lineas de audio, hogar y accesorios con lotes escalables.</p>
+        </div>
+        <div class="p-6 rounded-2xl shadow-sm card-modern">
+          <h3 class="font-semibold mb-2">Asesoria de compra</h3>
+          <p class="text-sm text-muted-700">Te ayudamos a elegir con datos reales y expectativas claras.</p>
+        </div>
+        <div class="p-6 rounded-2xl shadow-sm card-modern">
+          <h3 class="font-semibold mb-2">Posventa</h3>
+          <p class="text-sm text-muted-700">Soporte humano y gestion de garantias.</p>
+        </div>
+        <div class="p-6 rounded-2xl shadow-sm card-modern">
+          <h3 class="font-semibold mb-2">Alianzas B2B</h3>
+          <p class="text-sm text-muted-700">Precios por volumen y reposicion programada.</p>
         </div>
       </div>
     </div>
@@ -797,32 +889,32 @@
           <svg class="w-6 h-6 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M5 10v10"/></svg>
           <div>
             <strong>Stock actualizado</strong>
-            <div class="text-sm text-muted-700">Inventario vivo y entregas ágiles.</div>
+            <div class="text-sm text-muted-700">Inventario vivo y entregas agiles.</div>
           </div>
         </li>
         <li class="p-4 rounded-2xl shadow-sm flex items-start gap-3 value-card">
           <svg class="w-6 h-6 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 8a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
           <div>
             <strong>Soporte cercano</strong>
-            <div class="text-sm text-muted-700">Acompañamos antes y después de la compra.</div>
+            <div class="text-sm text-muted-700">Acomparamos antes y despues de la compra.</div>
           </div>
         </li>
       </ul>
     </div>
   </section>
 
-  <!-- CATEGORÍAS -->
+  <!-- CATEGOR�AS -->
   <section id="categorias" class="section py-16">
     <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-6">Categorías</h2>
+      <h2 class="section-title text-2xl font-bold mb-6">Categorias</h2>
 
-      <!-- NUEVO: Selector rápido para ir directo a una categoría -->
+      <!-- NUEVO: Selector r�pido para ir directo a una categor�a -->
       <div class="mb-5 flex flex-wrap items-center gap-3" id="category-jump-wrap">
         <label for="category-jump" class="text-sm font-medium">Ir directo:</label>
         <select id="category-jump"
                 class="text-sm bg-white/10 border border-white/20 rounded-lg px-3 py-2
                        focus:outline-none focus:ring-2 focus:ring-brand-300 min-w-[230px]">
-          <option value="">Seleccioná una categoría…</option>
+          <option value="">Selecciona una categoria</option>
         </select>
         <button id="category-jump-clear"
                 class="text-xs px-3 py-2 rounded-lg border border-white/20 text-ink hover:bg-white/10 transition"
@@ -830,55 +922,55 @@
       </div>
       <!-- FIN NUEVO -->
 
-      <!-- Reemplazado: lista dinámica -->
+      <!-- Reemplazado: lista din�mica -->
       <ul id="categories-list" class="flex flex-wrap gap-3"></ul>
-      <p class="note text-sm text-muted-700 mt-4">El catálogo se actualiza seguido.</p>
+      <p class="note text-sm text-muted-700 mt-4">El catalogo se actualiza seguido.</p>
     </div>
   </section>
 
-  <!-- LOGÍSTICA -->
+  <!-- LOG�STICA -->
   <section id="logistica" class="section py-12 bg-white/60">
     <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-4">Logística y cobertura</h2>
+      <h2 class="section-title text-2xl font-bold mb-4">Logistica y cobertura</h2>
       <div class="grid md:grid-cols-3 gap-6">
         <div class="p-4 rounded-2xl shadow-sm value-card">
-          <h4 class="font-semibold mb-2">Envíos</h4>
-          <p class="text-sm text-muted-700">Correo y transporte; mensajería en AMBA. Costos y tiempos según destino y peso.</p>
+          <h4 class="font-semibold mb-2">Envios</h4>
+          <p class="text-sm text-muted-700">Correo y transporte; mensajeria en AMBA. Costos y tiempos segun destino y peso.</p>
         </div>
         <div class="p-4 rounded-2xl shadow-sm value-card">
           <h4 class="font-semibold mb-2">Pagos</h4>
-          <p class="text-sm text-muted-700">Efectivo, transferencia y medios electrónicos. Consultá por promociones.</p>
+          <p class="text-sm text-muted-700">Efectivo, transferencia y medios electronicos. Consulta por promociones.</p>
         </div>
         <div class="p-4 rounded-2xl shadow-sm value-card">
-          <h4 class="font-semibold mb-2">Facturación</h4>
-          <p class="text-sm text-muted-700">Emitimos comprobantes según normativa vigente.</p>
+          <h4 class="font-semibold mb-2">Facturacion</h4>
+          <p class="text-sm text-muted-700">Emitimos comprobantes segun normativa vigente.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- GARANTÍA -->
+  <!-- GARANT�A -->
   <section id="garantia" class="section py-12">
     <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-4">Garantías y cambios</h2>
-      <p class="text-muted-700 mb-4">Todos los productos cuentan con garantía del fabricante o del importador según el caso. Si recibís algo con falla de origen, avisanos dentro de los plazos para gestionar el cambio o la reparación.</p>
+      <h2 class="section-title text-2xl font-bold mb-4">Garantias y cambios</h2>
+      <p class="text-muted-700 mb-4">Todos los productos cuentan con garantia del fabricante o del importador segun el caso. Si recibis algo con falla de origen, avisanos dentro de los plazos para gestionar el cambio o la reparacion.</p>
       <ul class="list-disc pl-5 text-muted-700">
-        <li>Probamos y verificamos funcionamiento básico antes de despachar cuando corresponde.</li>
-        <li>Guardá packaging, accesorios y comprobante de compra para agilizar cualquier gestión.</li>
-        <li>Te asistimos para diagnosticar y resolver rápido.</li>
+        <li>Probamos y verificamos funcionamiento basico antes de despachar cuando corresponde.</li>
+        <li>Guarda packaging, accesorios y comprobante de compra para agilizar cualquier gestion.</li>
+        <li>Te asistimos para diagnosticar y resolver rapido.</li>
       </ul>
     </div>
   </section>
 
-  <!-- CÓMO COMPRAR -->
+  <!-- C�MO COMPRAR -->
   <section id="como-comprar" class="section py-12 bg-white/60">
     <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-4">Cómo comprar</h2>
+      <h2 class="section-title text-2xl font-bold mb-4">Como comprar</h2>
       <ol class="list-decimal pl-5 text-muted-700 space-y-2">
-        <li>Entrá al <a class="text-brand-500 underline" href="/catalogo.html">catálogo</a> y elegí tu producto.</li>
+        <li>Entra al <a class="text-brand-500 underline" href="/catalogo.html">catalogo</a> y elegi tu producto.</li>
         <li>Consultanos disponibilidad y medio de pago.</li>
-        <li>Coordinamos envío o retiro.</li>
-        <li>Recibís y probás. Si necesitás ayuda, estamos.</li>
+        <li>Coordinamos envio o retiro.</li>
+        <li>Recibis y probas. Si necesitas ayuda, estamos.</li>
       </ol>
     </div>
   </section>
@@ -888,43 +980,43 @@
     <div class="site-container">
       <h2 class="section-title text-2xl font-bold mb-4">Preguntas frecuentes</h2>
       <details class="mb-3">
-        <summary>¿Tienen stock real?</summary>
-        <p class="text-muted-700">Actualizamos el inventario a diario. Si algo varía, te avisamos antes de cerrar la compra.</p>
+        <summary>Tienen stock real?</summary>
+        <p class="text-muted-700">Actualizamos el inventario a diario. Si algo varia, te avisamos antes de cerrar la compra.</p>
       </details>
       <details class="mb-3">
-        <summary>¿Hacen precios por cantidad?</summary>
-        <p class="text-muted-700">Sí. Para comercios y revendedores tenemos escalas por volumen. Pedí tu lista.</p>
+        <summary>Hacen precios por cantidad?</summary>
+        <p class="text-muted-700">Si. Para comercios y revendedores tenemos escalas por volumen. Pedi tu lista.</p>
       </details>
       <details class="mb-3">
-        <summary>¿Cuánto tarda el envío?</summary>
-        <p class="text-muted-700">Depende del destino y del operador. En AMBA suele ser más ágil. Te pasamos estimado al momento de comprar.</p>
+        <summary>¿Cuanto tarda el envio?</summary>
+        <p class="text-muted-700">Depende del destino y del operador. En AMBA suele ser mas agil. Te pasamos estimado al momento de comprar.</p>
       </details>
     </div>
   </section>
 
-  <!-- CONTACTO -->
+  <!-- CONTACTO (contenido movido a contact.html)
   <section id="contacto" class="section py-12 bg-white/60">
     <div class="site-container">
       <h2 class="section-title text-2xl font-bold mb-4">Contacto</h2>
       <address class="not-italic text-muted-700">
         <strong>Base de operaciones:</strong> Sarratea, Quilmes Oeste, Buenos Aires<br>
-        <strong>WhatsApp:</strong> <a class="text-brand-500 underline" href="https://wa.me/5491159914197" target="_blank" rel="noopener">+54 9 11 5991‑4197</a><br>
+        <strong>WhatsApp:</strong> <a class="text-brand-500 underline" href="https://wa.me/5491159914197" target="_blank" rel="noopener">+54 9 11 5991-4197</a><br>
         <strong>Horarios:</strong> a coordinar (consultar disponibilidad)
       </address>
 
       <div class="mt-6 flex gap-3">
-        <a href="/catalogo.html" class="btn btn-primary bg-brand-500 hover:bg-brand-600 text-white px-5 py-3 rounded-2xl shadow-sm card-hover">Ir al catálogo</a>
+        <a href="/catalogo.html" class="btn btn-primary bg-brand-500 hover:bg-brand-600 text-white px-5 py-3 rounded-2xl shadow-sm card-hover">Ir al cat�logo</a>
         <a href="https://wa.me/5491159914197" target="_blank" rel="noopener" class="btn btn-outline border border-gray-200 px-5 py-3 rounded-2xl">Escribir por WhatsApp</a>
       </div>
     </div>
-  </section>
+  </section> -->
 
   <!-- CIERRE -->
   <section id="cierre" class="section py-12">
     <div class="site-container text-center">
-      <h2 class="section-title text-2xl font-bold mb-4">Tecnología que suma, sin complicaciones</h2>
-      <p class="text-muted-700 mb-6">Ese es nuestro norte. Si buscás precio, garantía y una atención que responde, estamos en la misma sintonía.</p>
-      <a href="/catalogo.html" class="btn btn-primary bg-brand-500 hover:bg-brand-600 text-white px-6 py-3 rounded-2xl shadow-sm card-hover">Ver catálogo</a>
+      <h2 class="section-title text-2xl font-bold mb-4">Tecnologia que suma, sin complicaciones</h2>
+      <p class="text-muted-700 mb-6">Ese es nuestro norte. Si buscas precio, garantia y una atencion que responde, estamos en la misma sintonia.</p>
+      <a href="/catalogo.html" class="btn btn-primary bg-brand-500 hover:bg-brand-600 text-white px-6 py-3 rounded-2xl shadow-sm card-hover">Ver catalogo</a>
     </div>
   </section>
 
@@ -944,7 +1036,7 @@
           <a href="#quienes-somos" class="opacity-90 hover:opacity-100 hover:underline">Qui&eacute;nes somos</a>
           <a href="#propuesta-valor" class="opacity-90 hover:opacity-100 hover:underline">Propuesta</a>
           <a href="/catalogo.html" class="opacity-90 hover:opacity-100 hover:underline">Cat&aacute;logo</a>
-          <a href="#contacto" class="opacity-90 hover:opacity-100 hover:underline">Contacto</a>
+          <a href="/contact.html" class="opacity-90 hover:opacity-100 hover:underline">Contacto</a>
         </nav>
 
         <div class="flex items-center gap-3">
@@ -965,14 +1057,14 @@
 
   <!-- Schema.org JSON-LD (mantener) -->
   <!-- ==========================
-Schema.org — Organization (ajustá datos si cambia el teléfono o agregás redes)
+Schema.org � Organization (ajust� datos si cambia el tel�fono o agreg�s redes)
 ========================== -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "Organization",
-  "name": "Ensintonía",
-  "description": "Importadora y distribuidora de electrónica y productos para el hogar. Atención mayorista y minorista desde Quilmes Oeste.",
+  "name": "Ensinton�a",
+  "description": "Importadora y distribuidora de electr�nica y productos para el hogar. Atenci�n mayorista y minorista desde Quilmes Oeste.",
   "address": {
     "@type": "PostalAddress",
     "streetAddress": "Sarratea",
@@ -991,7 +1083,7 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
 }
 </script>
 
-  <!-- Small script to orchestrate hero entrance and small interactivity (delegado a main.js para la lógica pesada) -->
+  <!-- Small script to orchestrate hero entrance and small interactivity (delegado a main.js para la l�gica pesada) -->
   <script>
     // secuencia visual del hero (simple y ligera)
     (function(){
@@ -1145,10 +1237,10 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
   </script>
 
   <div id="mobile-nav" aria-hidden="true">
-    <button class="mn-overlay" data-close="1" aria-label="Cerrar menú"></button>
-    <nav class="mn-panel" role="dialog" aria-modal="true" aria-label="Menú móvil">
+    <button class="mn-overlay" data-close="1" aria-label="Cerrar men�"></button>
+    <nav class="mn-panel" role="dialog" aria-modal="true" aria-label="Men� m�vil">
       <div class="flex items-center justify-between mb-1">
-        <span class="font-semibold text-lg">Menú</span>
+        <span class="font-semibold text-lg">Men�</span>
         <button id="mobile-menu-close" class="p-2 rounded-md hover:bg-gray-100" aria-label="Cerrar">
           <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M6 18L18 6"/>
@@ -1157,21 +1249,21 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
       </div>
 
       <div>
-        <h6>Navegación</h6>
-        <a href="#quienes-somos" data-link>Quiénes somos</a>
+        <h6>Navegaci�n</h6>
+        <a href="#quienes-somos" data-link>Quienes somos</a>
         <a href="#propuesta-valor" data-link>Propuesta</a>
-        <a href="/catalogo.html" data-link>Catálogo</a>
-        <a href="#contacto" data-link>Contacto</a>
-        <a href="contact.html" data-link>Contacto (página)</a>
+        <a href="/catalogo.html" data-link>Catalogo</a>
+        <a href="/contact.html" data-link>Contacto</a>
+        <!-- <a href="contact.html" data-link>Contacto (p�gina)</a> -->
       </div>
 
       <div>
-        <h6>Categorías</h6>
+        <h6>Categorias</h6>
         <ul id="mobile-cats" class="space-y-1"></ul>
       </div>
 
       <div class="mt-2">
-        <h6>Acción</h6>
+        <h6>Accion</h6>
         <a href="https://wa.me/5491159914197" target="_blank" rel="noopener">WhatsApp</a>
       </div>
     </nav>
@@ -1186,7 +1278,7 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
 
       if(!btn || !panelWrap) return;
 
-      // syncCategories eliminado: ahora las categorías se inyectan en vivo desde Firestore
+      // syncCategories eliminado: ahora las categor�as se inyectan en vivo desde Firestore
 
       function trapFocus(e){
         if(e.key !== 'Tab') return;
@@ -1274,7 +1366,7 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
     })();
   </script>
 
-  <!-- Carga dinámica de categorías (Firestore) -->
+  <!-- Carga din�mica de categor�as (Firestore) -->
   <script type="module">
     console.log('BUILD ID:', '2025-08-31_15:40');
 
@@ -1285,16 +1377,16 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
     const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
 
     const $home   = document.getElementById('categories-list');   // chips en portada
-    const $mobile = document.getElementById('mobile-cats');       // menú hamburguesa
+    const $mobile = document.getElementById('mobile-cats');       // men� hamburguesa
     const $select = document.getElementById('category-jump');     // "Ir directo"
     const $clear  = document.getElementById('category-jump-clear');
 
-    // REEMPLAZO slugify previo por la versión solicitada
+    // REEMPLAZO slugify previo por la versi�n solicitada
     function slugify(s=''){
       return String(s)
         .normalize('NFD').replace(/[\u0300-\u036f]/g,'')   // quitar tildes
         .toLowerCase().trim()
-        .replace(/[^\w\s-]/g,'')                          // quitar símbolos raros
+        .replace(/[^\w\s-]/g,'')                          // quitar s�mbolos raros
         .replace(/\s+/g,'-')                              // espacios -> guion
         .replace(/-+/g,'-');                              // colapsar guiones
     }
@@ -1303,10 +1395,10 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
       console.log('[CATS] render count:', categories.length);
       if ($home)   $home.innerHTML = '';
       if ($mobile) $mobile.innerHTML = '';
-      if ($select) $select.innerHTML = '<option value="">Seleccioná una categoría…</option>';
+      if ($select) $select.innerHTML = '<option value="">Selecciona una categoria</option>';
 
       if (!categories.length){
-        if ($home) $home.innerHTML = '<li class="px-3 py-2 rounded-full category-tag opacity-70">Sin categorías</li>';
+        if ($home) $home.innerHTML = '<li class="px-3 py-2 rounded-full category-tag opacity-70">Sin categorias</li>';
         if ($clear) $clear.hidden = true;
         return;
       }
@@ -1315,7 +1407,7 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
       const fragMob  = document.createDocumentFragment();
 
       categories.forEach(c=>{
-        const name = c.name || c.nombre || 'Categoría';
+        const name = c.name || c.nombre || 'Categor�a';
         const slug = c.slug ? String(c.slug) : slugify(name);
         const icon = c.icon || c.iconUrl;
 
@@ -1355,7 +1447,7 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
       }
     }
 
-    // Delegación click móvil para cerrar y navegar
+    // Delegaci�n click m�vil para cerrar y navegar
     (function wireMobileNav(){
       if (!$mobile) return;
       $mobile.addEventListener('click', e=>{
@@ -1365,7 +1457,7 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
         // cerrar usando overlay existente para mantener animaciones
         const overlay = document.querySelector('#mobile-nav .mn-overlay');
         if (overlay) overlay.click();
-        // navegación natural
+        // navegaci�n natural
       });
     })();
 
@@ -1397,12 +1489,12 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
         render(Array.isArray(rows) ? rows : []);
         fixCategoryLinks();
       }catch(err){
-        console.error('[CATS] error cargando categorías', err);
+        console.error('[CATS] error cargando categorias', err);
         render([]);
       }
     }
 
-    // --- fuerza href correcto en todos los links de categorías (home + hamburguesa) ---
+    // --- fuerza href correcto en todos los links de categor�as (home + hamburguesa) ---
     function fixCategoryLinks(){
       const roots = [
         document.getElementById('categories-list'),
@@ -1429,16 +1521,16 @@ Schema.org — Organization (ajustá datos si cambia el teléfono o agregás red
       });
     }
 
-    // Cargar categorías ahora (sin Firebase)
+    // Cargar categor�as ahora (sin Firebase)
     loadCategories();
 
   </script>
 
-  <!-- catalogo.html (agregá esto antes de filtrar productos por categoría, por ejemplo antes de loadProductsByCategory)
+  <!-- catalogo.html (agreg� esto antes de filtrar productos por categor�a, por ejemplo antes de loadProductsByCategory)
 const urlParams = new URLSearchParams(window.location.search);
 const category = urlParams.get('category') || urlParams.get('cat'); // retrocompatibilidad
 
-// Luego usá la constante category para filtrar productos por su slug
+// Luego us� la constante category para filtrar productos por su slug
 // Ejemplo de uso:
 if (category) {
   // filtrar productos por slug === category

@@ -86,5 +86,4 @@ function requirePermission(perms) {
   };
 }
 
-module.exports = { requirePermission, resolveEffectivePermissions };
-
+module.exports = { requirePermission, resolveEffectivePermissions, matchPermission, isEnvAdmin };

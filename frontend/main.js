@@ -35,6 +35,16 @@ let productsInitialLoadComplete = false;
 let categoryAnimationIntervals = {};
 
 // --- Helpers ---
+// Tiny DOM helpers to avoid repetir querySelector en todo el archivo
+const qs = (selector, root = document) => root.querySelector(selector);
+const qsa = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+
+// Búsqueda avanzada legacy deshabilitada en catálogo:
+// devolvemos valores neutros para que cualquier llamada residual no falle.
+function getSearchInputs() { return []; }
+function getBestSearchInput() { return null; }
+function parseNumber(v) { return Number(v); }
+
 function checkAndHideMainLoader() {
   if (categoriesInitialLoadComplete && productsInitialLoadComplete) {
     hideLoading('futuristic-loader');
@@ -42,14 +52,14 @@ function checkAndHideMainLoader() {
 }
 
 function showLoading(id) {
-  const el = document.getElementById(id);
+  const el = qs(`#${id}`);
   if (!el) return;
   el.classList.remove('hidden');
   if (id === 'futuristic-loader') document.body.style.overflow = 'hidden';
 }
 
 function hideLoading(id) {
-  const el = document.getElementById(id);
+  const el = qs(`#${id}`);
   if (!el) return;
   if (id === 'futuristic-loader') {
     el.style.opacity = '0';
@@ -107,6 +117,13 @@ function showMessageBox(message, duration = null) {
   return box;
 }
 
+// Toast ligero reutilizando el mismo markup que la message box,
+// pero con una duración corta por defecto.
+function showToast(message, type = 'info', duration = 1800) {
+  // type se deja por si más adelante se diferencian estilos (success/error/info)
+  return showMessageBox(message, duration);
+}
+
 async function registerClientFromCatalog(payload) {
   const resp = await fetch(`${API_BASE}/clients/register`, {
     method: 'POST',
@@ -134,6 +151,91 @@ function getClientAccessToken() {
     return localStorage.getItem('clientAccessToken') || '';
   } catch {
     return '';
+  }
+}
+
+async function refreshClientAccessToken() {
+  try {
+    const refreshToken = localStorage.getItem('clientRefreshToken');
+    if (!refreshToken) return '';
+    const resp = await fetch(`${API_BASE}/refresh-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ refreshToken })
+    });
+    if (!resp.ok) return '';
+    const data = await resp.json().catch(() => null);
+    if (!data || !data.accessToken) return '';
+    const storedUserRaw = localStorage.getItem('clientUser');
+    let storedUser = null;
+    try { storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null; } catch { storedUser = null; }
+    saveClientSession({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken || refreshToken,
+      user: storedUser || undefined
+    });
+    return data.accessToken;
+  } catch {
+    return '';
+  }
+}
+
+if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+  const __originalFetch = window.fetch.bind(window);
+  window.fetch = async (input, init) => {
+    try {
+      const url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+      if (!url || !url.startsWith(`${API_BASE}/checkout`)) {
+        return __originalFetch(input, init);
+      }
+      let resp = await __originalFetch(input, init);
+      if (resp.status !== 401 && resp.status !== 403) return resp;
+      const refreshed = await refreshClientAccessToken();
+      if (!refreshed) {
+        try {
+          clearClientSession();
+          updateClientAuthUi();
+          updateClientLogoutUi();
+          showMessageBox('Tu sesion de cliente vencio. Inicia sesion nuevamente para finalizar la compra.');
+        } catch {}
+        return resp;
+      }
+      const newInit = Object.assign({}, init || {});
+      let headers = newInit.headers || {};
+      if (typeof Headers !== 'undefined' && headers instanceof Headers) {
+        headers.set('Authorization', `Bearer ${refreshed}`);
+      } else {
+        headers = Object.assign({}, headers, { Authorization: `Bearer ${refreshed}` });
+        newInit.headers = headers;
+      }
+      return __originalFetch(input, newInit);
+    } catch {
+      return __originalFetch(input, init);
+    }
+  };
+}
+
+let checkoutSellersLoaded = false;
+
+async function loadCheckoutSellers() {
+  if (checkoutSellersLoaded) return;
+  checkoutSellersLoaded = true;
+  try {
+    const resp = await fetch(`${API_BASE}/sellers`, { headers: { Accept: 'application/json' } });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json().catch(() => []);
+    const sellers = Array.isArray(data) ? data : [];
+    const sel = document.getElementById('checkout-seller');
+    if (!sel) return;
+    sel.innerHTML = '<option value=\"\">Selecciona un vendedor</option>';
+    sellers.forEach((s) => {
+      const opt = document.createElement('option');
+      opt.value = String(s.id);
+      opt.textContent = s.displayName || s.username || s.name || ('#' + s.id);
+      sel.appendChild(opt);
+    });
+  } catch (err) {
+    console.error('loadCheckoutSellers error', err);
   }
 }
 
@@ -763,10 +865,71 @@ function computeFilteredList(){
   return list;
 }
 
-function applySortAndRender() {
+function showCatalogEmpty(show) {
+  const empty = document.getElementById('catalog-empty');
+  const grid = document.getElementById('contenedor-productos');
+  if (!empty || !grid) return;
+  if (show) {
+    empty.classList.remove('hidden');
+    grid.classList.add('hidden');
+  } else {
+    empty.classList.add('hidden');
+    grid.classList.remove('hidden');
+  }
+}
+
+function renderCatalog(list) {
   const container = document.getElementById('contenedor-productos');
   if (!container) return;
-  const grid = container;
+  container.innerHTML = '';
+
+  if (!list || !list.length) {
+    showCatalogEmpty(true);
+    return;
+  }
+
+  showCatalogEmpty(false);
+  list.forEach(p => {
+    const id = p.id;
+    const name = p.name || 'Producto';
+    const description = p.description || '';
+    const imageUrl = p.imageUrl || 'https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';
+    const price = p.price;
+    const catLabel = p.categoryName || p.category || '';
+
+    const mediaHtml = `
+      <div class="media-frame relative aspect-[4/3] overflow-hidden rounded-t-2xl">
+        ${catLabel ? `<span class="cat-badge">${catLabel}</span>` : ''}
+        <img loading="lazy" decoding="async" src="${imageUrl}" alt="${name}"
+             class="w-full h-full object-cover"
+             onerror="this.onerror=null;this.src='https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';">
+      </div>`;
+
+    const priceHtml = price != null
+      ? `<div class="mt-3"><span class="price-chip"><i class="fa-solid fa-tag text-white/80 text-xs"></i>${currency(price)}</span></div>`
+      : '<p class="text-futuristic-mute italic mt-3 text-sm">Consultar</p>';
+
+    const card = document.createElement('div');
+    card.id = `product-${id}`;
+    card.dataset.id = id;
+    card.dataset.reveal = '1';
+    card.className = 'product-card group rounded-2xl flex flex-col cursor-pointer';
+    card.innerHTML = `
+      ${mediaHtml}
+      <div class="p-4 sm:p-5 flex flex-col flex-grow">
+        <h3 class="text-[15px] leading-snug line-clamp-2 text-futuristic-ink">${name}</h3>
+        <p class="text-futuristic-mute text-xs mt-1 flex-grow line-clamp-3">${description}</p>
+        ${priceHtml}
+      </div>`;
+    container.appendChild(card);
+  });
+
+  enhanceProductCardsForReveal();
+}
+
+function applySortAndRender() {
+  const grid = document.getElementById('contenedor-productos');
+  if (!grid) return;
   try {
     grid.classList.add('transitioning');
   } catch {}
@@ -780,47 +943,8 @@ function applySortAndRender() {
     return 0;
   });
 
-  container.innerHTML = '';
-  if (!list.length) {
-    container.innerHTML = '<p class="col-span-full text-center text-futuristic-mute">No hay productos disponibles.</p>';
-  } else {
-    list.forEach(p => {
-      const id = p.id;
-      const name = p.name || 'Producto';
-      const description = p.description || '';
-      const imageUrl = p.imageUrl || 'https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';
-      const price = p.price;
-      const catLabel = p.categoryName || p.category || '';
+  renderCatalog(list);
 
-      let mediaHtml = `
-        <div class="media-frame relative aspect-[4/3] overflow-hidden rounded-t-2xl">
-          ${catLabel ? `<span class="cat-badge">${catLabel}</span>` : ''}
-          <img loading="lazy" decoding="async" src="${imageUrl}" alt="${name}"
-               class="w-full h-full object-cover"
-               onerror="this.onerror=null;this.src='https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';">
-        </div>`;
-
-      const priceHtml = price != null
-        ? `<div class="mt-3"><span class="price-chip"><i class="fa-solid fa-tag text-white/80 text-xs"></i>${currency(price)}</span></div>`
-        : '<p class="text-futuristic-mute italic mt-3 text-sm">Consultar</p>';
-
-      const card = document.createElement('div');
-      card.id = `product-${id}`;
-      card.dataset.id = id;
-      card.dataset.reveal = '1';
-      card.className = 'product-card group rounded-2xl flex flex-col cursor-pointer';
-      card.innerHTML = `
-        ${mediaHtml}
-        <div class="p-4 sm:p-5 flex flex-col flex-grow">
-          <h3 class="text-[15px] leading-snug line-clamp-2 text-futuristic-ink">${name}</h3>
-          <p class="text-futuristic-mute text-xs mt-1 flex-grow line-clamp-3">${description}</p>
-          ${priceHtml}
-        </div>`;
-      container.appendChild(card);
-    });
-  }
-
-  enhanceProductCardsForReveal();
   try {
     requestAnimationFrame(() => {
       grid.classList.remove('transitioning');
@@ -1337,28 +1461,26 @@ document.addEventListener('DOMContentLoaded', () => {
         'function') window.applyPriceFilter(); } });
     }
   });
-  // init search bindings (desktop + mobile)
-  try { setupSearch(); } catch {}
   // clear filters button
   const clearBtn = document.getElementById('clear-filters-btn');
   if (clearBtn && !clearBtn.dataset.bindClear) {
     clearBtn.dataset.bindClear = '1';
     clearBtn.addEventListener('click', () => {
-      const minEl = document.getElementById('min-price');
-      const maxEl = document.getElementById('max-price');
-      if (minEl) minEl.value = '';
-      if (maxEl) maxEl.value = '';
-      delete window.__priceMin;
-      delete window.__priceMax;
-      delete window.__searchQuery;
-      delete window.__searchCategory;
-      delete window.__searchId;
       try {
-        const searchInputs = getSearchInputs();
-        searchInputs.forEach(inp => { inp.value = ''; });
+        if (typeof window.resetCatalogFilters === 'function') {
+          window.resetCatalogFilters();
+        } else {
+          // Fallback mínimo: limpiar precios y recargar listado
+          const minEl = document.getElementById('min-price');
+          const maxEl = document.getElementById('max-price');
+          if (minEl) minEl.value = '';
+          if (maxEl) maxEl.value = '';
+          delete window.__priceMin;
+          delete window.__priceMax;
+          window.__filteredList = null;
+          applySortAndRender();
+        }
       } catch {}
-      try { updateActiveFiltersUI(); } catch {}
-      applySortAndRender();
     });
   }
   // Observe DOM for dynamically added search inputs (e.g., mobile menu)
@@ -1366,7 +1488,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let scheduled = false;
     const obs = new MutationObserver(() => {
       if (scheduled) return; scheduled = true;
-      setTimeout(()=>{ scheduled = false; try { setupSearch(); } catch {} }, 150);
+      setTimeout(()=>{ scheduled = false; }, 150);
     });
     obs.observe(document.body, { childList: true, subtree: true });
   } catch {}
@@ -1390,41 +1512,37 @@ function applyPriceFilter() {
 }
 window.applyPriceFilter = applyPriceFilter;
 
-// --- Search ---
-function getSearchInputs(){
-  const sel = [
-    '#search-input', '#search', '#buscador', '#q', '[name="search"]', '[name="q"]', '[data-search-input]', '.search-input',
-    'input[type="search"]', 'input[placeholder*="Buscar" i]', 'input[aria-label*="Buscar" i]'
-  ];
-  const list = new Set();
-  sel.forEach(s => document.querySelectorAll(s).forEach(el => { if (el instanceof HTMLInputElement) list.add(el); }));
-  // Excluir el input móvil específico; tiene su propio typeahead dedicado
-  return Array.from(list).filter(el => el.id !== 'search-input-mobile');
+function clearPriceFilter() {
+  const minEl = document.getElementById('min-price');
+  const maxEl = document.getElementById('max-price');
+  if (minEl) minEl.value = '';
+  if (maxEl) maxEl.value = '';
+  delete window.__priceMin;
+  delete window.__priceMax;
+  try { updateActiveFiltersUI(); } catch {}
+  applySortAndRender();
 }
-function isVisible(el){ return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length); }
-function getBestSearchInput(){
-  const inputs = getSearchInputs();
-  if (!inputs.length) return null;
-  const vis = inputs.find(isVisible);
-  return vis || inputs[0];
+
+function resetCatalogFilters() {
+  clearPriceFilter();
+  try {
+    applyTextSearch('');
+  } catch {
+    window.__filteredList = null;
+    applySortAndRender();
+  }
 }
-function parseNumber(v){
-  if (v==null) return NaN; return parseFloat(String(v).replace(/\./g,'').replace(',', '.'));
-}
+
+window.clearPriceFilter = clearPriceFilter;
+window.resetCatalogFilters = resetCatalogFilters;
 
 function updateActiveFiltersUI() {
   const wrap = document.getElementById('active-filters');
   if (!wrap) return;
   const chips = [];
-  const hasSearch = !!(window.__searchQuery && window.__searchQuery.trim());
-  const hasCat = !!(window.__searchCategory && window.__searchCategory.trim());
-  const hasId = !!(window.__searchId && window.__searchId.trim());
   const hasMin = typeof window.__priceMin === 'number';
   const hasMax = typeof window.__priceMax === 'number' && isFinite(window.__priceMax) && window.__priceMax !== Infinity;
 
-  if (hasSearch) chips.push({ key: 'search', label: `Texto: "${window.__searchQuery}"` });
-  if (hasCat) chips.push({ key: 'cat', label: `Categoría: ${window.__searchCategory}` });
-  if (hasId) chips.push({ key: 'id', label: `ID: ${window.__searchId}` });
   if (hasMin || hasMax) {
     const parts = [];
     if (hasMin) parts.push(`mín ${window.__priceMin}`);
@@ -1977,9 +2095,10 @@ function generateOrderId(){
     return `ENS-${Date.now()}`;
   }
 }
-function openCheckout(){
+async function openCheckout(){
   const ov = document.getElementById('checkout-overlay');
   if (!ov) return;
+  try { await loadCheckoutSellers(); } catch {}
   const { total } = cartTotals();
   const tot = document.getElementById('checkout-total');
   if (tot) tot.textContent = currency(total);
@@ -2073,9 +2192,12 @@ document.getElementById('checkout-form')?.addEventListener('submit', async (e) =
     if (insufficient.length){ showMessageBox('No hay stock suficiente para:\n' + insufficient.join('\n')); return; }
   } catch {}
 
+  const sellerSel = document.getElementById('checkout-seller');
+  const sellerIdRaw = sellerSel ? sellerSel.value : '';
   const payload = {
     buyer: { name, lastname, dni, email, phone: phoneDigits },
-    items: cart.map(it => ({ productId: Number(it.id), quantity: Number(it.qty) }))
+    items: cart.map(it => ({ productId: Number(it.id), quantity: Number(it.qty) })),
+    sellerUserId: sellerIdRaw ? Number(sellerIdRaw) : null
   };
   try {
     const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };

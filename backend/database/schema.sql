@@ -90,14 +90,16 @@ CREATE TABLE Products (
 -- Orders table
 CREATE TABLE Orders (
   id SERIAL PRIMARY KEY,
-  user_id INT NOT NULL,
+  user_id INT NOT NULL,              -- Usuario que realiza la compra (cliente o actor principal)
+  seller_user_id INT NULL,           -- Usuario vendedor que se lleva la comisión
   order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   status VARCHAR(50) NOT NULL,
   total_amount DECIMAL(10, 2) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   deleted_at TIMESTAMP DEFAULT NULL,
-  FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE ON UPDATE CASCADE
+  FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (seller_user_id) REFERENCES Users(id) ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- OrderItems table
@@ -331,6 +333,7 @@ CREATE INDEX idx_users_created_at ON Users(created_at);
 CREATE INDEX idx_products_category_id ON Products(category_id);
 CREATE INDEX idx_products_name ON Products(name);
 CREATE INDEX idx_orders_user_id ON Orders(user_id);
+CREATE INDEX idx_orders_seller_user_id ON Orders(seller_user_id);
 CREATE INDEX idx_orders_status ON Orders(status);
 CREATE INDEX idx_orders_order_date ON Orders(order_date);
 CREATE INDEX idx_orderitems_order_id ON OrderItems(order_id);

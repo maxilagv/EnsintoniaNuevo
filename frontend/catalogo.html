@@ -69,41 +69,13 @@
         </style>
         <!-- Header y tarjetas: pulido visual coherente con index -->
         <style>
-            /* Header glass + neon line */
+            /* Header glass */
             #main-header {
                 background: rgba(8,17,51,0.75);
                 backdrop-filter: blur(18px);
                 -webkit-backdrop-filter: blur(18px);
                 border-bottom: 1px solid rgba(49,62,85,0.5);
             }
-            #main-header::after {
-                content: '';
-                position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
-                background: linear-gradient(90deg,#60a5fa,#7c3aed,#6ee7b7);
-                filter: drop-shadow(0 0 10px rgba(124,58,237,0.25)); opacity:.9;
-            }
-            #main-header nav a:not(.btn) {
-                position: relative;
-                display: inline-block;
-                font-weight: 500;
-                letter-spacing: 0.02em;
-                padding-inline: 0.2rem;
-                padding-block: 0.15rem;
-            }
-            #main-header nav a:not(.btn)::after{
-                content:'';
-                position:absolute;
-                left:0;
-                bottom:-6px;
-                height:2px;
-                width:100%;
-                background: linear-gradient(90deg,#60a5fa,#7c3aed,#6ee7b7);
-                transform: scaleX(0);
-                transform-origin: left;
-                transition: transform 0.35s ease;
-                border-radius:999px;
-            }
-            #main-header nav a:not(.btn):hover::after{ transform: scaleX(1); }
 
             /* Tarjetas de cat�logo */
             .product-card {
@@ -157,49 +129,51 @@
                 opacity: 0.08;
                 z-index: 0;
             }
-            /Header: glass + neon divider / #main-header {
+            /* Header: glass; sin barra neon global (solo texto resalta) */
+            #main-header {
                 background: rgba(8, 17, 51, 0.55);
                 backdrop-filter: blur(14px);
                 -webkit-backdrop-filter: blur(14px);
                 border-bottom: 1px solid rgba(49, 62, 85, 0.35);
             }
-            #main-header::after {
-                content: "";
-                position: absolute;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                height: 2px;
-                background: linear-gradient(90deg, #60a5fa, #7c3aed, #6ee7b7);
-                filter: drop-shadow(0 0 10px rgba(124, 58, 237, 0.25));
-                opacity: 0.9;
-            }
             #main-header.scrolled {
-                background: rgba(6, 18, 41, 0.75);
-                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
-                border-color: rgba(49, 62, 85, 0.5);
+                background: rgba(6, 18, 41, 0.9);
+                box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+                border-color: rgba(49, 62, 85, 0.4);
             }
-            / Nav underline animation (no HTML changes) / #main-header nav a:not(.btn) {
+            /* Nav desktop: hover limpio con subrayado corto */
+            #main-header nav a:not(.btn) {
                 position: relative;
                 display: inline-block;
                 font-weight: 500;
                 letter-spacing: 0.02em;
+                padding-inline: 0.35rem;
+                padding-block: 0.15rem;
+                color: var(--futuristic-ink);
+                opacity: 0.9;
             }
             #main-header nav a:not(.btn)::after {
                 content: "";
                 position: absolute;
-                left: 0;
-                bottom: -6px;
+                left: 50%;
+                bottom: -4px;
                 height: 2px;
-                width: 100%;
+                width: 60%;
+                transform: translateX(-50%) scaleX(0);
+                transform-origin: center;
                 background: linear-gradient(90deg, #60a5fa, #7c3aed, #6ee7b7);
-                transform: scaleX(0);
-                transform-origin: left;
-                transition: transform 0.35s ease;
+                transition: transform 0.3s ease;
                 border-radius: 999px;
+                opacity: 0.75;
             }
-            #main-header nav a:not(.btn):hover::after {
-                transform: scaleX(1);
+            #main-header nav a:not(.btn):hover::after,
+            #main-header nav a:not(.btn):focus-visible::after {
+                transform: translateX(-50%) scaleX(1);
+            }
+            #main-header nav a:not(.btn):hover,
+            #main-header nav a:not(.btn):focus-visible {
+                opacity: 1;
+                outline: none;
             }
             / Global type scale / h1 {
                 font-size: 3rem;
@@ -462,6 +436,86 @@
             input:focus-visible {
                 outline: 2px solid rgba(96,165,250,0.95);
                 outline-offset: 2px;
+            }
+
+            /* Asegurar contraste en selects desplegables en todos los navegadores */
+            select,
+            select option {
+                color: #e5edff;
+                background-color: rgba(15, 23, 42, 0.98);
+            }
+
+            /* Modales unificados (checkout, registro, login, carrito) */
+            .catalog-modal-overlay {
+                position: fixed;
+                inset: 0;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                background: radial-gradient(circle at top, rgba(15, 23, 42, 0.9), rgba(6, 10, 19, 0.98));
+                backdrop-filter: blur(18px);
+                -webkit-backdrop-filter: blur(18px);
+                z-index: 140;
+            }
+            .catalog-modal-overlay:not(.hidden) {
+                display: flex;
+            }
+            .catalog-modal-panel {
+                width: 95%;
+                max-width: 40rem;
+                max-height: calc(100vh - 4rem);
+                border-radius: 1.25rem;
+                border: 1px solid rgba(148, 163, 184, 0.55);
+                background: radial-gradient(120% 180% at top left, rgba(20, 32, 70, 0.96), rgba(9, 14, 26, 0.98));
+                box-shadow:
+                    0 24px 80px rgba(15, 23, 42, 0.95),
+                    0 0 0 1px rgba(15, 23, 42, 0.9);
+                padding: 1.25rem 1.25rem 1.5rem;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                transform: translateY(12px) scale(0.98);
+                opacity: 0;
+                transition:
+                    opacity 0.18s ease-out,
+                    transform 0.18s ease-out;
+            }
+            .catalog-modal-panel.modal-open {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            .catalog-modal-header {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                padding-bottom: 0.75rem;
+                margin-bottom: 1rem;
+                border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+            }
+            .catalog-modal-title {
+                font-size: 1.1rem;
+                font-weight: 600;
+                color: var(--text-primary);
+            }
+            .catalog-modal-subtitle {
+                font-size: 0.78rem;
+                color: var(--text-muted);
+                margin-top: 0.15rem;
+            }
+            .catalog-modal-body {
+                flex: 1;
+                overflow-y: auto;
+                padding-right: 0.25rem;
+            }
+            .catalog-modal-footer {
+                margin-top: 1.25rem;
+                display: flex;
+                justify-content: flex-end;
+                gap: 0.5rem;
+            }
+            .catalog-modal-close-btn {
+                border-radius: 999px;
+                padding: 0.35rem 0.55rem;
             }
 
             /* Loader pantalla completa principal */
@@ -777,6 +831,141 @@
                 border-left: 1px solid rgba(148, 163, 184, 0.55);
             }
         </style>
+        <!-- Catálogo: limpieza base y tarjetas refinadas -->
+        <style>
+            /* Grilla de productos: transición suave y tarjetas estiradas */
+            .product-grid {
+                transition: opacity 0.26s ease, transform 0.26s ease;
+                align-items: stretch;
+            }
+            .product-grid.transitioning {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            /* Botones: hover consistente en todo el catálogo */
+            .btn {
+                position: relative;
+                transition:
+                    transform 0.18s ease-out,
+                    box-shadow 0.18s ease-out,
+                    background 0.18s ease-out;
+            }
+            .btn::after {
+                content: "";
+                position: absolute;
+                inset: -1px;
+                border-radius: inherit;
+                background: radial-gradient(circle at top, rgba(148, 163, 184, 0.35), transparent 55%);
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.22s ease-out;
+            }
+            .btn:hover {
+                transform: translateY(-1px) scale(1.02);
+                box-shadow: 0 14px 40px rgba(15, 23, 42, 0.55);
+            }
+            .btn:hover::after {
+                opacity: 1;
+            }
+
+            /* Tarjetas de catálogo: look más “e‑commerce pro” */
+            .product-card {
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                background: radial-gradient(circle at top, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.94));
+                border-radius: 1rem;
+                border: 1px solid rgba(51, 65, 85, 0.7);
+                box-shadow: 0 18px 45px rgba(15, 23, 42, 0.85);
+                overflow: hidden;
+                color: var(--text-primary);
+                transform-origin: center;
+                transition:
+                    transform 0.22s cubic-bezier(.2, .9, .2, 1),
+                    box-shadow 0.22s ease,
+                    border-color 0.22s ease,
+                    background 0.22s ease;
+            }
+            .product-card:hover {
+                transform: translateY(-6px) scale(1.01);
+                box-shadow: 0 24px 65px rgba(15, 23, 42, 0.95);
+                border-color: #6ee7b7;
+                background: radial-gradient(circle at top, rgba(30, 64, 175, 0.85), rgba(15, 23, 42, 0.98));
+            }
+
+            .product-card[data-reveal] {
+                opacity: 0;
+                transform: translateY(10px) scale(0.995);
+            }
+            .product-card.reveal-show {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                transition:
+                    opacity 0.42s ease,
+                    transform 0.42s cubic-bezier(.2, .9, .2, 1);
+            }
+
+            .media-frame {
+                position: relative;
+                overflow: hidden;
+                border-bottom: 1px solid rgba(15, 23, 42, 0.95);
+                background: radial-gradient(circle at top, rgba(15, 23, 42, 1), rgba(15, 23, 42, 0.9));
+            }
+            .media-frame img {
+                transition: transform 0.35s ease-out, opacity 0.35s ease-out;
+            }
+            .product-card:hover .media-frame img {
+                transform: scale(1.04);
+            }
+
+            .cat-badge {
+                position: absolute;
+                top: 0.6rem;
+                left: 0.7rem;
+                padding: 0.22rem 0.7rem;
+                font-size: 0.68rem;
+                font-weight: 600;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                border-radius: 999px;
+                background: linear-gradient(90deg, #6ee7b7, #60a5fa 40%, #7c3aed);
+                color: #ffffff;
+                box-shadow: 0 10px 28px rgba(15, 23, 42, 0.9);
+            }
+
+            .price-chip {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
+                padding: 0.4rem 0.8rem;
+                border-radius: 999px;
+                background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.22), transparent 60%);
+                border: 1px solid rgba(148, 163, 184, 0.7);
+                font-weight: 700;
+                font-size: 0.9rem;
+                color: var(--text-primary);
+                letter-spacing: 0.03em;
+            }
+            .price-chip i {
+                font-size: 0.7rem;
+            }
+
+            .product-card h3 {
+                font-size: 0.95rem;
+                line-height: 1.35;
+                font-weight: 600;
+            }
+            .product-card p {
+                font-size: 0.8rem;
+            }
+
+            @media (max-width: 640px) {
+                .product-card {
+                    border-radius: 0.9rem;
+                }
+            }
+        </style>
     </head>
     <body class="font-inter text-[15px] lg:text-base antialiased">
         <div id="futuristic-loader">
@@ -828,17 +1017,35 @@
                     </a>
                 </nav>
                 <!-- desktop simple search -->
-                <div class="hidden md:flex items-center gap-2 ml-4">
+                <div class="hidden md:flex items-center gap-3 ml-4 bg-slate-900/70 border border-white/10 rounded-2xl px-3 py-1.5 shadow-lg">
+                    <i class="fa-solid fa-magnifying-glass text-slate-300 text-xs mr-1"></i>
                     <input
                         id="simple-search-input"
-                        type="text"
+                        type="search"
                         autocomplete="off"
-                        placeholder="Escribe y Enter"
-                        class="rounded-2xl border border-white/20 px-3 py-1.5 bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-brand-100/30 min-w-[220px]"
+                        placeholder="Buscar por producto, marca o categoría"
+                        class="flex-1 bg-transparent border-0 text-futuristic-ink placeholder-slate-400 text-sm focus:outline-none"
                     />
-                    <button id="simple-search-btn" type="button" class="px-3 py-1.5 rounded-2xl bg-brand-600 text-white text-sm hover:bg-brand-700">Buscar</button>
-                    <button id="cart-button" type="button" class="relative ml-2 p-2 rounded-full hover:bg-white/10" aria-label="Carrito">
-                        <i class="fa-solid fa-cart-shopping text-white"></i> <span id="cart-count" class="absolute -top-1 -right-1 text-[10px] px-1.5 py-0.5 rounded-full bg-brand-600 text-white">0</span>
+                    <button
+                        id="simple-search-btn"
+                        type="button"
+                        class="btn px-3 py-1.5 rounded-2xl bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700"
+                    >
+                        Buscar
+                    </button>
+                    <button
+                        id="cart-button"
+                        type="button"
+                        class="relative ml-2 p-2 rounded-full hover:bg-white/10"
+                        aria-label="Carrito"
+                    >
+                        <i class="fa-solid fa-cart-shopping text-white"></i>
+                        <span
+                            id="cart-count"
+                            class="absolute -top-1 -right-1 text-[10px] px-1.5 py-0.5 rounded-full bg-brand-600 text-white"
+                        >
+                            0
+                        </span>
                     </button>
                 </div>
                 <!-- mobile right controls -->
@@ -1055,13 +1262,6 @@
                             </button>
                         </div>
                     </div>
-                    <!-- Loader productos inline -->
-                    <div id="products-inline-spinner" class="w-full flex justify-center py-6 hidden">
-                        <div class="loader-pill flex items-center gap-3 px-4 py-2 rounded-full bg-slate-900/80 border border-white/10 shadow-md">
-                            <div class="h-6 w-6 rounded-full border-2 border-brand-300 border-t-transparent animate-spin"></div>
-                            <span class="text-xs font-medium tracking-wide text-futuristic-mute">Cargando productos…</span>
-                        </div>
-                    </div>
                     <!-- Filtro por rango de precio -->
                     <div id="price-filter" class="flex flex-wrap items-center gap-3 mt-4">
                         <input
@@ -1238,13 +1438,6 @@
         <!-- Enlace al archivo JavaScript externo -->
         <script src="main.js" type="module"></script>
         <!-- Overlays de loaders (nuevos) -->
-        <!-- Loader de CATEGOR?AS -->
-        <div id="categories-loading-spinner" class="hidden fixed inset-0 z-[60] grid place-items-center bg-white/5 backdrop-blur-sm">
-            <div class="rounded-2xl border border-white/20 bg-gray-900/80 shadow-lg p-5 text-center text-futuristic-ink">
-                <div class="animate-spin h-6 w-6 mx-auto mb-3 rounded-full border-2 border-white/30 border-t-brand-1"></div>
-                <p class="text-sm font-medium">Cargando categorias</p>
-            </div>
-        </div>
         <!-- Checkout Overlay -->
         <div id="checkout-overlay" class="fixed inset-0 z-[140] hidden" aria-hidden="true">
             <div class="absolute inset-0 bg-black/60" data-checkout-close></div>
@@ -1315,6 +1508,17 @@
                             />
                             <p class="text-xs text-futuristic-mute mt-1">Ingrese un telefono de contacto.</p>
                         </div>
+                    </div>
+                    <div class="mt-2">
+                        <label for="checkout-seller" class="block text-sm text-futuristic-mute mb-1">¿Quién fue tu vendedor?</label>
+                        <select
+                            id="checkout-seller"
+                            class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-futuristic-ink placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-brand-1"
+                            required
+                        >
+                            <option value="">Selecciona un vendedor</option>
+                        </select>
+                        <p class="text-xs text-futuristic-mute mt-1">Elige la persona que te asesoró o te derivó a comprar.</p>
                     </div>
                     <div class="rounded-2xl border border-white/15 bg-white/5 p-4">
                         <p class="text-sm font-medium text-futuristic-ink mb-2">Metodo de pago</p>
@@ -1591,13 +1795,16 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-        <!-- Loader de PRODUCTOS -->
-        <div id="products-loading-spinner" class="hidden fixed inset-0 z-[60] grid place-items-center bg-white/5 backdrop-blur-sm">
-            <div class="rounded-2xl border border-white/20 bg-gray-900/80 shadow-lg p-5 text-center text-futuristic-ink">
-                <div class="animate-spin h-6 w-6 mx-auto mb-3 rounded-full border-2 border-white/30 border-t-brand-1"></div>
-                <p class="text-sm font-medium">Cargando productos</p>
+                <div id="catalog-empty" class="hidden mt-10 text-center text-futuristic-mute">
+                    <p class="text-sm sm:text-base">No encontramos productos con esa búsqueda o filtros.</p>
+                    <button
+                        type="button"
+                        onclick="window.resetCatalogFilters && window.resetCatalogFilters()"
+                        class="mt-3 btn px-4 py-2 rounded-2xl bg-brand-600 text-white text-sm hover:bg-brand-700"
+                    >
+                        Ver todo el catálogo
+                    </button>
+                </div>
             </div>
         </div>
         <!-- Ejemplo dentro de tu loop de categor?as -->

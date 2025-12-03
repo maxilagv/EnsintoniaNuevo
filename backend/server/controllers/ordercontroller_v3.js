@@ -3,6 +3,7 @@
 const { query, withTransaction } = require('../db/pg');
 const PDFDocument = require('pdfkit');
 const { body, validationResult } = require('express-validator');
+const { resolveEffectivePermissions, matchPermission, isEnvAdmin } = require('../middlewares/permission');
 
 // Validaciones de checkout
 const validateCheckout = [
@@ -22,7 +23,7 @@ async function createOrderUnified(req, res) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { buyer = {}, items = [] } = req.body || {};
+  const { buyer = {}, items = [], sellerUserId: sellerUserIdRaw, seller_user_id: sellerUserIdRaw2 } = req.body || {};
 
   // El checkout requiere que el usuario est� autenticado y vinculado a un cliente
   const authUser = req.user || {};
@@ -33,6 +34,7 @@ async function createOrderUnified(req, res) {
 
   let userId = null;
   let clientId = null;
+  let sellerUserId = null;
   try {
     const { rows: users } = await query(
       `SELECT id, client_id
@@ -97,6 +99,33 @@ async function createOrderUnified(req, res) {
         total += p.price * item.quantity;
       }
 
+      // 2.1) Resolver vendedor dentro de la transacción (opcionalmente valida existencia)
+      try {
+        const raw = sellerUserIdRaw != null ? sellerUserIdRaw : sellerUserIdRaw2;
+        const sid = Number(raw);
+        if (!Number.isInteger(sid) || sid <= 0) {
+          const e = new Error('Debe seleccionar un vendedor válido'); e.statusCode = 400; throw e;
+        }
+        const { rows: sellerRows } = await client.query(
+          `SELECT id, status, deleted_at
+             FROM Users
+            WHERE id = $1`,
+          [sid]
+        );
+        if (!sellerRows.length || sellerRows[0].deleted_at) {
+          const e = new Error('Vendedor no encontrado'); e.statusCode = 400; throw e;
+        }
+        const statusSeller = String(sellerRows[0].status || '').toUpperCase();
+        if (statusSeller !== 'ACTIVE') {
+          const e = new Error('El vendedor no está activo'); e.statusCode = 400; throw e;
+        }
+        sellerUserId = sellerRows[0].id;
+      } catch (e) {
+        if (e && e.statusCode) throw e;
+        console.error('Error resolviendo vendedor en checkout:', e && e.message ? e.message : e);
+        const err = new Error('No se pudo validar el vendedor'); err.statusCode = 500; throw err;
+      }
+
       // 3) Descontar stock usando adjust_product_stock (respeta triggers y evita updates directos)
       for (const item of items) {
         const qty = Number(item.quantity || 0);
@@ -150,13 +179,14 @@ async function createOrderUnified(req, res) {
 
       // 6) Crear orden con todos los campos
       const insOrder = await client.query(
-        `INSERT INTO Orders(user_id, client_id, order_date, status, total_amount,
+        `INSERT INTO Orders(user_id, client_id, seller_user_id, order_date, status, total_amount,
                             buyer_name, buyer_lastname, buyer_dni, buyer_email, buyer_phone)
-         VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4, $5, $6, $7, $8, $9)
+         VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4, $5, $6, $7, $8, $9, $10)
          RETURNING id`,
         [
           userId,
           clientId,
+          sellerUserId,
           'PAID',
           total,
           buyerName,
@@ -197,23 +227,107 @@ async function createOrderUnified(req, res) {
     res.status(201).json(result);
   } catch (err) {
     console.error('Checkout unificado error:', err.message);
-    if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+    if (err && err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
     res.status(500).json({ error: 'No se pudo crear la orden' });
   }
 }
 
 async function listOrdersV2(req, res) {
   try {
+    const emailRaw = req.user && req.user.email;
+    const email = emailRaw ? String(emailRaw).trim().toLowerCase() : null;
+    if (!email) return res.status(401).json({ error: 'No autenticado' });
+
+    let canSeeAll = false;
+    let currentUserId = null;
+
+    // Admin por variable de entorno: acceso completo
+    if (isEnvAdmin && isEnvAdmin(email)) {
+      canSeeAll = true;
+    } else {
+      // Resolver user_id del usuario autenticado
+      const { rows: users } = await query(
+        'SELECT id FROM Users WHERE LOWER(email) = $1 AND deleted_at IS NULL LIMIT 1',
+        [email]
+      );
+      if (!users.length) {
+        return res.status(403).json({ error: 'Usuario no registrado en el sistema' });
+      }
+      currentUserId = users[0].id;
+
+      // Resolver permisos efectivos y decidir si es admin completo
+      const perms = await resolveEffectivePermissions(currentUserId);
+      if (perms && perms.size && matchPermission('administracion.*', perms)) {
+        canSeeAll = true;
+      }
+    }
+
+    // Filtros opcionales por fecha y vendedor (solo admin puede elegir vendedor)
+    const fromRaw = req.query && req.query.from;
+    const toRaw = req.query && req.query.to;
+    const sellerRaw = req.query && (req.query.sellerId || req.query.seller_id);
+
+    let from = fromRaw ? new Date(fromRaw) : null;
+    let to = toRaw ? new Date(toRaw) : null;
+    if (from && isNaN(from.getTime())) from = null;
+    if (to && isNaN(to.getTime())) to = null;
+
+    let filterUserId = null;
+    if (canSeeAll) {
+      if (sellerRaw) {
+        const sid = Number(sellerRaw);
+        if (Number.isInteger(sid) && sid > 0) {
+          filterUserId = sid;
+        }
+      }
+    } else {
+      filterUserId = currentUserId;
+    }
+
+    const whereParts = ['o.deleted_at IS NULL'];
+    const params = [];
+
+    if (filterUserId) {
+      params.push(filterUserId);
+      whereParts.push(`COALESCE(o.seller_user_id, o.user_id) = $${params.length}`);
+    }
+    if (from) {
+      params.push(from.toISOString());
+      whereParts.push(`o.order_date >= $${params.length}`);
+    }
+    if (to) {
+      params.push(to.toISOString());
+      whereParts.push(`o.order_date <= $${params.length}`);
+    }
+
+    const whereSql = whereParts.length ? 'WHERE ' + whereParts.join(' AND ') : '';
+
     const { rows: orders } = await query(
-      `SELECT id, order_number, buyer_code,
-              buyer_name, buyer_lastname, buyer_dni, buyer_email, buyer_phone,
-              total_amount::float AS total_amount, status, order_date
-         FROM Orders
-        WHERE deleted_at IS NULL
-        ORDER BY id DESC
-        LIMIT 200`
+      `SELECT o.id,
+              o.order_number,
+              o.buyer_code,
+              o.buyer_name,
+              o.buyer_lastname,
+              o.buyer_dni,
+              o.buyer_email,
+              o.buyer_phone,
+              o.total_amount::float AS total_amount,
+              o.status,
+              o.order_date,
+              u.name AS seller_name,
+              u.email AS seller_email
+         FROM Orders o
+         LEFT JOIN Users u ON u.id = COALESCE(o.seller_user_id, o.user_id)
+         ${whereSql}
+        ORDER BY o.id DESC
+        LIMIT 200`,
+      params
     );
+
     if (!orders.length) return res.json([]);
+
     const ids = orders.map(o => o.id);
     const { rows: items } = await query(
       `SELECT oi.order_id, oi.quantity, oi.unit_price::float AS unit_price, p.name
@@ -228,10 +342,10 @@ async function listOrdersV2(req, res) {
       grouped.get(it.order_id).push({ name: it.name, quantity: it.quantity, unit_price: it.unit_price });
     }
     const result = orders.map(o => ({ ...o, items: grouped.get(o.id) || [] }));
-    res.json(result);
+    return res.json(result);
   } catch (err) {
     console.error('Error al listar pedidos V2:', err.message);
-    res.status(500).json({ error: 'No se pudo obtener pedidos' });
+    return res.status(500).json({ error: 'No se pudo obtener pedidos' });
   }
 }
 
