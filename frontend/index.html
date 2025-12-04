@@ -464,7 +464,9 @@
       box-shadow: var(--shadow-card-strong);
       border: 1px solid rgba(148,163,184,0.45);
       background: radial-gradient(circle at top, rgba(30,64,175,0.85), rgba(15,23,42,0.98));
-      min-height: 260px;
+      min-height: 160px;
+      max-width: 320px;
+      margin: 0 auto;
     }
     .about-photo-card img{
       width: 100%;
@@ -822,13 +824,7 @@
         <div>
           <h2 class="section-title text-2xl font-bold mb-4">Quienes somos</h2>
           <p class="text-muted-700 mb-4">
-            Somos Ensintonia, un local especializado en electronica y productos para el hogar, con atencion personalizada y garantia real.
-          </p>
-          <p class="text-muted-700 mb-4">
-            Nacimos con una idea simple: acercar tecnologia confiable al mejor precio posible, sin dolores de cabeza. Operamos desde Sarratea, Quilmes Oeste, combinando importacion directa, seleccion de marcas y un servicio posventa que responde.
-          </p>
-          <p class="text-muted-700">
-            Nuestra propuesta mezcla <strong>stock real</strong>, <strong>asesoria honesta</strong> y <strong>logistica simple</strong>. Si buscas electronica para uso personal o para tu negocio, queremos que encuentres lo esencial: buen producto, buen precio y buena atencion.
+            somos una Pyme especializada en la venta de confort, soluciones y tranquilidad a traves de una cartera de productos para hacer la vida mas facil en nuestros hogares y en las empresas.
           </p>
         </div>
         <figure class="about-photo-card">
@@ -840,7 +836,7 @@
           >
           <figcaption class="about-photo-caption">
             <span class="about-photo-caption-dot"></span>
-            <span>Local Ensintonia &bull; Quilmes Oeste</span>
+            <span>Casa Central</span>
           </figcaption>
         </figure>
       </div>
@@ -856,7 +852,7 @@
         </div>
         <div class="p-6 rounded-2xl shadow-sm card-modern">
           <h3 class="font-semibold mb-2">Posventa</h3>
-          <p class="text-sm text-muted-700">Soporte humano y gestion de garantias.</p>
+          <p class="text-sm text-muted-700">Soporte humano para consultas y uso de los productos.</p>
         </div>
         <div class="p-6 rounded-2xl shadow-sm card-modern">
           <h3 class="font-semibold mb-2">Alianzas B2B</h3>
@@ -932,18 +928,14 @@
   <section id="logistica" class="section py-12 bg-white/60">
     <div class="site-container">
       <h2 class="section-title text-2xl font-bold mb-4">Logistica y cobertura</h2>
-      <div class="grid md:grid-cols-3 gap-6">
+      <div class="grid md:grid-cols-2 gap-6">
         <div class="p-4 rounded-2xl shadow-sm value-card">
           <h4 class="font-semibold mb-2">Envios</h4>
-          <p class="text-sm text-muted-700">Correo y transporte; mensajeria en AMBA. Costos y tiempos segun destino y peso.</p>
+          <p class="text-sm text-muted-700">Hacemos envios a CABA, GBA y a todo el resto del pais.</p>
         </div>
         <div class="p-4 rounded-2xl shadow-sm value-card">
           <h4 class="font-semibold mb-2">Pagos</h4>
-          <p class="text-sm text-muted-700">Efectivo, transferencia y medios electronicos. Consulta por promociones.</p>
-        </div>
-        <div class="p-4 rounded-2xl shadow-sm value-card">
-          <h4 class="font-semibold mb-2">Facturacion</h4>
-          <p class="text-sm text-muted-700">Emitimos comprobantes segun normativa vigente.</p>
+          <p class="text-sm text-muted-700">Consultar medios de pagos con su vendedor.</p>
         </div>
       </div>
     </div>
@@ -953,12 +945,7 @@
   <section id="garantia" class="section py-12">
     <div class="site-container">
       <h2 class="section-title text-2xl font-bold mb-4">Garantias y cambios</h2>
-      <p class="text-muted-700 mb-4">Todos los productos cuentan con garantia del fabricante o del importador segun el caso. Si recibis algo con falla de origen, avisanos dentro de los plazos para gestionar el cambio o la reparacion.</p>
-      <ul class="list-disc pl-5 text-muted-700">
-        <li>Probamos y verificamos funcionamiento basico antes de despachar cuando corresponde.</li>
-        <li>Guarda packaging, accesorios y comprobante de compra para agilizar cualquier gestion.</li>
-        <li>Te asistimos para diagnosticar y resolver rapido.</li>
-      </ul>
+      <p class="text-muted-700 mb-4">Todos los productos son probados antes de ser retirados y cuentan con la garantia del fabricante.</p>
     </div>
   </section>
 
@@ -976,21 +963,44 @@
   </section>
 
   <!-- FAQ -->
-  <section id="faq" class="section py-12">
+  <section id="faq" class="section py-12 bg-white/5">
     <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-4">Preguntas frecuentes</h2>
-      <details class="mb-3">
-        <summary>Tienen stock real?</summary>
-        <p class="text-muted-700">Actualizamos el inventario a diario. Si algo varia, te avisamos antes de cerrar la compra.</p>
-      </details>
-      <details class="mb-3">
-        <summary>Hacen precios por cantidad?</summary>
-        <p class="text-muted-700">Si. Para comercios y revendedores tenemos escalas por volumen. Pedi tu lista.</p>
-      </details>
-      <details class="mb-3">
-        <summary>¿Cuanto tarda el envio?</summary>
-        <p class="text-muted-700">Depende del destino y del operador. En AMBA suele ser mas agil. Te pasamos estimado al momento de comprar.</p>
-      </details>
+      <h2 class="section-title text-2xl font-bold mb-6">Preguntas frecuentes</h2>
+      <div class="grid md:grid-cols-2 gap-4">
+        <details class="group faq-card rounded-2xl border border-slate-600/40 bg-slate-900/70 px-4 py-3 md:px-5 md:py-4 shadow-sm">
+          <summary class="flex items-center justify-between gap-3 cursor-pointer text-sm md:text-base text-ink">
+            <span class="font-medium">¿Tienen stock real?</span>
+            <span class="shrink-0 h-5 w-5 rounded-full border border-slate-500/70 flex items-center justify-center text-[11px] text-slate-300 group-open:rotate-90 transition-transform">
+              ▸
+            </span>
+          </summary>
+          <p class="mt-2 text-xs md:text-sm text-muted-700 leading-relaxed">
+            Manejamos stock real y actualizamos el inventario a diario. Ante cualquier variación, coordinamos con vos antes de cerrar la compra.
+          </p>
+        </details>
+        <details class="group faq-card rounded-2xl border border-slate-600/40 bg-slate-900/70 px-4 py-3 md:px-5 md:py-4 shadow-sm">
+          <summary class="flex items-center justify-between gap-3 cursor-pointer text-sm md:text-base text-ink">
+            <span class="font-medium">¿Hacen precios por cantidad?</span>
+            <span class="shrink-0 h-5 w-5 rounded-full border border-slate-500/70 flex items-center justify-center text-[11px] text-slate-300 group-open:rotate-90 transition-transform">
+              ▸
+            </span>
+          </summary>
+          <p class="mt-2 text-xs md:text-sm text-muted-700 leading-relaxed">
+            Sí, para comercios y empresas trabajamos escalas por volumen. Podés consultar con tu vendedor para recibir una propuesta a medida.
+          </p>
+        </details>
+        <details class="group faq-card rounded-2xl border border-slate-600/40 bg-slate-900/70 px-4 py-3 md:px-5 md:py-4 shadow-sm md:col-span-2">
+          <summary class="flex items-center justify-between gap-3 cursor-pointer text-sm md:text-base text-ink">
+            <span class="font-medium">¿Cuánto tarda el envío?</span>
+            <span class="shrink-0 h-5 w-5 rounded-full border border-slate-500/70 flex items-center justify-center text-[11px] text-slate-300 group-open:rotate-90 transition-transform">
+              ▸
+            </span>
+          </summary>
+          <p class="mt-2 text-xs md:text-sm text-muted-700 leading-relaxed">
+            Depende del destino y del operador logístico. En CABA y GBA suele ser más rápido; al resto del país te informamos el estimado al momento de coordinar el envío.
+          </p>
+        </details>
+      </div>
     </div>
   </section>
 
@@ -1249,7 +1259,7 @@ Schema.org � Organization (ajust� datos si cambia el tel�fono o agreg�s 
       </div>
 
       <div>
-        <h6>Navegaci�n</h6>
+        <h6>Navegacion</h6>
         <a href="#quienes-somos" data-link>Quienes somos</a>
         <a href="#propuesta-valor" data-link>Propuesta</a>
         <a href="/catalogo.html" data-link>Catalogo</a>

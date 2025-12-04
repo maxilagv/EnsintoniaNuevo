@@ -92,7 +92,7 @@ async function createPurchase(req, res) {
       );
       const purchaseId = insPur.rows[0].id;
 
-      // 4) Insert items, increase stock, register movimientos
+      // 4) Insert items, increase stock (via adjust_product_stock), register movimientos legacy
       for (const it of normItems) {
         await client.query(
           `INSERT INTO PurchaseItems(purchase_id, product_id, quantity, unit_cost)
@@ -101,8 +101,15 @@ async function createPurchase(req, res) {
         );
 
         await client.query(
-          'UPDATE Products SET stock_quantity = COALESCE(stock_quantity,0) + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-          [it.quantity, it.productId]
+          'SELECT adjust_product_stock($1, $2, $3, $4, $5, $6)',
+          [
+            it.productId,                                  // p_product_id
+            it.quantity,                                   // p_quantity_change (positivo = entrada)
+            'entrada',                                     // p_movement_type
+            notes ? `purchase:${purchaseId} ${notes}` : `purchase:${purchaseId}`, // p_reason
+            (req.user && req.user.id) || null,            // p_current_user_id
+            req.ip || null                                 // p_client_ip_address
+          ]
         );
 
         await client.query(
