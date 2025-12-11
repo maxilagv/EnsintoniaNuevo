@@ -174,7 +174,7 @@ async function orderPdf(req, res) {
         const doc = new PDFDocument({ margin: 50 });
         doc.pipe(res);
 
-        doc.fontSize(18).text('Comprobante de Compra', { align: 'center' }).moveDown(1);
+        doc.fontSize(18).text('Comprobante de pre-compra', { align: 'center' }).moveDown(1);
 
         // Datos del pedido
         doc.fontSize(12).text(`N° de Orden: ${order.order_number}`);

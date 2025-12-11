@@ -437,7 +437,13 @@
                 <!-- Inventario actual -->
                 <div class="rounded-xl border border-white/10 bg-white/5 p-4 mb-8">
                     <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-xl font-semibold text-cyan-300">Inventario</h3>
+                        <div class="flex items-center gap-3">
+                            <h3 class="text-xl font-semibold text-cyan-300">Inventario</h3>
+                            <div class="relative">
+                                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input id="inventorySearch" type="text" class="pl-10 pr-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400" placeholder="Buscar producto..." />
+                            </div>
+                        </div>
                         <span id="inventoryCount" class="text-sm text-gray-400"></span>
                     </div>
                     <div class="overflow-x-auto">
@@ -456,12 +462,6 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
-
-                <!-- Stock en tránsito -->
-                <div class="rounded-xl border border-white/10 bg-white/5 p-4">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-xl font-semibold text-cyan-300">Stock en transito</h3>
                         <span class="text-sm text-gray-400">Registra lo que viene en camino.</span>
                     </div>
 

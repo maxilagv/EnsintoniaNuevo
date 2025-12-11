@@ -259,8 +259,13 @@ async function listOrdersV2(req, res) {
 
       // Resolver permisos efectivos y decidir si es admin completo
       const perms = await resolveEffectivePermissions(currentUserId);
-      if (perms && perms.size && matchPermission('administracion.*', perms)) {
-        canSeeAll = true;
+      if (perms && perms.size) {
+        if (matchPermission('administracion.*', perms)) {
+          canSeeAll = true;
+        } else if (matchPermission('logistica.read', perms) && matchPermission('ventas.read', perms)) {
+          // Operadores de logística con visibilidad de ventas: ver todas las órdenes
+          canSeeAll = true;
+        }
       }
     }
 
@@ -374,7 +379,7 @@ async function orderPdf(req, res) {
 
     const doc = new PDFDocument({ margin: 50 });
     doc.pipe(res);
-    doc.fontSize(18).text('Comprobante de Compra', { align: 'center' }).moveDown(1);
+    doc.fontSize(18).text('Comprobante de pre-compra', { align: 'center' }).moveDown(1);
     doc.fontSize(12).text(`Nº de Orden: ${order.order_number}`);
     doc.text(`Fecha: ${new Date(order.order_date).toLocaleString()}`);
     doc.text(`Comprador: ${order.buyer_name}${order.buyer_lastname ? ' ' + order.buyer_lastname : ''}`);
@@ -620,3 +625,4 @@ module.exports = {
   updateOrderStatus,
   deleteOrder,
 };
+

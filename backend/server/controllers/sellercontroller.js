@@ -4,11 +4,15 @@ const { resolveEffectivePermissions, matchPermission } = require('../middlewares
 async function listSellersPublic(req, res) {
   try {
     const { rows } = await query(
-      `SELECT id, username, name
-         FROM Users
-        WHERE deleted_at IS NULL
-          AND status = 'ACTIVE'
-        ORDER BY name ASC, id ASC`
+      `SELECT DISTINCT u.id, u.username, u.name
+         FROM Users u
+         JOIN UserProfiles up ON up.user_id = u.id
+         JOIN Profiles p ON p.id = up.profile_id
+        WHERE u.deleted_at IS NULL
+          AND u.status = 'ACTIVE'
+          AND p.deleted_at IS NULL
+          AND p.name LIKE 'VENTAS_%'
+        ORDER BY u.name ASC, u.id ASC`
     );
     if (!rows.length) return res.json([]);
 
@@ -37,4 +41,3 @@ async function listSellersPublic(req, res) {
 }
 
 module.exports = { listSellersPublic };
-

@@ -3,7 +3,25 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Ensintonia - Todo para tu hogar</title>
+        <title>Cat&aacute;logo de electr&oacute;nica y hogar | Ensintonia Quilmes</title>
+        <meta name="description" content="Explor&aacute; el cat&aacute;logo de Ensintonia: electr&oacute;nica, audio, iluminaci&oacute;n y productos para el hogar con stock real desde Quilmes Oeste, Buenos Aires. Atenci&oacute;n mayorista y minorista y env&iacute;os a todo el pa&iacute;s." />
+        <meta name="robots" content="index,follow,max-image-preview:large" />
+        <meta name="language" content="es-AR" />
+        <link rel="canonical" href="/catalogo.html" />
+
+        <!-- Open Graph -->
+        <meta property="og:title" content="Cat&aacute;logo de electr&oacute;nica y hogar | Ensintonia Quilmes" />
+        <meta property="og:description" content="Cat&aacute;logo actualizado de productos de electr&oacute;nica y hogar con stock real desde Quilmes Oeste, Buenos Aires. Venta mayorista y minorista y env&iacute;os a todo el pa&iacute;s." />
+        <meta property="og:type" content="website" />
+        <meta property="og:locale" content="es_AR" />
+        <meta property="og:site_name" content="Ensintonia" />
+        <meta property="og:image" content="https://i.postimg.cc/sXRFDbfv/Gemini-Generated-Image-6b363b6b363b6b36.png" />
+
+        <!-- Twitter Cards -->
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Cat&aacute;logo de electr&oacute;nica y hogar | Ensintonia Quilmes" />
+        <meta name="twitter:description" content="Cat&aacute;logo de productos de electr&oacute;nica y hogar con stock real desde Quilmes Oeste, Buenos Aires. Venta mayorista y minorista y env&iacute;os a todo el pa&iacute;s." />
+        <meta name="twitter:image" content="https://i.postimg.cc/sXRFDbfv/Gemini-Generated-Image-6b363b6b363b6b36.png" />
         <!-- Tailwind CSS CDN -->
         <script src="https://cdn.tailwindcss.com"></script>
         <script>
@@ -477,8 +495,8 @@
                 transform: translateY(12px) scale(0.98);
                 opacity: 0;
                 transition:
-                    opacity 0.18s ease-out,
-                    transform 0.18s ease-out;
+                    opacity 0.05s ease-out,
+                    transform 0.05s ease-out;
             }
             .catalog-modal-panel.modal-open {
                 opacity: 1;
@@ -994,14 +1012,7 @@
                     <a href="#catalogo-productos" class="navbar-link text-sm font-medium">Catalogo</a>
                     <a href="contact.html" class="navbar-link text-sm font-medium">Contacto</a>
                     <button
-                        id="open-client-register"
-                        type="button"
-                        class="ml-2 px-3 py-1.5 rounded-full bg-brand-600 text-white text-xs md:text-sm shadow-sm hover:bg-brand-700 transition btn whitespace-nowrap"
-                    >
-                        Registrarme como cliente
-                    </button>
-                    <button
-                        id="open-client-login" style="display:none"
+                        id="open-client-login"
                         type="button"
                         class="ml-2 px-3 py-1.5 rounded-full bg-gray-800 text-white text-xs md:text-sm shadow-sm hover:bg-gray-900 transition btn whitespace-nowrap"
                     >
@@ -1015,6 +1026,13 @@
                     >
                         WhatsApp
                     </a>
+                    
+                    
+                    
+                    
+                    
+                    
+                    
                 </nav>
                 <!-- desktop simple search -->
                 <div class="hidden md:flex items-center gap-3 ml-4 bg-slate-900/70 border border-white/10 rounded-2xl px-3 py-1.5 shadow-lg">
@@ -1104,6 +1122,17 @@
                     </li>
                     <li>
                         <button
+                            id="open-client-login-mobile"
+                            type="button"
+                            class="w-full flex items-center justify-between py-2 font-medium hover:text-brand-1"
+                        >
+                            <span>Iniciar sesión</span>
+                        </button>
+                    </li>
+                    <!-- Opción de registro directo removida del menú móvil para simplificar -->
+                    <!--
+                    <li>
+                        <button
                             id="open-client-register-mobile"
                             type="button"
                             class="w-full flex items-center justify-between py-2 font-medium hover:text-brand-1"
@@ -1111,18 +1140,7 @@
                             <span>Registrarme como cliente</span>
                         </button>
                     </li>
-                    <li>
-                        <button
-                            id="open-client-login-mobile" style="display:none"
-                            type="button"
-                            class="w-full flex items-center justify-between py-2 font-medium hover:text-brand-1"
-                        >
-                            <span>Iniciar sesión</span>
-                        </button>
-                    </li>
-                    <li><a href="index.html#quienes-somos" class="block py-2 font-medium hover:text-brand-1">Quienes somos</a></li>
-                    <li><a href="index.html#propuesta-valor" class="block py-2 font-medium hover:text-brand-1">Propuesta</a></li>
-                    <li><a id="catalog-link-mobile" href="#catalogo-productos" class="block py-2 font-medium hover:text-brand-1">Catalogo</a></li>
+                    -->
                     <li>
                         <button id="categories-toggle-button" class="w-full flex items-center justify-between py-2 font-medium hover:text-brand-1">
                             Categorias <i id="categories-toggle-icon" class="fa-solid fa-chevron-down text-xs transition-transform"></i>

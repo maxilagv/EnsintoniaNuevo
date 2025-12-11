@@ -10,6 +10,7 @@ router.get('/users', auth, requirePermission('administracion.users.read'), users
 router.get('/users/:id', auth, requirePermission('administracion.users.read'), users.getUser);
 router.put('/users/:id', auth, requirePermission('administracion.users.write'), users.updateUser);
 router.patch('/users/:id/status', auth, requirePermission('administracion.users.delete'), users.updateStatus);
+router.delete('/users/:id', auth, requirePermission('administracion.users.delete'), users.deleteUser);
 router.post('/users/:id/reset-password', auth, requirePermission('administracion.users.configure'), users.resetPassword);
 router.post('/users/:id/sessions/revoke', auth, requirePermission('administracion.users.configure'), users.revokeSessions);
 router.get('/users/:id/audit', auth, requirePermission('administracion.users.read'), users.getAudit);

@@ -1,0 +1,823 @@
+/* Paleta y tokens (misma paleta, más ordenada) */
+    :root{
+      /* Fondos base */
+      --bg-1: #0f172a; /* deep ink */
+      --bg-2: #071032; /* deep blue */
+
+      /* Colores de marca */
+      --brand-1: #6ee7b7; /* mint */
+      --brand-2: #7c3aed; /* purple */
+      --accent: linear-gradient(90deg,var(--brand-1),#60a5fa 40%,var(--brand-2));
+
+      /* Superficies y bordes (reutilizan colores existentes) */
+      --glass: rgba(255,255,255,0.06);
+      --section-bg-glass: rgba(15,23,42,0.45);
+      --section-border-soft: rgba(49,62,85,0.3);
+
+      /* Sombras principales (tomadas de las cards actuales) */
+      --shadow-card-strong: 0 22px 50px rgba(12,18,32,0.18);
+      --shadow-card-soft: 0 8px 24px rgba(2,6,23,0.08);
+
+      /* Texto */
+      --futuristic-ink: #e6f0ff; /* Light white/blue for main text */
+      --futuristic-mute: #9fb3d9; /* Muted light blue for secondary text */
+      --muted: #94a3b8;
+    }
+
+    /* Fondo azul futurista (se mantiene la estética actual) */
+    body {
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(110,231,183,0.06), transparent 12%),
+                  linear-gradient(180deg, #061229 0%, #072447 30%, #0b3b6b 60%, #081133 100%) !important;
+      color: var(--futuristic-ink) !important;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      min-height: 100vh;
+    }
+
+    /* Ajustes de contraste para textos secundarios */
+    .muted,
+    .text-muted-700 {
+      color: var(--futuristic-mute);
+    }
+
+    .text-ink {
+      color: var(--futuristic-ink);
+    }
+
+    /* Header / logo: mucho más grande y animado */
+    .logo-wrap {
+      display:flex;
+      align-items:center;
+      gap:.15rem;
+      transform-origin:center;
+    }
+    .logo-big {
+      width: 146px;
+      height:auto;
+      transition: transform .6s cubic-bezier(.2,.9,.2,1), filter .6s;
+      filter: drop-shadow(0 18px 40px rgba(99,102,241,.12));
+      will-change: transform;
+    }
+    @media (max-width: 768px){
+      .logo-big{ width: 76px; }
+    }
+    .logo-big:hover{ transform: translateY(-4px) rotate(-2deg) scale(1.02); filter: drop-shadow(0 26px 60px rgba(124,58,237,.14)); }
+
+    /* Header scroll effect */
+    #main-header.scrolled {
+      background-color: rgba(6, 18, 41, 0.9); /* Slightly darker, more opaque */
+      box-shadow: 0 4px 18px rgba(0,0,0,0.3);
+      border-color: rgba(49, 62, 85, 0.4);
+    }
+
+
+    /* Futuristic heading style - Refined */
+    .neon-text {
+      font-family: 'Orbitron', Inter, sans-serif;
+      font-weight:700;
+      background: var(--accent);
+      background-size: 220% 220%;
+      animation: neon-gradient-shift 18s ease-in-out infinite;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: -0.01em;
+    }
+
+    @keyframes neon-gradient-shift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Subtle, unified glow for neon-text */
+    .hero-title-shadow { /* New class for the subtle shadow */
+      text-shadow:
+        0 4px 18px rgba(96,165,250,0.1), /* Soft blue glow */
+        0 2px 8px rgba(124,58,237,0.08); /* Soft purple glow */
+    }
+
+    /* Animated gradient underline for brand */
+    .brand-underline{
+      display:inline-block;
+      height:6px;
+      width:64px;
+      border-radius:999px;
+      background: linear-gradient(90deg,#60a5fa,#7c3aed,#6ee7b7);
+      box-shadow: 0 10px 30px rgba(124,58,237,0.08);
+      transform-origin:left center;
+      animation: underline-slide 3.8s linear infinite alternate; /* Added alternate */
+      opacity:.95;
+      filter: blur(0.5px); /* Subtle blur */
+    }
+    @keyframes underline-slide {
+      0%{ transform: translateX(-8px) scaleX(.98); filter: blur(.2px) }
+      50%{ transform: translateX(8px) scaleX(1.02); filter: blur(1px) } /* Increased blur at 50% */
+      100%{ transform: translateX(-8px) scaleX(.98); }
+    }
+
+    /* Button glow / micro-animations */
+    .btn {
+      transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .btn:hover {
+      transform: translateY(-2px) scale(1.01);
+    }
+    .btn-glow {
+      position:relative;
+      overflow:hidden;
+      transition: transform .22s ease, box-shadow .22s ease;
+    }
+    .btn-glow::after{
+      content:'';
+      position:absolute;
+      inset: -50%;
+      background: radial-gradient(circle at 10% 10%, rgba(126,34,206,0.12), transparent 20%),
+                  radial-gradient(circle at 80% 80%, rgba(96,165,250,0.08), transparent 20%);
+      opacity:0;
+      transition: opacity .35s ease;
+      pointer-events:none;
+    }
+    .btn-glow:hover::after{ opacity:1; }
+
+    /* Hero CTA: pulso de luz suave cada cierto tiempo */
+    #hero-ctas .btn {
+      position: relative;
+      overflow: hidden;
+      animation: hero-cta-glow 14s ease-in-out infinite;
+      animation-delay: 1.2s;
+    }
+
+    @keyframes hero-cta-glow {
+      0%, 88%, 100% {
+        box-shadow: 0 0 0 rgba(15,23,42,0);
+      }
+      92% {
+        box-shadow: 0 18px 45px rgba(15,23,42,0.75);
+      }
+      96% {
+        box-shadow: 0 10px 30px rgba(15,23,42,0.55);
+      }
+    }
+
+    /* Slight entrance animations */
+    .fade-up-init { opacity:0; transform: translateY(18px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.9,.2,1); }
+    .fade-up-init.show { opacity:1; transform: translateY(0); }
+
+    /* Futuristic card animations & polish */
+    .card-polish {
+      position: relative;
+      overflow: hidden;
+      transform-style: preserve-3d;
+      will-change: transform, box-shadow;
+      transition: transform .35s cubic-bezier(.2,.9,.2,1), box-shadow .35s ease, filter .35s ease;
+      backface-visibility: hidden;
+    }
+
+    /* initial invisible state for scroll reveal */
+    .card-polish.reveal-init { opacity: 0; transform: translateY(18px) scale(.995); filter: blur(6px) saturate(.9); }
+
+    /* when in viewport */
+    .card-polish.in-view {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0) saturate(1);
+      box-shadow: 0 22px 50px rgba(12,18,32,0.18);
+    }
+
+    /* subtle holographic sheen */
+    .card-polish::before{
+      content: "";
+      position: absolute;
+      inset: -40% -30% auto -30%;
+      height: 140%;
+      background: linear-gradient(120deg, rgba(124,58,237,0.06), rgba(96,165,250,0.06) 35%, rgba(110,231,183,0.04) 60%, transparent 70%);
+      transform: translateX(-30%) rotate(-12deg);
+      transition: transform .8s cubic-bezier(.2,.9,.2,1), opacity .6s ease;
+      pointer-events: none;
+      opacity: 0.95;
+      mix-blend-mode: screen;
+    }
+
+    .card-polish:hover::before { transform: translateX(0) rotate(-8deg); opacity: 1; }
+
+    /* fine grain shimmer on hover */
+    .card-polish .shimmer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(90deg, rgba(255,255,255,0.00) 0%, rgba(255,255,255,0.04) 45%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 55%, rgba(255,255,255,0.00) 100%);
+      transform: translateX(-120%);
+      transition: transform .9s cubic-bezier(.2,.9,.2,1);
+      mix-blend-mode: overlay;
+      opacity: .9;
+    }
+    .card-polish:hover .shimmer { transform: translateX(120%); }
+
+    /* 3D tilt microinteraction (will be driven by JS mousemove) */
+    .card-polish.tilt {
+      transition: transform .12s linear;
+      transform-origin: center center;
+    }
+
+    /* tiny floating animation to make grid lively (only subtle on non-hover) */
+    @keyframes float-slight {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+      100% { transform: translateY(0px); }
+    }
+    .card-polish.float-subtle { animation: float-slight 6.8s ease-in-out infinite both; opacity: .999; }
+
+    /* card content contrast helpers (already added earlier, keep) */
+    .card-polish h3, .card-polish p, .card-polish a { color: inherit; }
+
+    /* small responsive tweak: reduce intensity on small screens */
+    @media (max-width: 640px){
+      .card-polish::before { opacity: .6; transform: translateX(-20%) rotate(-10deg); }
+      .card-polish.float-subtle { animation: none; }
+    }
+
+    /* Make text inside light/white cards readable on the dark futuristic page */
+    .bg-white, .bg-white\/60 {
+      color: var(--futuristic-ink); /* texto principal claro para legibilidad */
+    }
+
+    /* Muted text inside cards: slightly lighter but still dark */
+    .bg-white .muted, .bg-white\/60 .muted {
+      color: var(--futuristic-mute);
+    }
+
+    /* Links/buttons inside cards: accent color (brand) */
+    .bg-white a, .bg-white\/60 a {
+      color: var(--brand-1); /* brand-1 (mint) */
+      text-decoration: none;
+    }
+
+    /* Headings inside cards slightly stronger */
+    .bg-white h2, .bg-white h3, .bg-white h4,
+    .bg-white\/60 h2, .bg-white\/60 h3, .bg-white\/60 h4 {
+      color: var(--futuristic-ink);
+    }
+
+    /* Ensure components inherit color unless explicitly overridden */
+    .bg-white * , .bg-white\/60 * { color: inherit; }
+
+
+    /* Mobile-first polish: centrar y hacer estático en pantallas pequeñas */
+    @media (max-width: 640px) {
+      /* Container: padding cómodo y ancho completo */
+      .site-container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+        max-width: 100%;
+        margin: 0 auto;
+      }
+
+      /* Header: mayor altura, logo más grande visualmente centrado */
+      #main-header .site-container { height: 72px; gap: 0.5rem; }
+      .logo-big { width: 115px !important; height: auto; }
+      .logo-wrap { gap: 0.6rem; align-items: center; }
+
+      /* Títulos: menor tamaño pero con mayor contraste y centrado */
+      #hero-title { font-size: 1.6rem; line-height: 1.05; text-align: center; }
+      #hero-sub, #hero-detail { font-size: 0.98rem; text-align: center; }
+
+      /* Hero CTAs: apilados y full width para tocar fácil con el pulgar */
+      #hero-ctas { flex-direction: column; gap: 0.75rem; align-items: stretch; }
+      #hero-ctas .btn { width: 100%; display: inline-flex; justify-content: center; }
+
+      /* Accent line centrado y más sutil */
+      .accent-line { margin: 0.6rem auto 1rem auto; width: 48px; height: 3px; }
+
+      /* Ocultar decoraciones pesadas para no competir con el contenido */
+      .hero-deco { display: none !important; }
+
+      /* Cards: full width, centradas y con menos blur/tilt para rendimiento.
+         Mantener padding interno y bordes suaves. */
+      .card-polish, .product-card {
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        border-radius: 1rem !important;
+        box-shadow: 0 8px 24px rgba(2,6,23,0.08) !important;
+      }
+      .card-polish.reveal-init { transform: translateY(10px) scale(0.999) !important; filter: none !important; }
+      .card-polish.tilt { transition: none; transform: none !important; } /* desactivar tilt en móvil */
+
+      /* Grid de categorías / productos: una columna con gap */
+      #categories-container, #contenedor-productos {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      /* Centrar texto en tarjetas para estética móvil */
+      .product-card .p-6, .product-card .p-4 { text-align: left; } /* mantener left para legibilidad */
+      .product-card h3 { font-size: 1.05rem; }
+      .product-card p { font-size: 0.95rem; }
+
+      /* Botones pequeños dentro de cards: full width y mayor toque */
+      .product-card .btn, .product-card a { width: 100%; display: inline-flex; justify-content: center; }
+
+      /* Nav móvil: mejorar espaciado y centrar elementos */
+      #mobile-nav { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
+      #mobile-nav a { padding: 0.75rem 1rem; border-radius: 0.75rem; }
+
+      /* Input search móvil: full width y mayor hit area */
+      #search-input-mobile { width: 100%; padding-left: 1rem; padding-right: 1rem; border-radius: 12px; }
+
+      /* Reducir animaciones al mínimo para ahorro de CPU en móviles */
+      .card-polish::before, .card-polish .shimmer { display: none; }
+      .card-polish.float-subtle { animation: none; }
+
+      /* Ajustes tipográficos para legibilidad */
+      body { -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+      .muted { opacity: 0.9; }
+    }
+
+    /* Hamburguesa -> X */
+    #mobile-menu-button .bar{transition:transform .35s ease, opacity .25s ease;}
+    #mobile-menu-button.open .bar:nth-child(1){transform:translateY(6px) rotate(45deg);}
+    #mobile-menu-button.open .bar:nth-child(2){opacity:0;}
+    #mobile-menu-button.open .bar:nth-child(3){transform:translateY(-6px) rotate(-45deg);}
+
+    /* Panel móvil */
+    #mobile-nav{position:fixed; inset:0; z-index:40; display:none;}
+    #mobile-nav[data-state="opening"],
+    #mobile-nav[data-state="open"]{display:block;}
+    #mobile-nav .mn-overlay{
+      position:absolute; inset:0;
+      background:rgba(15,23,42,.65);
+      backdrop-filter:blur(6px);
+      opacity:0; transition:opacity .35s;
+    }
+    #mobile-nav[data-state="open"] .mn-overlay{opacity:1;}
+    #mobile-nav .mn-panel{
+      position:absolute; top:0; right:0; height:100%; width:18rem; max-width:100%;
+      background: rgba(15,23,42,0.96); padding:1.25rem 1.25rem 2.5rem; overflow-y:auto;
+      box-shadow: -8px 0 28px -4px rgba(0,0,0,.55);
+      border-left: 1px solid rgba(148,163,184,0.35);
+      transform:translateX(100%); transition:transform .38s cubic-bezier(.22,.9,.22,1);
+      display:flex; flex-direction:column; gap:1rem;
+      color: var(--futuristic-ink);
+    }
+    body.dark #mobile-nav .mn-panel{background:#0f172a; color:#e2e8f0;}
+    #mobile-nav[data-state="open"] .mn-panel{transform:translateX(0);}
+
+    #mobile-nav a{
+      display:block; padding:.6rem .75rem; border-radius:.75rem; font-size:.95rem; font-weight:500;
+      color:var(--futuristic-ink);
+      transition: background .2s ease, color .2s ease;
+    }
+    #mobile-nav a:hover,
+    #mobile-nav a:focus-visible{
+      background: rgba(148,163,184,0.16);
+      outline:none;
+    }
+    body.dark #mobile-nav a{color:#e2e8f0;}
+    body.dark #mobile-nav a:hover{background:#1e293b;}
+
+    #mobile-nav h6{
+      font-size:.68rem; letter-spacing:.08em; font-weight:600; text-transform:uppercase;
+      color:#94a3b8; margin:.25rem .25rem .15rem;
+    }
+    body.dark #mobile-nav h6{color:#64748b;}
+
+    /* Reduce panel en pantallas muy bajas */
+    @media (max-height:560px){
+      #mobile-nav .mn-panel{padding-bottom:4rem;}
+    }
+
+    /* Nuevos estilos para las tarjetas de "Quiénes somos" */
+    .card-modern {
+      background: var(--section-bg-glass); /* Dark, slightly transparent ink color */
+      border: 1px solid var(--section-border-soft); /* Darker, subtle border */
+      box-shadow: var(--shadow-card-soft); /* Stronger shadow */
+      transition: all 0.3s ease-in-out;
+      overflow: hidden;
+      position: relative;
+      color: var(--futuristic-ink); /* Light text for contrast */
+    }
+
+    .card-modern:hover {
+      transform: translateY(-8px) scale(1.01);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.3);
+      border-color: var(--brand-1); /* Mint border on hover */
+    }
+
+    .card-modern::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at center, rgba(110,231,183,0.1) 0%, transparent 70%); /* Mint light effect */
+      opacity: 0;
+      transition: opacity 0.5s ease-in-out;
+      pointer-events: none;
+    }
+
+    .card-modern:hover::before {
+      opacity: 1;
+    }
+
+    .card-modern h3 {
+      color: var(--brand-1); /* Mint color for titles */
+    }
+
+    .card-modern p {
+      color: var(--futuristic-mute); /* Muted light blue for readability */
+    }
+
+    /* Tarjeta de foto principal en "Quiénes somos" */
+    .about-photo-card{
+      position: relative;
+      border-radius: 1.5rem;
+      overflow: hidden;
+      box-shadow: var(--shadow-card-strong);
+      border: 1px solid rgba(148,163,184,0.45);
+      background: radial-gradient(circle at top, rgba(30,64,175,0.85), rgba(15,23,42,0.98));
+      min-height: 160px;
+      max-width: 320px;
+      margin: 0 auto;
+    }
+    .about-photo-card img{
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transform-origin: center;
+      transition: transform .5s ease;
+    }
+    .about-photo-card::after{
+      content:'';
+      position:absolute;
+      inset:0;
+      background: radial-gradient(circle at top, rgba(15,23,42,0.15), transparent 55%);
+      mix-blend-mode: soft-light;
+      pointer-events:none;
+    }
+    .about-photo-card:hover img{
+      transform: scale(1.03);
+    }
+    .about-photo-caption{
+      position:absolute;
+      left:1.25rem;
+      bottom:1.25rem;
+      padding:0.55rem 0.9rem;
+      border-radius:999px;
+      background: rgba(15,23,42,0.9);
+      border:1px solid rgba(148,163,184,0.7);
+      font-size:0.8rem;
+      display:inline-flex;
+      align-items:center;
+      gap:0.4rem;
+      color:var(--futuristic-ink);
+      box-shadow: 0 16px 40px rgba(15,23,42,0.9);
+    }
+    .about-photo-caption-dot{
+      width:0.5rem;
+      height:0.5rem;
+      border-radius:999px;
+      background: linear-gradient(135deg,#60a5fa,#6ee7b7);
+      box-shadow: 0 0 8px rgba(96,165,250,0.8);
+    }
+
+    /* Estilos para las tarjetas de "Propuesta de valor" y "Logística" */
+    .value-card {
+      background: var(--section-bg-glass); /* Dark, slightly transparent ink color */
+      border: 1px solid var(--section-border-soft); /* Darker, subtle border */
+      box-shadow: var(--shadow-card-soft);
+      transition: all 0.3s ease-in-out;
+      color: var(--futuristic-ink); /* Light text for contrast */
+    }
+
+    .value-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.25);
+      border-color: var(--brand-2); /* Purple border on hover */
+    }
+
+    .value-card svg {
+      color: var(--brand-1); /* Mint for icons */
+    }
+
+    .value-card strong {
+      color: var(--futuristic-ink); /* Light text for important elements */
+    }
+
+    .value-card div:last-child {
+      color: var(--futuristic-mute); /* Muted light blue for descriptions */
+    }
+
+    /* Estilos para las categorías y otras tarjetas pequeñas */
+    .category-tag {
+      background-color: rgba(15, 23, 42, 0.7); /* Dark glass */
+      border: 1px solid rgba(148, 163, 184, 0.45); /* Soft cool border */
+      color: var(--futuristic-ink); /* Light text for contrast */
+      box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+      transition: all 0.2s ease-in-out;
+      backdrop-filter: blur(6px);
+    }
+
+    .category-tag:hover {
+      background-color: rgba(30, 64, 175, 0.9); /* subtle brand-tinted highlight */
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.25);
+    }
+
+    /* Override Tailwind bg-white/60 for sections to use custom dark transparent background */
+    .section.bg-white\/60 {
+      background: rgba(15, 23, 42, 0.45) !important; /* Lighter dark transparent for sections */
+      border-top: 1px solid rgba(49, 62, 85, 0.3);
+      border-bottom: 1px solid rgba(49, 62, 85, 0.3);
+    }
+
+    /* Mobile-only: ocultar barra neon bajo el logo principal */
+    @media (max-width: 640px) {
+      .brand-underline { display: none; }
+    }
+
+    /* Ajuste fino del hero en móvil (altura, espaciado y CTAs) */
+    @media (max-width: 640px) {
+      #hero-intro{
+        min-height: auto;
+        padding-top: 3.5rem;
+        padding-bottom: 3rem;
+      }
+      #hero-accent{
+        margin-bottom: 0.75rem;
+      }
+      #hero-sub,
+      #hero-detail{
+        font-size: 0.95rem;
+      }
+      #hero-ctas .btn{
+        width: 100%;
+        display: inline-flex;
+        justify-content: center;
+        padding-top: 0.8rem;
+        padding-bottom: 0.8rem;
+      }
+    }
+
+    /* --- NUEVOS ESTILOS AÑADIDOS PARA SECCIONES MEJORADAS --- */
+
+    /* Estilos para "Cómo Comprar" (Tarjetas de pasos) */
+    .step-card {
+      position: relative;
+      background: var(--section-bg-glass);
+      border: 1px solid var(--section-border-soft);
+      padding: 1.5rem;
+      border-radius: 1rem;
+      transition: transform 0.3s ease, border-color 0.3s ease;
+      overflow: hidden;
+    }
+    .step-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--brand-1);
+    }
+    .step-number {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.05);
+      position: absolute;
+      top: -0.5rem;
+      right: 0.5rem;
+      pointer-events: none;
+    }
+    .step-icon {
+      width: 40px; height: 40px;
+      background: rgba(99, 102, 241, 0.1);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 1rem;
+      color: var(--brand-1);
+    }
+
+    /* Estilos para FAQ (Acordeón) */
+    .faq-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      transition: all 0.3s ease;
+    }
+    .faq-card[open] {
+      background: rgba(30, 64, 175, 0.15);
+      border-color: rgba(110, 231, 183, 0.4);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    .faq-card summary {
+      list-style: none;
+    }
+    .faq-card summary::-webkit-details-marker {
+      display: none;
+    }
+
+    /* Smooth scrolling */
+    html { scroll-behavior: smooth; }
+
+    /* Diagonal page overlay (blue -> violet) */
+    body::after{
+      content: '';
+      position: fixed; inset: 0; pointer-events: none;
+      background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(168,85,247,0.08));
+      mix-blend-mode: screen; opacity: 0.08; z-index: 0;
+    }
+
+    /* Header glass (sin barra neon inferior) */
+    #main-header{
+      background: rgba(8,17,51,0.7);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(49,62,85,0.35);
+    }
+    #main-header.scrolled{ background: rgba(6,18,41,0.75); box-shadow: 0 8px 30px rgba(0,0,0,0.35); border-color: rgba(49,62,85,0.5); }
+
+    /* Estética del botón hamburguesa en móvil: pill glass y barras claras (coherente con catálogo) */
+    @media (max-width: 768px) {
+      #mobile-menu-button {
+        background: rgba(15,23,42,0.9);
+        border-radius: 9999px;
+        border: 1px solid rgba(148,163,184,0.7);
+        box-shadow: 0 10px 28px rgba(15,23,42,0.95);
+        padding: 0.55rem 0.6rem;
+      }
+      #mobile-menu-button .bar{
+        width: 1.75rem;
+        height: 0.11rem;
+        background-color: rgba(248,250,252,0.96);
+      }
+      /* Al abrir menú, resaltar un poco el contorno para que no se pierda sobre el panel */
+      #mobile-menu-button.open{
+        background: rgba(15,23,42,0.4);
+        border-color: rgba(248,250,252,0.9);
+        box-shadow: 0 0 0 1px rgba(148,163,184,0.9);
+      }
+    }
+
+    /* Header nav links: underline + focus */
+    #main-header nav a:not(.btn){
+      position: relative;
+      display:inline-block;
+      font-weight:500;
+      letter-spacing:.02em;
+      padding-bottom: 2px;
+      color: var(--futuristic-ink);
+      opacity: 0.9;
+    }
+    #main-header nav a:not(.btn)::after{
+      content:''; position:absolute; left:0; bottom:-6px; height:2px; width:100%;
+      background: linear-gradient(90deg,#60a5fa,#7c3aed,#6ee7b7);
+      transform: scaleX(0); transform-origin: left; transition: transform .35s ease; border-radius:999px;
+    }
+    #main-header nav a:not(.btn):hover::after,
+    #main-header nav a:not(.btn):focus-visible::after{
+      transform: scaleX(1);
+    }
+    #main-header nav a:not(.btn):hover,
+    #main-header nav a:not(.btn):focus-visible{
+      opacity: 1;
+      outline: none;
+    }
+
+    /* Global type hierarchy */
+    h1{
+      font-size: 3rem;
+      line-height: 1.1;
+      font-weight: 800;
+    }
+
+    h2{
+      font-size: 1.75rem;
+      line-height: 1.25;
+      font-weight: 600;
+    }
+
+    p{
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+
+    /* Section title divider */
+    h2.section-title{ text-align: center; }
+    h2.section-title::before{
+      content: '';
+      display:block; width:72px; height:3px; margin:0 auto .75rem; border-radius:999px;
+      background: linear-gradient(90deg,#60a5fa,#7c3aed,#6ee7b7);
+      background-size: 200% 100%; animation: divider-shift 6s linear infinite;
+      box-shadow: 0 8px 20px rgba(124,58,237,0.18);
+    }
+    @media (min-width: 768px){
+      h2.section-title{
+        text-align: left;
+      }
+      h2.section-title::before{
+        margin-left: 0;
+        margin-right: 0;
+      }
+    }
+    @keyframes divider-shift{ 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+
+    /* Buttons microinteractions */
+    .btn:hover{ transform: translateY(-2px) scale(1.03); box-shadow: 0 12px 30px rgba(2,6,23,0.22); }
+    .btn-glow::after{ opacity: 0; }
+    .btn-glow:hover::after{ opacity: 1; }
+
+    /* Respeto a usuarios con movimiento reducido */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    /* Hero: full viewport height + overlay */
+    #hero-intro{
+      min-height: 100vh;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    #hero-intro::before{
+      content:'';
+      position:absolute;
+      inset:0;
+      /* background: radial-gradient(circle at top, rgba(15,23,42,0.45), rgba(8,11,33,0.9)); */ /* DESACTIVADO PARA QUE SE VEA LA ANIMACIÓN THREE.JS */
+      background: rgba(15,23,42, 0.2); /* Sutil velo oscuro para asegurar legibilidad del texto */
+      pointer-events:none;
+      z-index:1; /* Subido a 1 para estar sobre el canvas (z=0) pero debajo del texto (z=10) */
+    }
+    #hero-intro > .site-container{
+      width: 100%;
+      position: relative;
+      z-index: 10; /* Asegurar que el texto esté encima de todo */
+    }
+
+    /* Cards: consistent icon size and hover glow */
+    .value-card svg{ color: var(--brand-1); width: 2rem; height: 2rem; }
+    .card-modern svg{ width: 2rem; height: 2rem; }
+    .value-card:hover, .card-modern:hover{ box-shadow: 0 18px 40px rgba(0,0,0,0.3); }
+
+    /* Sections dark glass background variant stays consistent */
+    /* Clickable affordance */
+    a, button { cursor: pointer; }
+
+    /* Section fade-in animation */
+    .section-fade-in {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+
+    .section-fade-in.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    /* Loader */
+    .loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-1);
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: opacity 0.5s ease-out;
+    }
+
+    .loader:after {
+      content: "";
+      width: 50px;
+      height: 50px;
+      border: 5px solid var(--futuristic-ink);
+      border-top-color: var(--brand-1);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Scroll fade-in animation */
+    .scroll-fade-in {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+
+    .scroll-fade-in.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }

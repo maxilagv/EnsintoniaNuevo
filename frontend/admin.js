@@ -258,6 +258,38 @@ const transitTableBody = document.getElementById('transitTableBody');
 const addTransitProductSelect = document.getElementById('addTransitProductSelect');
 const addTransitQtyInput = document.getElementById('addTransitQtyInput');
 const addTransitButton = document.getElementById('addTransitButton');
+const inventorySearchInput = document.getElementById('inventorySearch');
+let stockProductsCache = [];
+function normalizeStockText(s) {
+  try {
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  } catch {
+    return String(s || '').toLowerCase();
+  }
+}
+
+function applyStockSearchFilter() {
+  const base = Array.isArray(stockProductsCache) ? stockProductsCache : [];
+  const qRaw = inventorySearchInput ? inventorySearchInput.value : '';
+  const q = normalizeStockText(qRaw);
+  const filtered = q ? base.filter(p => normalizeStockText(p.name).includes(q)) : base;
+  try { renderInventoryTable(filtered); } catch {}
+  if (addTransitProductSelect) {
+    addTransitProductSelect.innerHTML = '<option value="">-- Selecciona un producto --</option>';
+    filtered.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      addTransitProductSelect.appendChild(opt);
+    });
+  }
+  try { renderTransitTable(filtered); } catch {}
+}
+
+if (inventorySearchInput) {
+  inventorySearchInput.addEventListener('input', () => applyStockSearchFilter());
+}
+
 // Finanzas
 const financeRevenueEl = document.getElementById('financeRevenue');
 const financePurchasesEl = document.getElementById('financePurchases');
@@ -780,6 +812,7 @@ async function loadUsersList(){
           <button class="action-button bg-sky-600 hover:bg-sky-700" data-act="edit" data-id="${u.id}">Editar</button>
           <button class="action-button bg-yellow-600 hover:bg-yellow-700" data-act="audit" data-id="${u.id}">Historial</button>
           <button class="action-button ${u.status==='ACTIVE'?'bg-red-600 hover:bg-red-700':'bg-green-600 hover:bg-green-700'}" data-act="toggle" data-id="${u.id}">${u.status==='ACTIVE'?'Desactivar':'Activar'}</button>
+          <button class="action-button bg-red-800 hover:bg-red-900" data-act="delete" data-id="${u.id}">Eliminar</button>
         </td>`;
       tbody.appendChild(tr);
     });
@@ -798,6 +831,7 @@ function onUsersTableClick(e){
   if (act === 'edit') loadUserForEdit(id);
   else if (act === 'toggle') toggleUserStatus(id);
   else if (act === 'audit') loadUserAudit(id);
+  else if (act === 'delete') deleteUser(id);
   // rebind for next clicks
   document.getElementById('usersTableBody')?.addEventListener('click', onUsersTableClick, { once: true });
 }
@@ -907,6 +941,21 @@ async function toggleUserStatus(id){
   } catch (err) {
     console.error('toggle user', err);
     showMessageBox('No se pudo cambiar el estado', 'error');
+  }
+}
+
+async function deleteUser(id){
+  try {
+    if (!id) return;
+    const ok = window.confirm('¿Eliminar este usuario? Esta acción no se puede deshacer.');
+    if (!ok) return;
+    const resp = await fetchWithAuth(ROUTES.user(id), { method: 'DELETE' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    showMessageBox('Usuario eliminado', 'success');
+    loadUsersList();
+  } catch (err) {
+    console.error('delete user', err);
+    showMessageBox('No se pudo eliminar el usuario', 'error');
   }
 }
 
@@ -1056,7 +1105,7 @@ function ensureDeleteButtons(kind){
       deleteCategoryButton = document.createElement('button');
       deleteCategoryButton.id = 'deleteCategoryButton';
       deleteCategoryButton.className = 'action-button w-full bg-red-600 hover:bg-red-700 mt-3';
-      deleteCategoryButton.textContent = 'Eliminar Categori?a';
+      deleteCategoryButton.textContent = 'Eliminar Categoria';
       section.appendChild(deleteCategoryButton);
       deleteCategoryButton.addEventListener('click', onDeleteCategory);
     }
@@ -1086,18 +1135,18 @@ function parseSpecifications(raw) {
 
 async function onDeleteCategory(){
   const id = selectCategoryToEdit?.value || '';
-  if (!id) { showMessageBox('Elegi una categori?a a eliminar', 'warning'); return; }
-  const ok = window.confirm('?Eliminar esta categori?a? Tambienn se archivaran sus productos.');
+  if (!id) { showMessageBox('Elegi una categoria a eliminar', 'warning'); return; }
+  const ok = window.confirm('?Eliminar esta categoria? Tambienn se archivaran sus productos.');
   if (!ok) return;
   try {
     const resp = await fetchWithAuth(ROUTES.category(id), { method: 'DELETE' });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    showMessageBox('Categori?a eliminada', 'success');
+    showMessageBox('Categoria eliminada', 'success');
     await loadCategoriesForEdit();
     await loadCategoriesForProductForms();
   } catch (err) {
     console.error('delete category error', err);
-    showMessageBox('No se pudo eliminar la categori?a', 'error');
+    showMessageBox('No se pudo eliminar la categoria', 'error');
   }
 }
 
@@ -1158,7 +1207,7 @@ function parseMoneyOr(val, fallback = 0) {
 }
 
 /* ===========================
-   Categor?as
+   Categorias
 =========================== */
 let categoriesCache = [];
 
@@ -1171,7 +1220,7 @@ async function loadCategoriesForProductForms() {
 
     // Rellenar selects
     if (productCategorySelect) {
-      productCategorySelect.innerHTML = '<option value="">-- Selecciona una categori?a --</option>';
+      productCategorySelect.innerHTML = '<option value="">-- Selecciona una categoria --</option>';
       categoriesCache.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.id || c._id || c.uuid || '';
@@ -1180,7 +1229,7 @@ async function loadCategoriesForProductForms() {
       });
     }
     if (editedProductCategorySelect) {
-      editedProductCategorySelect.innerHTML = '<option value="">-- Selecciona una categori?a --</option>';
+      editedProductCategorySelect.innerHTML = '<option value="">-- Selecciona una categoria --</option>';
       categoriesCache.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.id || c._id || c.uuid || '';
@@ -1190,7 +1239,7 @@ async function loadCategoriesForProductForms() {
     }
   } catch (err) {
     console.error('loadCategoriesForProductForms error', err);
-    showMessageBox('Error al cargar categori?as', 'error');
+    showMessageBox('Error al cargar categorias', 'error');
   }
 }
 
@@ -1226,7 +1275,7 @@ async function loadCategoriesForEdit() {
     }
   } catch (err) {
     console.error('loadCategoriesForEdit error', err);
-    showMessageBox('Error al cargar categori?as', 'error');
+    showMessageBox('Error al cargar categorias', 'error');
   }
 }
 
@@ -1263,7 +1312,7 @@ saveCategoryChangesButton?.addEventListener('click', async (e) => {
   const id = selectCategoryToEdit?.value || '';
   const name = editedCategoryNameInput?.value?.trim() || '';
   const imageUrl = editedCategoryImageUrlInput?.value?.trim() || '';
-  if (!id || !name) return showMessageBox('Selecciona? una categori?a y completa? el nombre.', 'warning');
+  if (!id || !name) return showMessageBox('Selecciona? una categoria y completa? el nombre.', 'warning');
 
   try {
     const description = document.getElementById('editedCategoryDescription')?.value?.trim() || '';
@@ -1277,12 +1326,12 @@ saveCategoryChangesButton?.addEventListener('click', async (e) => {
       console.error('update category failed', resp.status, details);
       throw new Error(`HTTP ${resp.status}`);
     }
-    showMessageBox('Categori?a actualizada', 'success');
+    showMessageBox('Categoria actualizada', 'success');
     await loadCategoriesForEdit();
     await loadCategoriesForProductForms();
   } catch (err) {
     console.error('update category error', err);
-    showMessageBox('No se pudo actualizar la categori?a', 'error');
+    showMessageBox('No se pudo actualizar la categoria', 'error');
   }
 });
 
@@ -1304,7 +1353,7 @@ createCategoryForm?.addEventListener('submit', async (e) => {
       console.error('create category failed', resp.status, details);
       throw new Error(`HTTP ${resp.status}`);
     }
-    showMessageBox('Categor?a creada', 'success');
+    showMessageBox('Categoria creada', 'success');
     (document.getElementById('categoryName')).value = '';
     (document.getElementById('categoryImageUrl')).value = '';
     document.getElementById('categoryImageUrl__preview')?.setAttribute('src','');
@@ -1312,7 +1361,7 @@ createCategoryForm?.addEventListener('submit', async (e) => {
     await loadCategoriesForProductForms();
   } catch (err) {
     console.error('create category error', err);
-    showMessageBox('No se pudo crear la categor?a', 'error');
+    showMessageBox('No se pudo crear la categoria', 'error');
   }
 });
 
@@ -1660,29 +1709,14 @@ async function loadProductsForStockManagement() {
     const resp = await fetchWithAuth(ROUTES.products());
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const list = await resp.json();
-    const items = (Array.isArray(list) ? list : []).map(p => ({
+    stockProductsCache = (Array.isArray(list) ? list : []).map(p => ({
       id: p.id || p._id || p.uuid,
       name: p.name || p.nombre || '',
       price: Number(p.price ?? p.precio ?? 0) || 0,
       stock: Number(p.stock_quantity ?? p.stock ?? 0) || 0
     }));
 
-    // Render inventario
-    try { renderInventoryTable(items); } catch {}
-
-    // Popular selector de "Agregar en tr?nsito"
-    if (addTransitProductSelect) {
-      addTransitProductSelect.innerHTML = '<option value="">-- Selecciona un producto --</option>';
-      items.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = p.name;
-        addTransitProductSelect.appendChild(opt);
-      });
-    }
-
-    // Render tr?nsito
-    try { renderTransitTable(items); } catch {}
+    applyStockSearchFilter();
   } catch (err) {
     console.error('loadProductsForStockManagement error', err);
     showMessageBox('Error al cargar productos para stock', 'error');
@@ -1724,6 +1758,7 @@ async function applyStockDelta(sign) {
 }
 
 function enhanceOrdersUI(){
+  if (!hasPerm('ventas.delete')) return;
   const box = document.getElementById('ordersList');
   if (!box) return;
   const buttons = box.querySelectorAll('.mark-delivered');
@@ -1936,12 +1971,12 @@ async function loadContactMessages() {
             <span class="text-sm text-gray-400">${whenStr}</span>
             <span class="text-sm"><strong>Nombre:</strong> ${escapeHtml(m.name || m.nombre || '')}</span>
             <span class="text-sm"><strong>Email:</strong> <a href="${emailHref}" class="text-sky-400 underline" rel="nofollow noopener noreferrer">${emailText}</a></span>
-            ${ m.phone ? `<span class="text-sm"><strong>Tel?fono:</strong> <a href="tel:${m.phone}" class="text-sky-400 underline">${m.phone}</a></span>` : '' }
+            ${ m.phone ? `<span class="text-sm"><strong>Telefono:</strong> <a href="tel:${m.phone}" class="text-sky-400 underline">${m.phone}</a></span>` : '' }
           </div>
           <div class="text-base text-gray-200"><strong>Asunto:</strong> ${escapeHtml(m.subject || '')}</div>
           <div class="text-gray-100 whitespace-pre-wrap">${escapeHtml(m.message || m.mensaje || '')}</div>
           <div class="mt-3 flex items-center gap-3">
-            <span class="text-sm text-gray-400">Responder por correo o tel?fono usando los enlaces.</span>
+            <span class="text-sm text-gray-400">Responder por correo o telefono usando los enlaces.</span>
             <button class="action-button bg-red-600 hover:bg-red-700" data-del="${m.id || m._id || ''}">Eliminar</button>
           </div>
         </div>
@@ -1953,7 +1988,7 @@ async function loadContactMessages() {
           const span = document.createElement('span');
           span.className = 'text-sm';
           const strong = document.createElement('strong');
-          strong.textContent = 'Tel?fono:';
+          strong.textContent = 'Telefono:';
           const a = document.createElement('a');
           a.className = 'text-sky-400 underline';
           a.rel = 'nofollow noopener noreferrer';
@@ -2018,6 +2053,7 @@ function renderOrderCard(order){
   `).join('');
   const buyer = order.buyer || {};
   const delivered = String(order.status||'pending') === 'delivered';
+  const canDeliver = hasPerm('ventas.write');
   return `
     <div class="rounded-xl border border-white/10 bg-white/5 p-4 shadow">
       <div class="flex items-center justify-between">
@@ -2043,7 +2079,7 @@ function renderOrderCard(order){
       </div>
       <div class="mt-4 flex items-center justify-between">
         <div class="text-sm text-gray-400">?El producto ya fue entregado?</div>
-        <button class="mark-delivered px-3 py-2 rounded-lg ${delivered? 'bg-green-700 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold" data-order-id="${order.id}" ${delivered? 'disabled' : ''}>${delivered? 'Entregado' : 'Marcar como entregado'}</button>
+        ${canDeliver ? `<button class="mark-delivered px-3 py-2 rounded-lg ${delivered? 'bg-green-700 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold" data-order-id="${order.id}" ${delivered? 'disabled' : ''}>${delivered? 'Entregado' : 'Marcar como entregado'}</button>` : ''}
       </div>
     </div>`;
 }
@@ -2416,6 +2452,7 @@ function renderOrderCard2(order){
   const buyer = order.buyer || {};
   const pdfHref = `${API_BASE}/pedidos/${encodeURIComponent(order.id)}/pdf`;
   const delivered = String(order.status||'pending') === 'delivered';
+  const canDeliver = hasPerm('ventas.write');
   return `
     <div class="rounded-xl border border-white/10 bg-white/5 p-4 shadow">
       <div class="flex items-center justify-between">
@@ -2444,10 +2481,10 @@ function renderOrderCard2(order){
       </div>
       <div class="mt-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <a class="px-3 py-2 rounded-lg border border-white/20 text-white/90 hover:bg-white/10" href="${pdfHref}" target="_blank" rel="noopener">Ver PDF</a>
+          <a class="px-3 py-2 rounded-lg border border-white/20 text-white/90 hover:bg-white/10" href="${pdfHref}" target="_blank" rel="noopener">Ver CR</a>
           <div class="text-sm text-gray-400">Entregado?</div>
         </div>
-        <button class="mark-delivered px-3 py-2 rounded-lg ${delivered? 'bg-green-700 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold" data-order-id="${order.id}" ${delivered? 'disabled' : ''}>${delivered? 'Entregado' : 'Marcar como entregado'}</button>
+        ${canDeliver ? `<button class="mark-delivered px-3 py-2 rounded-lg ${delivered? 'bg-green-700 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold" data-order-id="${order.id}" ${delivered? 'disabled' : ''}>${delivered? 'Entregado' : 'Marcar como entregado'}</button>` : ''}
       </div>
     </div>`;
 }

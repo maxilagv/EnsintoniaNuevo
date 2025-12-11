@@ -73,7 +73,16 @@ function hideLoading(id) {
   }
 }
 
-function showMessageBox(message, duration = null) {
+function showMessageBox(message, optsOrDuration = null) {
+  let options = {};
+  if (typeof optsOrDuration === 'number') {
+    options.duration = optsOrDuration;
+  } else if (optsOrDuration && typeof optsOrDuration === 'object') {
+    options = optsOrDuration;
+  }
+  const duration = typeof options.duration === 'number' ? options.duration : null;
+  const showLogin = !!options.showLogin;
+  const autoCloseOverlays = !!options.autoCloseOverlays;
   try {
     let s = String(message ?? '');
     const fixes = [
@@ -101,18 +110,50 @@ function showMessageBox(message, duration = null) {
     for (const [rgx, rep] of fixes) { s = s.replace(rgx, rep); }
     message = s;
   } catch {}
+  if (autoCloseOverlays) {
+    try { closeAllOverlays(); } catch {}
+  }
   const box = document.createElement('div');
-  box.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-[120]';
+  box.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-[200]';
+  let actionsHtml = '';
+  if (duration === null) {
+    if (showLogin) {
+      actionsHtml = `
+      <div class="mt-4 flex gap-3 justify-center">
+        <button type="button" data-msg-close class="px-5 py-2 rounded-xl bg-gray-700 text-white text-sm font-semibold hover:bg-gray-600 shadow-sm focus:ring-2 focus:ring-brand-500/30 active:translate-y-px btn">Cerrar</button>
+        <button type="button" data-msg-login class="px-5 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm focus:ring-2 focus:ring-brand-500/30 active:translate-y-px btn">Iniciar sesion</button>
+      </div>`;
+    } else {
+      actionsHtml = '<button type="button" data-msg-close class="px-5 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm focus:ring-2 focus:ring-brand-500/30 active:translate-y-px btn">Cerrar</button>';
+    }
+  } else {
+    actionsHtml = '<div class="loader-circle border-t-2 border-b-2 border-brand-1 rounded-full w-8 h-8 animate-spin mt-4"></div>';
+  }
   box.innerHTML = `
     <div class="bg-gray-900/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl text-center max-w-sm mx-auto flex flex-col items-center border border-white/20 text-futuristic-ink">
       <p class="text-xl font-semibold mb-4">${message}</p>
-      ${duration === null ? '<button onclick="this.parentNode.parentNode.remove()" class="px-5 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 shadow-sm focus:ring-2 focus:ring-brand-500/30 active:translate-y-px btn">Cerrar</button>' : ''}
-      ${duration !== null ? '<div class="loader-circle border-t-2 border-b-2 border-brand-1 rounded-full w-8 h-8 animate-spin mt-4"></div>' : ''}
+      ${actionsHtml}
     </div>`;
   document.body.appendChild(box);
   if (duration !== null) {
     box.classList.add('message-box-autodismiss');
     setTimeout(() => { if (box.parentNode) box.remove(); }, duration);
+  } else {
+    const closeBtn = box.querySelector('[data-msg-close]');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        if (box.parentNode) box.remove();
+      });
+    }
+    const loginBtn = box.querySelector('[data-msg-login]');
+    if (loginBtn) {
+      loginBtn.addEventListener('click', () => {
+        if (box.parentNode) box.remove();
+        try { setupClientLogin(); } catch {}
+        const loginOverlay = document.getElementById('client-login-overlay');
+        if (loginOverlay) loginOverlay.classList.remove('hidden');
+      });
+    }
   }
   return box;
 }
@@ -196,7 +237,7 @@ if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
           clearClientSession();
           updateClientAuthUi();
           updateClientLogoutUi();
-          showMessageBox('Tu sesion de cliente vencio. Inicia sesion nuevamente para finalizar la compra.');
+          showMessageBox('Tu sesion de cliente vencio. Inicia sesion nuevamente para finalizar la compra.', { autoCloseOverlays: true, showLogin: true });
         } catch {}
         return resp;
       }
@@ -273,16 +314,17 @@ function updateClientAuthUi() {
   if (logged) {
     if (btnRegister) btnRegister.classList.add('hidden');
     if (btnRegisterMobile) btnRegisterMobile.classList.add('hidden');
-    if (btnLogin) btnLogin.textContent = 'Mi cuenta';
-    if (btnLoginMobile) btnLoginMobile.textContent = 'Mi cuenta';
+    if (btnLogin) btnLogin.classList.add('hidden');
+    if (btnLoginMobile) btnLoginMobile.classList.add('hidden');
   } else {
     if (btnRegister) btnRegister.classList.remove('hidden');
     if (btnRegisterMobile) btnRegisterMobile.classList.remove('hidden');
+    if (btnLogin) btnLogin.classList.remove('hidden');
+    if (btnLoginMobile) btnLoginMobile.classList.remove('hidden');
     if (btnLogin) btnLogin.textContent = 'Iniciar sesión';
     if (btnLoginMobile) btnLoginMobile.textContent = 'Iniciar sesión';
   }
 }
-
 function setupClientRegistration() {
   const openBtn = document.getElementById('open-client-register');
   const openBtnMobile = document.getElementById('open-client-register-mobile');
@@ -1217,6 +1259,12 @@ function renderProductDetail(prod){
   if(!$pd.title) return;
   try { window.__currentProduct = { id: prod.id, name: prod.name || prod.nombre, price: prod.price ?? prod.precio ?? 0, imageUrl: prod.imageUrl || prod.imagen || null }; } catch {}
   $pd.title.textContent = prod.nombre || prod.title || prod.name || 'Producto';
+  if ($pd.image) {
+    const src = prod.imageUrl || prod.imagen || $pd.image.getAttribute('src') || '';
+    $pd.image.src = src;
+    const altName = prod.nombre || prod.title || prod.name || '';
+    $pd.image.alt = altName ? `Imagen de ${altName}` : 'Imagen del producto';
+  }
   $pd.price.textContent = (prod.price ?? prod.precio) != null ? currency(prod.price ?? prod.precio) : 'Consultar';
   if ($pd.id) $pd.id.textContent = prod.id || '-';
   if ($pd.stock) $pd.stock.textContent = (prod.stock ?? '-');
@@ -1753,6 +1801,7 @@ function initAppFromAPI() {
     loadCategories();
     loadAllProducts();
   }
+  try { loadCheckoutSellers(); } catch {}
 }
 document.addEventListener('DOMContentLoaded', initAppFromAPI);
 // --- Mobile search wiring + text filter (catálogo) ---
@@ -2095,17 +2144,29 @@ function generateOrderId(){
     return `ENS-${Date.now()}`;
   }
 }
-async function openCheckout(){
+function openCheckout(){
   const ov = document.getElementById('checkout-overlay');
   if (!ov) return;
-  try { await loadCheckoutSellers(); } catch {}
   const { total } = cartTotals();
   const tot = document.getElementById('checkout-total');
   if (tot) tot.textContent = currency(total);
   ov.classList.remove('hidden');
   document.body.style.overflow='hidden';
+  try { loadCheckoutSellers(); } catch {}
 }
 function closeCheckout(){ const ov = document.getElementById('checkout-overlay'); if (!ov) return; ov.classList.add('hidden'); document.body.style.overflow=''; }
+function closeAllOverlays(){
+  try { if (typeof closeCart === 'function') closeCart(); } catch {}
+  try { if (typeof closeCheckout === 'function') closeCheckout(); } catch {}
+  try { if (typeof closePD === 'function') closePD(); } catch {}
+  try {
+    ['client-login-overlay','client-register-overlay'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el && !el.classList.contains('hidden')) el.classList.add('hidden');
+    });
+  } catch {}
+  try { document.body.style.overflow=''; } catch {}
+}
 
 // Intercept existing checkout click (capture) to show form instead of WhatsApp
 document.getElementById('cart-checkout')?.addEventListener('click', (e) => {
@@ -2203,10 +2264,7 @@ document.getElementById('checkout-form')?.addEventListener('submit', async (e) =
     const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
     const token = getClientAccessToken();
     if (!token) {
-      showMessageBox('Para finalizar la compra, inici� sesi�n como cliente.');
-      try { setupClientLogin(); } catch {}
-      const loginOverlay = document.getElementById('client-login-overlay');
-      if (loginOverlay) loginOverlay.classList.remove('hidden');
+      showMessageBox('Para finalizar la compra, inicia sesion como cliente.', { autoCloseOverlays: true, showLogin: true });
       return;
     }
     headers.Authorization = `Bearer ${token}`;

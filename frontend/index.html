@@ -1,14 +1,33 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="es">
 <head>
   <link rel="icon" type="image/png" href="https://i.postimg.cc/nLpfY67w/Gemini-Generated-Image-3nyj8v3nyj8v3nyj.png">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Ensintonia Importadora directa de electronica y hogar</title>
+  <title>Ensintonia | Importadora directa de electr&oacute;nica y hogar en Quilmes</title>
+  <meta name="description" content="Ensintonia: importadora directa de electrónica y hogar en Quilmes, Buenos Aires. Ofrecemos stock real, envíos a todo el país y soporte por WhatsApp para mayoristas y minoristas." />
+  <meta name="keywords" content="importadora, electrónica, hogar, Quilmes, Buenos Aires, mayorista, minorista, audio, video, computación, seguridad" />
+  <meta name="robots" content="index,follow,max-image-preview:large" />
+  <meta name="language" content="es-AR" />
+  <link rel="canonical" href="/" />
 
-  <!-- Tailwind (CDN, r�pido para prototipo) -->
+  <!-- Open Graph -->
+  <meta property="og:title" content="Ensintonia | Importadora directa de electr&oacute;nica y hogar" />
+  <meta property="og:description" content="Importadora directa de electr&oacute;nica y hogar en Quilmes Oeste, Buenos Aires. Stock real, env&iacute;os a todo el pa&iacute;s y soporte por WhatsApp." />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="es_AR" />
+  <meta property="og:site_name" content="Ensintonia" />
+  <meta property="og:image" content="https://i.postimg.cc/nLpfY67w/Gemini-Generated-Image-3nyj8v3nyj8v3nyj.png" />
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ensintonia | Importadora directa de electr&oacute;nica y hogar" />
+  <meta name="twitter:description" content="Importadora directa de electr&oacute;nica y hogar en Quilmes Oeste, Buenos Aires. Stock real, env&iacute;os a todo el pa&iacute;s y soporte por WhatsApp." />
+  <meta name="twitter:image" content="https://i.postimg.cc/nLpfY67w/Gemini-Generated-Image-3nyj8v3nyj8v3nyj.png" />
+
+  <!-- Tailwind (CDN, rápido para prototipo) -->
   <script>
-    // Asegura el objeto global antes de asignar la configuraci�n
+    // Asegura el objeto global antes de asignar la configuración
     window.tailwind = window.tailwind || {};
     window.tailwind.config = {
       theme: {
@@ -34,720 +53,20 @@
     };
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js (Necesario para la animación fluida) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 
   <!-- Font -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
-
-  <style>
-    /* Paleta y tokens (misma paleta, m�s ordenada) */
-    :root{
-      /* Fondos base */
-      --bg-1: #0f172a; /* deep ink */
-      --bg-2: #071032; /* deep blue */
-
-      /* Colores de marca */
-      --brand-1: #6ee7b7; /* mint */
-      --brand-2: #7c3aed; /* purple */
-      --accent: linear-gradient(90deg,var(--brand-1),#60a5fa 40%,var(--brand-2));
-
-      /* Superficies y bordes (reutilizan colores existentes) */
-      --glass: rgba(255,255,255,0.06);
-      --section-bg-glass: rgba(15,23,42,0.45);
-      --section-border-soft: rgba(49,62,85,0.3);
-
-      /* Sombras principales (tomadas de las cards actuales) */
-      --shadow-card-strong: 0 22px 50px rgba(12,18,32,0.18);
-      --shadow-card-soft: 0 8px 24px rgba(2,6,23,0.08);
-
-      /* Texto */
-      --futuristic-ink: #e6f0ff; /* Light white/blue for main text */
-      --futuristic-mute: #9fb3d9; /* Muted light blue for secondary text */
-      --muted: #94a3b8;
-    }
-
-    /* Fondo azul futurista (se mantiene la est�tica actual) */
-    body {
-      background: radial-gradient(1200px 600px at 10% 10%, rgba(110,231,183,0.06), transparent 12%),
-                  linear-gradient(180deg, #061229 0%, #072447 30%, #0b3b6b 60%, #081133 100%) !important;
-      color: var(--futuristic-ink) !important;
-      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      min-height: 100vh;
-    }
-
-    /* Ajustes de contraste para textos secundarios */
-    .muted,
-    .text-muted-700 {
-      color: var(--futuristic-mute);
-    }
-
-    .text-ink {
-      color: var(--futuristic-ink);
-    }
-
-    /* Header / logo: mucho m�s grande y animado */
-    .logo-wrap {
-      display:flex;
-      align-items:center;
-      gap:.15rem;
-      transform-origin:center;
-    }
-    .logo-big {
-      width: 146px;
-      height:auto;
-      transition: transform .6s cubic-bezier(.2,.9,.2,1), filter .6s;
-      filter: drop-shadow(0 18px 40px rgba(99,102,241,.12));
-      will-change: transform;
-    }
-    @media (max-width: 768px){
-      .logo-big{ width: 76px; }
-    }
-    .logo-big:hover{ transform: translateY(-4px) rotate(-2deg) scale(1.02); filter: drop-shadow(0 26px 60px rgba(124,58,237,.14)); }
-
-    /* Header scroll effect */
-    #main-header.scrolled {
-      background-color: rgba(6, 18, 41, 0.9); /* Slightly darker, more opaque */
-      box-shadow: 0 4px 18px rgba(0,0,0,0.3);
-      border-color: rgba(49, 62, 85, 0.4);
-    }
-
-
-    /* Futuristic heading style - Refined */
-    .neon-text {
-      font-family: 'Orbitron', Inter, sans-serif;
-      font-weight:700;
-      background: var(--accent);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      letter-spacing: -0.01em;
-      /* Removed aggressive text-shadow from here */
-    }
-
-    /* Subtle, unified glow for neon-text */
-    .hero-title-shadow { /* New class for the subtle shadow */
-      text-shadow:
-        0 4px 18px rgba(96,165,250,0.1), /* Soft blue glow */
-        0 2px 8px rgba(124,58,237,0.08); /* Soft purple glow */
-    }
-
-    /* Animated gradient underline for brand */
-    .brand-underline{
-      display:inline-block;
-      height:6px;
-      width:64px;
-      border-radius:999px;
-      background: linear-gradient(90deg,#60a5fa,#7c3aed,#6ee7b7);
-      box-shadow: 0 10px 30px rgba(124,58,237,0.08);
-      transform-origin:left center;
-      animation: underline-slide 3.8s linear infinite alternate; /* Added alternate */
-      opacity:.95;
-      filter: blur(0.5px); /* Subtle blur */
-    }
-    @keyframes underline-slide {
-      0%{ transform: translateX(-8px) scaleX(.98); filter: blur(.2px) }
-      50%{ transform: translateX(8px) scaleX(1.02); filter: blur(1px) } /* Increased blur at 50% */
-      100%{ transform: translateX(-8px) scaleX(.98); }
-    }
-
-    /* Subtle floating decorative shapes */
-    .hero-deco {
-      position:absolute; right:-6rem; top:-6rem; width:36rem; height:36rem; opacity:.06; pointer-events:none; filter: blur(18px); transform: rotate(18deg);
-      animation: slow-rotate 40s linear infinite; /* New animation */
-      z-index: 1;
-    }
-    @keyframes slow-rotate {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    /* Button glow / micro-animations */
-    .btn {
-      transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    }
-    .btn:hover {
-      transform: translateY(-2px) scale(1.01);
-    }
-    .btn-glow {
-      position:relative;
-      overflow:hidden;
-      transition: transform .22s ease, box-shadow .22s ease;
-    }
-    .btn-glow::after{
-      content:'';
-      position:absolute;
-      inset: -50%;
-      background: radial-gradient(circle at 10% 10%, rgba(126,34,206,0.12), transparent 20%),
-                  radial-gradient(circle at 80% 80%, rgba(96,165,250,0.08), transparent 20%);
-      opacity:0;
-      transition: opacity .35s ease;
-      pointer-events:none;
-    }
-    .btn-glow:hover::after{ opacity:1; }
-
-    /* Slight entrance animations */
-    .fade-up-init { opacity:0; transform: translateY(18px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.9,.2,1); }
-    .fade-up-init.show { opacity:1; transform: translateY(0); }
-
-    /* Futuristic card animations & polish */
-    .card-polish {
-      position: relative;
-      overflow: hidden;
-      transform-style: preserve-3d;
-      will-change: transform, box-shadow;
-      transition: transform .35s cubic-bezier(.2,.9,.2,1), box-shadow .35s ease, filter .35s ease;
-      backface-visibility: hidden;
-    }
-
-    /* initial invisible state for scroll reveal */
-    .card-polish.reveal-init { opacity: 0; transform: translateY(18px) scale(.995); filter: blur(6px) saturate(.9); }
-
-    /* when in viewport */
-    .card-polish.in-view {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      filter: blur(0) saturate(1);
-      box-shadow: 0 22px 50px rgba(12,18,32,0.18);
-    }
-
-    /* subtle holographic sheen */
-    .card-polish::before{
-      content: "";
-      position: absolute;
-      inset: -40% -30% auto -30%;
-      height: 140%;
-      background: linear-gradient(120deg, rgba(124,58,237,0.06), rgba(96,165,250,0.06) 35%, rgba(110,231,183,0.04) 60%, transparent 70%);
-      transform: translateX(-30%) rotate(-12deg);
-      transition: transform .8s cubic-bezier(.2,.9,.2,1), opacity .6s ease;
-      pointer-events: none;
-      opacity: 0.95;
-      mix-blend-mode: screen;
-    }
-
-    .card-polish:hover::before { transform: translateX(0) rotate(-8deg); opacity: 1; }
-
-    /* fine grain shimmer on hover */
-    .card-polish .shimmer {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background: linear-gradient(90deg, rgba(255,255,255,0.00) 0%, rgba(255,255,255,0.04) 45%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 55%, rgba(255,255,255,0.00) 100%);
-      transform: translateX(-120%);
-      transition: transform .9s cubic-bezier(.2,.9,.2,1);
-      mix-blend-mode: overlay;
-      opacity: .9;
-    }
-    .card-polish:hover .shimmer { transform: translateX(120%); }
-
-    /* 3D tilt microinteraction (will be driven by JS mousemove) */
-    .card-polish.tilt {
-      transition: transform .12s linear;
-      transform-origin: center center;
-    }
-
-    /* tiny floating animation to make grid lively (only subtle on non-hover) */
-    @keyframes float-slight {
-      0% { transform: translateY(0px); }
-      50% { transform: translateY(-6px); }
-      100% { transform: translateY(0px); }
-    }
-    .card-polish.float-subtle { animation: float-slight 6.8s ease-in-out infinite both; opacity: .999; }
-
-    /* card content contrast helpers (already added earlier, keep) */
-    .card-polish h3, .card-polish p, .card-polish a { color: inherit; }
-
-    /* small responsive tweak: reduce intensity on small screens */
-    @media (max-width: 640px){
-      .card-polish::before { opacity: .6; transform: translateX(-20%) rotate(-10deg); }
-      .card-polish.float-subtle { animation: none; }
-    }
-
-    /* Make text inside light/white cards readable on the dark futuristic page */
-    .bg-white, .bg-white\/60 {
-      color: var(--futuristic-ink); /* texto principal claro para legibilidad */
-    }
-
-    /* Muted text inside cards: slightly lighter but still dark */
-    .bg-white .muted, .bg-white\/60 .muted {
-      color: var(--futuristic-mute);
-    }
-
-    /* Links/buttons inside cards: accent color (brand) */
-    .bg-white a, .bg-white\/60 a {
-      color: var(--brand-1); /* brand-1 (mint) */
-      text-decoration: none;
-    }
-
-    /* Headings inside cards slightly stronger */
-    .bg-white h2, .bg-white h3, .bg-white h4,
-    .bg-white\/60 h2, .bg-white\/60 h3, .bg-white\/60 h4 {
-      color: var(--futuristic-ink);
-    }
-
-    /* Ensure components inherit color unless explicitly overridden */
-    .bg-white * , .bg-white\/60 * { color: inherit; }
-
-
-    /* Mobile-first polish: centrar y hacer est�tico en pantallas peque�as */
-    @media (max-width: 640px) {
-      /* Container: padding c�modo y ancho completo */
-      .site-container {
-        padding-left: 1rem;
-        padding-right: 1rem;
-        max-width: 100%;
-        margin: 0 auto;
-      }
-
-      /* Header: mayor altura, logo m�s grande visualmente centrado */
-      #main-header .site-container { height: 72px; gap: 0.5rem; }
-      .logo-big { width: 115px !important; height: auto; }
-      .logo-wrap { gap: 0.6rem; align-items: center; }
-
-      /* T�tulos: menor tama�o pero con mayor contraste y centrado */
-      #hero-title { font-size: 1.6rem; line-height: 1.05; text-align: center; }
-      #hero-sub, #hero-detail { font-size: 0.98rem; text-align: center; }
-
-      /* Hero CTAs: apilados y full width para tocar f�cil con el pulgar */
-      #hero-ctas { flex-direction: column; gap: 0.75rem; align-items: stretch; }
-      #hero-ctas .btn { width: 100%; display: inline-flex; justify-content: center; }
-
-      /* Accent line centrado y m�s sutil */
-      .accent-line { margin: 0.6rem auto 1rem auto; width: 48px; height: 3px; }
-
-      /* Ocultar decoraciones pesadas para no competir con el contenido */
-      .hero-deco { display: none !important; }
-
-      /* Cards: full width, centradas y con menos blur/tilt para rendimiento.
-         Mantener padding interno y bordes suaves. */
-      .card-polish, .product-card {
-        width: 100% !important;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        border-radius: 1rem !important;
-        box-shadow: 0 8px 24px rgba(2,6,23,0.08) !important;
-      }
-      .card-polish.reveal-init { transform: translateY(10px) scale(0.999) !important; filter: none !important; }
-      .card-polish.tilt { transition: none; transform: none !important; } /* desactivar tilt en m�vil */
-
-      /* Grid de categor�as / productos: una columna con gap */
-      #categories-container, #contenedor-productos {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 14px;
-      }
-
-      /* Centrar texto en tarjetas para est�tica m�vil */
-      .product-card .p-6, .product-card .p-4 { text-align: left; } /* mantener left para legibilidad */
-      .product-card h3 { font-size: 1.05rem; }
-      .product-card p { font-size: 0.95rem; }
-
-      /* Botones peque�os dentro de cards: full width y mayor toque */
-      .product-card .btn, .product-card a { width: 100%; display: inline-flex; justify-content: center; }
-
-      /* Nav m�vil: mejorar espaciado y centrar elementos */
-      #mobile-nav { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
-      #mobile-nav a { padding: 0.75rem 1rem; border-radius: 0.75rem; }
-
-      /* Input search m�vil: full width y mayor hit area */
-      #search-input-mobile { width: 100%; padding-left: 1rem; padding-right: 1rem; border-radius: 12px; }
-
-      /* Reducir animaciones al m�nimo para ahorro de CPU en m�viles */
-      .card-polish::before, .card-polish .shimmer { display: none; }
-      .card-polish.float-subtle { animation: none; }
-
-      /* Ajustes tipogr�ficos para legibilidad */
-      body { -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
-      .muted { opacity: 0.9; }
-    }
-
-    /* Hamburguesa -> X */
-    #mobile-menu-button .bar{transition:transform .35s ease, opacity .25s ease;}
-    #mobile-menu-button.open .bar:nth-child(1){transform:translateY(6px) rotate(45deg);}
-    #mobile-menu-button.open .bar:nth-child(2){opacity:0;}
-    #mobile-menu-button.open .bar:nth-child(3){transform:translateY(-6px) rotate(-45deg);}
-
-    /* Panel m�vil */
-    #mobile-nav{position:fixed; inset:0; z-index:40; display:none;}
-    #mobile-nav[data-state="opening"],
-    #mobile-nav[data-state="open"]{display:block;}
-    #mobile-nav .mn-overlay{
-      position:absolute; inset:0;
-      background:rgba(15,23,42,.65);
-      backdrop-filter:blur(6px);
-      opacity:0; transition:opacity .35s;
-    }
-    #mobile-nav[data-state="open"] .mn-overlay{opacity:1;}
-    #mobile-nav .mn-panel{
-      position:absolute; top:0; right:0; height:100%; width:18rem; max-width:100%;
-      background: rgba(15,23,42,0.96); padding:1.25rem 1.25rem 2.5rem; overflow-y:auto;
-      box-shadow: -8px 0 28px -4px rgba(0,0,0,.55);
-      border-left: 1px solid rgba(148,163,184,0.35);
-      transform:translateX(100%); transition:transform .38s cubic-bezier(.22,.9,.22,1);
-      display:flex; flex-direction:column; gap:1rem;
-      color: var(--futuristic-ink);
-    }
-    body.dark #mobile-nav .mn-panel{background:#0f172a; color:#e2e8f0;}
-    #mobile-nav[data-state="open"] .mn-panel{transform:translateX(0);}
-
-    #mobile-nav a{
-      display:block; padding:.6rem .75rem; border-radius:.75rem; font-size:.95rem; font-weight:500;
-      color:var(--futuristic-ink);
-      transition: background .2s ease, color .2s ease;
-    }
-    #mobile-nav a:hover,
-    #mobile-nav a:focus-visible{
-      background: rgba(148,163,184,0.16);
-      outline:none;
-    }
-    body.dark #mobile-nav a{color:#e2e8f0;}
-    body.dark #mobile-nav a:hover{background:#1e293b;}
-
-    #mobile-nav h6{
-      font-size:.68rem; letter-spacing:.08em; font-weight:600; text-transform:uppercase;
-      color:#94a3b8; margin:.25rem .25rem .15rem;
-    }
-    body.dark #mobile-nav h6{color:#64748b;}
-
-    /* Reduce panel en pantallas muy bajas */
-    @media (max-height:560px){
-      #mobile-nav .mn-panel{padding-bottom:4rem;}
-    }
-
-    /* Nuevos estilos para las tarjetas de "Qui�nes somos" */
-    .card-modern {
-      background: var(--section-bg-glass); /* Dark, slightly transparent ink color */
-      border: 1px solid var(--section-border-soft); /* Darker, subtle border */
-      box-shadow: var(--shadow-card-soft); /* Stronger shadow */
-      transition: all 0.3s ease-in-out;
-      overflow: hidden;
-      position: relative;
-      color: var(--futuristic-ink); /* Light text for contrast */
-    }
-
-    .card-modern:hover {
-      transform: translateY(-8px) scale(1.01);
-      box-shadow: 0 18px 40px rgba(0,0,0,0.3);
-      border-color: var(--brand-1); /* Mint border on hover */
-    }
-
-    .card-modern::before {
-      content: '';
-      position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle at center, rgba(110,231,183,0.1) 0%, transparent 70%); /* Mint light effect */
-      opacity: 0;
-      transition: opacity 0.5s ease-in-out;
-      pointer-events: none;
-    }
-
-    .card-modern:hover::before {
-      opacity: 1;
-    }
-
-    .card-modern h3 {
-      color: var(--brand-1); /* Mint color for titles */
-    }
-
-    .card-modern p {
-      color: var(--futuristic-mute); /* Muted light blue for readability */
-    }
-
-    /* Tarjeta de foto principal en "Qui?nes somos" */
-    .about-photo-card{
-      position: relative;
-      border-radius: 1.5rem;
-      overflow: hidden;
-      box-shadow: var(--shadow-card-strong);
-      border: 1px solid rgba(148,163,184,0.45);
-      background: radial-gradient(circle at top, rgba(30,64,175,0.85), rgba(15,23,42,0.98));
-      min-height: 160px;
-      max-width: 320px;
-      margin: 0 auto;
-    }
-    .about-photo-card img{
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-      transform-origin: center;
-      transition: transform .5s ease;
-    }
-    .about-photo-card::after{
-      content:'';
-      position:absolute;
-      inset:0;
-      background: radial-gradient(circle at top, rgba(15,23,42,0.15), transparent 55%);
-      mix-blend-mode: soft-light;
-      pointer-events:none;
-    }
-    .about-photo-card:hover img{
-      transform: scale(1.03);
-    }
-    .about-photo-caption{
-      position:absolute;
-      left:1.25rem;
-      bottom:1.25rem;
-      padding:0.55rem 0.9rem;
-      border-radius:999px;
-      background: rgba(15,23,42,0.9);
-      border:1px solid rgba(148,163,184,0.7);
-      font-size:0.8rem;
-      display:inline-flex;
-      align-items:center;
-      gap:0.4rem;
-      color:var(--futuristic-ink);
-      box-shadow: 0 16px 40px rgba(15,23,42,0.9);
-    }
-    .about-photo-caption-dot{
-      width:0.5rem;
-      height:0.5rem;
-      border-radius:999px;
-      background: linear-gradient(135deg,#60a5fa,#6ee7b7);
-      box-shadow: 0 0 8px rgba(96,165,250,0.8);
-    }
-
-    /* Estilos para las tarjetas de "Propuesta de valor" y "Log�stica" */
-    .value-card {
-      background: var(--section-bg-glass); /* Dark, slightly transparent ink color */
-      border: 1px solid var(--section-border-soft); /* Darker, subtle border */
-      box-shadow: var(--shadow-card-soft);
-      transition: all 0.3s ease-in-out;
-      color: var(--futuristic-ink); /* Light text for contrast */
-    }
-
-    .value-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 12px 28px rgba(0,0,0,0.25);
-      border-color: var(--brand-2); /* Purple border on hover */
-    }
-
-    .value-card svg {
-      color: var(--brand-1); /* Mint for icons */
-    }
-
-    .value-card strong {
-      color: var(--futuristic-ink); /* Light text for important elements */
-    }
-
-    .value-card div:last-child {
-      color: var(--futuristic-mute); /* Muted light blue for descriptions */
-    }
-
-    /* Estilos para las categor�as y otras tarjetas peque�as */
-    .category-tag {
-      background-color: rgba(15, 23, 42, 0.7); /* Dark glass */
-      border: 1px solid rgba(148, 163, 184, 0.45); /* Soft cool border */
-      color: var(--futuristic-ink); /* Light text for contrast */
-      box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-      transition: all 0.2s ease-in-out;
-      backdrop-filter: blur(6px);
-    }
-
-    .category-tag:hover {
-      background-color: rgba(30, 64, 175, 0.9); /* subtle brand-tinted highlight */
-      transform: translateY(-2px);
-      box-shadow: 0 10px 20px rgba(0,0,0,0.25);
-    }
-
-    /* Override Tailwind bg-white/60 for sections to use custom dark transparent background */
-    .section.bg-white\/60 {
-      background: rgba(15, 23, 42, 0.45) !important; /* Lighter dark transparent for sections */
-      border-top: 1px solid rgba(49, 62, 85, 0.3);
-      border-bottom: 1px solid rgba(49, 62, 85, 0.3);
-    }
-
-    /* Mobile-only: ocultar barra neon bajo el logo principal */
-    @media (max-width: 640px) {
-      .brand-underline { display: none; }
-    }
-
-    /* Ajuste fino del hero en m?vil (altura, espaciado y CTAs) */
-    @media (max-width: 640px) {
-      #hero-intro{
-        min-height: auto;
-        padding-top: 3.5rem;
-        padding-bottom: 3rem;
-      }
-      #hero-accent{
-        margin-bottom: 0.75rem;
-      }
-      #hero-sub,
-      #hero-detail{
-        font-size: 0.95rem;
-      }
-      #hero-ctas .btn{
-        width: 100%;
-        display: inline-flex;
-        justify-content: center;
-        padding-top: 0.8rem;
-        padding-bottom: 0.8rem;
-      }
-    }
-  </style>
-
-  <!-- Additional aesthetic layer (visual-only, no logic changes) -->
-  <style>
-    /* Smooth scrolling */
-    html { scroll-behavior: smooth; }
-
-    /* Diagonal page overlay (blue -> violet) */
-    body::after{
-      content: '';
-      position: fixed; inset: 0; pointer-events: none;
-      background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(168,85,247,0.08));
-      mix-blend-mode: screen; opacity: 0.08; z-index: 0;
-    }
-
-    /* Header glass (sin barra neon inferior) */
-    #main-header{
-      background: rgba(8,17,51,0.7);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border-bottom: 1px solid rgba(49,62,85,0.35);
-    }
-    #main-header.scrolled{ background: rgba(6,18,41,0.75); box-shadow: 0 8px 30px rgba(0,0,0,0.35); border-color: rgba(49,62,85,0.5); }
-
-    /* Est�tica del bot�n hamburguesa en m�vil: pill glass y barras claras (coherente con cat�logo) */
-    @media (max-width: 768px) {
-      #mobile-menu-button {
-        background: rgba(15,23,42,0.9);
-        border-radius: 9999px;
-        border: 1px solid rgba(148,163,184,0.7);
-        box-shadow: 0 10px 28px rgba(15,23,42,0.95);
-        padding: 0.55rem 0.6rem;
-      }
-      #mobile-menu-button .bar{
-        width: 1.75rem;
-        height: 0.11rem;
-        background-color: rgba(248,250,252,0.96);
-      }
-      /* Al abrir men�, resaltar un poco el contorno para que no se pierda sobre el panel */
-      #mobile-menu-button.open{
-        background: rgba(15,23,42,0.4);
-        border-color: rgba(248,250,252,0.9);
-        box-shadow: 0 0 0 1px rgba(148,163,184,0.9);
-      }
-    }
-
-    /* Header nav links: underline + focus */
-    #main-header nav a:not(.btn){
-      position: relative;
-      display:inline-block;
-      font-weight:500;
-      letter-spacing:.02em;
-      padding-bottom: 2px;
-      color: var(--futuristic-ink);
-      opacity: 0.9;
-    }
-    #main-header nav a:not(.btn)::after{
-      content:''; position:absolute; left:0; bottom:-6px; height:2px; width:100%;
-      background: linear-gradient(90deg,#60a5fa,#7c3aed,#6ee7b7);
-      transform: scaleX(0); transform-origin: left; transition: transform .35s ease; border-radius:999px;
-    }
-    #main-header nav a:not(.btn):hover::after,
-    #main-header nav a:not(.btn):focus-visible::after{
-      transform: scaleX(1);
-    }
-    #main-header nav a:not(.btn):hover,
-    #main-header nav a:not(.btn):focus-visible{
-      opacity: 1;
-      outline: none;
-    }
-
-    /* Global type hierarchy */
-    h1{
-      font-size: 3rem;
-      line-height: 1.1;
-      font-weight: 800;
-    }
-
-    h2{
-      font-size: 1.75rem;
-      line-height: 1.25;
-      font-weight: 600;
-    }
-
-    p{
-      font-size: 1rem;
-      line-height: 1.6;
-    }
-
-    /* Section title divider */
-    h2.section-title{ text-align: center; }
-    h2.section-title::before{
-      content: '';
-      display:block; width:72px; height:3px; margin:0 auto .75rem; border-radius:999px;
-      background: linear-gradient(90deg,#60a5fa,#7c3aed,#6ee7b7);
-      background-size: 200% 100%; animation: divider-shift 6s linear infinite;
-      box-shadow: 0 8px 20px rgba(124,58,237,0.18);
-    }
-    @media (min-width: 768px){
-      h2.section-title{
-        text-align: left;
-      }
-      h2.section-title::before{
-        margin-left: 0;
-        margin-right: 0;
-      }
-    }
-    @keyframes divider-shift{ 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
-
-    /* Buttons microinteractions */
-    .btn:hover{ transform: translateY(-2px) scale(1.03); box-shadow: 0 12px 30px rgba(2,6,23,0.22); }
-    .btn-glow::after{ opacity: 0; }
-    .btn-glow:hover::after{ opacity: 1; }
-
-    /* Respeto a usuarios con movimiento reducido */
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
-      }
-    }
-
-    /* Hero: full viewport height + overlay */
-    #hero-intro{
-      min-height: 100vh;
-      position: relative;
-      display: flex;
-      align-items: center;
-    }
-    #hero-intro::before{
-      content:'';
-      position:absolute;
-      inset:0;
-      background: radial-gradient(circle at top, rgba(15,23,42,0.45), rgba(8,11,33,0.9));
-      pointer-events:none;
-      z-index:0;
-    }
-    #hero-intro > .site-container{
-      width: 100%;
-      position: relative;
-      z-index: 1;
-    }
-
-    /* Cards: consistent icon size and hover glow */
-    .value-card svg{ color: var(--brand-1); width: 2rem; height: 2rem; }
-    .card-modern svg{ width: 2rem; height: 2rem; }
-    .value-card:hover, .card-modern:hover{ box-shadow: 0 18px 40px rgba(0,0,0,0.3); }
-
-    /* Sections dark glass background variant stays consistent */
-    /* Clickable affordance */
-    a, button { cursor: pointer; }
-  </style>
+  <link rel="stylesheet" href="main.css">
 </head>
 
 <body class="font-inter text-[15px] lg:text-base text-ink antialiased bg-gradient-to-b from-white to-brand-50">
+  <div class="loader"></div>
   <header id="main-header" class="sticky top-0 z-50 border-b border-gray-100">
     <div class="site-container flex items-center justify-between h-20 lg:h-24 py-3 lg:py-0">
       <a class="flex items-center gap-4 logo-wrap" href="#">
-        <img class="logo-big" src="https://i.postimg.cc/YSDhn3jJ/Chat-GPT-Image-31-ago-2025-03-26-38-p-m.png" alt="Ensinton�a logo" loading="lazy" decoding="async">
+        <img class="logo-big" src="https://i.postimg.cc/YSDhn3jJ/Chat-GPT-Image-31-ago-2025-03-26-38-p-m.png" alt="Logo de Ensintonía" loading="lazy" decoding="async">
         <div>
           <div class="neon-text hero-title-shadow text-2xl leading-tight">Ensintonia</div>
           <div class="text-sm muted -mt-1">Importadora directa  Electronica & Hogar</div>
@@ -755,7 +74,7 @@
       </a>
 
       <nav class="hidden md:flex items-center gap-6">
-        <a href="#quienes-somos" class="text-sm text-ink hover:text-brand-700 transition">Quiines somos</a>
+        <a href="#quienes-somos" class="text-sm text-ink hover:text-brand-700 transition">Quienes somos</a>
         <a href="#propuesta-valor" class="text-sm text-ink hover:text-brand-700 transition">Propuesta</a>
         <a id="catalog-link-header" href="/catalogo.html" class="text-sm text-ink hover:text-brand-700 transition">Catalogo</a>
         <a href="/contact.html" class="text-sm text-ink hover:text-brand-700 transition">Contacto</a>
@@ -784,24 +103,19 @@
     </div>
   </div>
 
-  <!-- HERO -->
-  <section id="hero-intro" class="section py-20 relative overflow-visible">
-    <div class="hero-deco">
-      <svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
-        <defs>
-          <linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#60a5fa"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
-        </defs>
-        <circle cx="300" cy="300" r="300" fill="url(#g1)"></circle>
-      </svg>
-    </div>
+  <main>
+    <!-- HERO -->
+    <section id="hero-intro" class="section py-20 relative overflow-hidden">
+    <!-- Three.js Canvas Container -->
+    <div id="canvas-container" class="absolute inset-0 z-0" style="pointer-events: none;"></div>
 
-    <div class="site-container text-center lg:text-left">
+    <div class="site-container text-center lg:text-left relative z-10">
       <div class="mx-auto max-w-3xl">
         <h1 class="title text-4xl sm:text-5xl font-extrabold text-ink leading-tight mb-4 fade-up-init neon-text hero-title-shadow" id="hero-title">
           Somos <span class="brand">Ensintonia</span>
         </h1>
         <p class="subtitle text-lg muted mb-8 fade-up-init" id="hero-sub">
-          Importadora directa de electronica y soluciones para el hogar. Calidad, stock real y soporte local para que tu proyecto llegue sin sorpresas.
+          Importadora directa de electr&oacute;nica y soluciones para el hogar desde Quilmes Oeste, Buenos Aires. Calidad, stock real y soporte local para que tu proyecto llegue sin sorpresas en toda la Argentina.
         </p>
 
         <div class="flex items-center justify-center lg:justify-start gap-4 flex-wrap fade-up-init" id="hero-ctas">
@@ -811,7 +125,7 @@
         </div>
 
         <p class="mt-8 text-sm muted fade-up-init" id="hero-detail">
-          Desde componentes electronicos hasta soluciones para el hogar: trabajamos con fabricantes internacionales para ofrecer productos confiables, entrega eficiente y respaldo local.
+          Desde componentes electr&oacute;nicos hasta soluciones para el hogar: trabajamos con fabricantes internacionales para ofrecer productos confiables, entrega eficiente y respaldo local para negocios y casas particulares.
         </p>
       </div>
     </div>
@@ -820,91 +134,130 @@
   <!-- QUIENES SOMOS -->
   <section id="quienes-somos" class="section py-16">
     <div class="site-container">
-      <div class="grid lg:grid-cols-2 gap-10 items-center">
-        <div>
-          <h2 class="section-title text-2xl font-bold mb-4">Quienes somos</h2>
-          <p class="text-muted-700 mb-4">
-            somos una Pyme especializada en la venta de confort, soluciones y tranquilidad a traves de una cartera de productos para hacer la vida mas facil en nuestros hogares y en las empresas.
-          </p>
+      <div class="flex flex-col lg:flex-row gap-12 items-center">
+        <!-- Texto y Foto -->
+        <div class="lg:w-1/2 relative">
+          <div class="relative z-10">
+            <h2 class="section-title text-3xl font-bold mb-6">Quiénes somos</h2>
+            <p class="text-lg text-muted-700 mb-6 leading-relaxed">
+              Somos una Pyme especializada en la venta de confort, soluciones y tranquilidad. A través de una cartera de productos cuidadosamente seleccionada, buscamos hacer la vida más fácil tanto en hogares como en empresas.
+            </p>
+            <p class="text-sm text-muted-700 mb-8 border-l-4 border-brand-500 pl-4 italic">
+              "No solo vendemos productos, entregamos confianza y respaldo técnico en cada operación."
+            </p>
+          </div>
+          <!-- Foto decorativa flotante -->
+          <div class="mt-8 relative rounded-3xl overflow-hidden shadow-2xl border border-white/10 group scroll-fade-in">
+            <img 
+              src="https://i.postimg.cc/3xstCqpK/Captura-de-pantalla-1-12-2025-2243-www-instagram-com.jpg" 
+              alt="Foto del local de Ensintonia en Quilmes Oeste" 
+              class="w-full h-64 object-cover transform transition-transform duration-700 group-hover:scale-105"
+            >
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+            <div class="absolute bottom-4 left-4">
+              <span class="px-3 py-1 bg-brand-500 text-white text-xs font-bold rounded-full uppercase tracking-wider">Casa Central</span>
+              <p class="text-white text-sm mt-1">Quilmes Oeste, Buenos Aires</p>
+            </div>
+          </div>
         </div>
-        <figure class="about-photo-card">
-          <img
-            src="https://i.postimg.cc/3xstCqpK/Captura-de-pantalla-1-12-2025-2243-www-instagram-com.jpg"
-            alt="Local Ensintonia en Quilmes Oeste, especializado en electronica y hogar"
-            loading="lazy"
-            decoding="async"
-          >
-          <figcaption class="about-photo-caption">
-            <span class="about-photo-caption-dot"></span>
-            <span>Casa Central</span>
-          </figcaption>
-        </figure>
-      </div>
 
-      <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div class="p-6 rounded-2xl shadow-sm card-modern">
-          <h3 class="font-semibold mb-2">Importacion & distribucion</h3>
-          <p class="text-sm text-muted-700">Lineas de audio, hogar y accesorios con lotes escalables.</p>
-        </div>
-        <div class="p-6 rounded-2xl shadow-sm card-modern">
-          <h3 class="font-semibold mb-2">Asesoria de compra</h3>
-          <p class="text-sm text-muted-700">Te ayudamos a elegir con datos reales y expectativas claras.</p>
-        </div>
-        <div class="p-6 rounded-2xl shadow-sm card-modern">
-          <h3 class="font-semibold mb-2">Posventa</h3>
-          <p class="text-sm text-muted-700">Soporte humano para consultas y uso de los productos.</p>
-        </div>
-        <div class="p-6 rounded-2xl shadow-sm card-modern">
-          <h3 class="font-semibold mb-2">Alianzas B2B</h3>
-          <p class="text-sm text-muted-700">Precios por volumen y reposicion programada.</p>
+        <!-- Grid de características (Glass Cards) -->
+        <div class="lg:w-1/2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-brand-300/50 transition-colors duration-300 group">
+            <div class="w-10 h-10 mb-4 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            </div>
+            <h3 class="font-bold text-ink mb-2">Importación Directa</h3>
+            <p class="text-sm text-muted-700">Líneas de audio y hogar sin intermediarios, garantizando el mejor precio del mercado.</p>
+          </div>
+
+          <div class="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-brand-300/50 transition-colors duration-300 group">
+            <div class="w-10 h-10 mb-4 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <h3 class="font-bold text-ink mb-2">Asesoría Real</h3>
+            <p class="text-sm text-muted-700">Te ayudamos a elegir con datos técnicos precisos y expectativas claras.</p>
+          </div>
+
+          <div class="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-brand-300/50 transition-colors duration-300 group">
+            <div class="w-10 h-10 mb-4 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 group-hover:scale-110 transition-transform">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+            </div>
+            <h3 class="font-bold text-ink mb-2">Soporte Posventa</h3>
+            <p class="text-sm text-muted-700">Atención humana para resolver dudas de uso o configuración post-compra.</p>
+          </div>
+
+          <div class="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-brand-300/50 transition-colors duration-300 group">
+            <div class="w-10 h-10 mb-4 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400 group-hover:scale-110 transition-transform">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            </div>
+            <h3 class="font-bold text-ink mb-2">Alianzas B2B</h3>
+            <p class="text-sm text-muted-700">Precios especiales por volumen y reposición programada para empresas.</p>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
   <!-- PROPUESTA DE VALOR -->
-  <section id="propuesta-valor" class="section py-12 bg-white/60">
-    <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-6">Nuestra propuesta de valor</h2>
-      <ul class="grid sm:grid-cols-2 gap-4">
-        <li class="p-4 rounded-2xl shadow-sm flex items-start gap-3 value-card">
-          <svg class="w-6 h-6 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-          <div>
-            <strong>Importadora directa</strong>
-            <div class="text-sm text-muted-700">Menos intermediarios, mejor precio.</div>
+  <section id="propuesta-valor" class="section py-16 relative">
+    <!-- Fondo sutil para separar secciones -->
+    <div class="absolute inset-0 bg-white/5 skew-y-1 transform origin-bottom-right pointer-events-none"></div>
+    
+    <div class="site-container relative z-10">
+      <div class="text-center mb-12">
+        <h2 class="section-title text-3xl font-bold mb-4">Nuestra propuesta de valor</h2>
+        <p class="text-muted-700 max-w-2xl mx-auto">
+          Nos diferenciamos por simplificar la importación y garantizar la calidad en cada paso del proceso.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Card 1 -->
+        <div class="p-6 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-brand-500/30 transition-all duration-300 group text-center flex flex-col items-center scroll-fade-in">
+          <div class="w-14 h-14 mb-5 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-brand-300 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(96,165,250,0.15)]">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           </div>
-        </li>
-        <li class="p-4 rounded-2xl shadow-sm flex items-start gap-3 value-card">
-          <svg class="w-6 h-6 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M6 7v10"/></svg>
-          <div>
-            <strong>Cuidamos tu producto</strong>
-            <div class="text-sm text-muted-700">Probamos y elegimos lo mejor.</div>
+          <h3 class="text-lg font-bold text-ink mb-2">Sin Intermediarios</h3>
+          <p class="text-sm text-muted-700">Importamos directo de fábrica. Esto elimina costos innecesarios y te asegura el precio más competitivo.</p>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="p-6 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-brand-500/30 transition-all duration-300 group text-center flex flex-col items-center scroll-fade-in">
+          <div class="w-14 h-14 mb-5 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-brand-300 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(96,165,250,0.15)]">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </div>
-        </li>
-        <li class="p-4 rounded-2xl shadow-sm flex items-start gap-3 value-card">
-          <svg class="w-6 h-6 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M5 10v10"/></svg>
-          <div>
-            <strong>Stock actualizado</strong>
-            <div class="text-sm text-muted-700">Inventario vivo y entregas agiles.</div>
+          <h3 class="text-lg font-bold text-ink mb-2">Calidad Verificada</h3>
+          <p class="text-sm text-muted-700">No movemos cajas cerradas. Probamos y elegimos cada producto para asegurar su funcionamiento.</p>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="p-6 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-brand-500/30 transition-all duration-300 group text-center flex flex-col items-center scroll-fade-in">
+          <div class="w-14 h-14 mb-5 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-brand-300 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(96,165,250,0.15)]">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
           </div>
-        </li>
-        <li class="p-4 rounded-2xl shadow-sm flex items-start gap-3 value-card">
-          <svg class="w-6 h-6 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 8a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
-          <div>
-            <strong>Soporte cercano</strong>
-            <div class="text-sm text-muted-700">Acomparamos antes y despues de la compra.</div>
+          <h3 class="text-lg font-bold text-ink mb-2">Stock Real</h3>
+          <p class="text-sm text-muted-700">Lo que ves es lo que hay. Inventario vivo para entregas ágiles sin esperas de reposición.</p>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="p-6 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-brand-500/30 transition-all duration-300 group text-center flex flex-col items-center scroll-fade-in">
+          <div class="w-14 h-14 mb-5 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-brand-300 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(96,165,250,0.15)]">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/></svg>
           </div>
-        </li>
-      </ul>
+          <h3 class="text-lg font-bold text-ink mb-2">Soporte Cercano</h3>
+          <p class="text-sm text-muted-700">Estamos antes, durante y después de la compra. Hablás con personas, no con bots.</p>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- CATEGOR�AS -->
+  <!-- CATEGORÍAS -->
   <section id="categorias" class="section py-16">
     <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-6">Categorias</h2>
+      <h2 class="section-title text-2xl font-bold mb-6">Categorias de productos de electr&oacute;nica y hogar</h2>
 
-      <!-- NUEVO: Selector r�pido para ir directo a una categor�a -->
+      <!-- NUEVO: Selector rápido para ir directo a una categoría -->
       <div class="mb-5 flex flex-wrap items-center gap-3" id="category-jump-wrap">
         <label for="category-jump" class="text-sm font-medium">Ir directo:</label>
         <select id="category-jump"
@@ -918,13 +271,13 @@
       </div>
       <!-- FIN NUEVO -->
 
-      <!-- Reemplazado: lista din�mica -->
+      <!-- Reemplazado: lista dinámica -->
       <ul id="categories-list" class="flex flex-wrap gap-3"></ul>
       <p class="note text-sm text-muted-700 mt-4">El catalogo se actualiza seguido.</p>
     </div>
   </section>
 
-  <!-- LOG�STICA -->
+  <!-- LOGÍSTICA -->
   <section id="logistica" class="section py-12 bg-white/60">
     <div class="site-container">
       <h2 class="section-title text-2xl font-bold mb-4">Logistica y cobertura</h2>
@@ -941,85 +294,121 @@
     </div>
   </section>
 
-  <!-- GARANT�A -->
-  <section id="garantia" class="section py-12">
-    <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-4">Garantias y cambios</h2>
-      <p class="text-muted-700 mb-4">Todos los productos son probados antes de ser retirados y cuentan con la garantia del fabricante.</p>
-    </div>
-  </section>
-
-  <!-- C�MO COMPRAR -->
-  <section id="como-comprar" class="section py-12 bg-white/60">
-    <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-4">Como comprar</h2>
-      <ol class="list-decimal pl-5 text-muted-700 space-y-2">
-        <li>Entra al <a class="text-brand-500 underline" href="/catalogo.html">catalogo</a> y elegi tu producto.</li>
-        <li>Consultanos disponibilidad y medio de pago.</li>
-        <li>Coordinamos envio o retiro.</li>
-        <li>Recibis y probas. Si necesitas ayuda, estamos.</li>
-      </ol>
-    </div>
-  </section>
-
-  <!-- FAQ -->
-  <section id="faq" class="section py-12 bg-white/5">
-    <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-6">Preguntas frecuentes</h2>
-      <div class="grid md:grid-cols-2 gap-4">
-        <details class="group faq-card rounded-2xl border border-slate-600/40 bg-slate-900/70 px-4 py-3 md:px-5 md:py-4 shadow-sm">
-          <summary class="flex items-center justify-between gap-3 cursor-pointer text-sm md:text-base text-ink">
-            <span class="font-medium">¿Tienen stock real?</span>
-            <span class="shrink-0 h-5 w-5 rounded-full border border-slate-500/70 flex items-center justify-center text-[11px] text-slate-300 group-open:rotate-90 transition-transform">
-              ▸
-            </span>
-          </summary>
-          <p class="mt-2 text-xs md:text-sm text-muted-700 leading-relaxed">
-            Manejamos stock real y actualizamos el inventario a diario. Ante cualquier variación, coordinamos con vos antes de cerrar la compra.
+  <!-- GARANTÍA (REDIMENSIONADA) -->
+  <section id="garantia" class="section py-12 relative overflow-hidden">
+    <!-- Fondo decorativo sutil -->
+    <div class="absolute inset-0 bg-brand-500/5 pointer-events-none"></div>
+    <div class="site-container relative z-10">
+      <div class="flex flex-col md:flex-row items-center gap-8 bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-sm">
+        <div class="shrink-0 p-4 rounded-full bg-brand-500/10 text-brand-300">
+           <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div class="text-center md:text-left">
+          <h2 class="text-2xl font-bold mb-2 neon-text">Garantía de Confianza</h2>
+          <p class="text-muted-700 max-w-2xl">
+            Comprá tranquilo. Todos nuestros productos pasan por un control de calidad antes de salir del depósito y cuentan con <strong>garantía oficial del fabricante</strong>. Si algo no funciona como esperabas, gestionamos el cambio de forma directa y simple.
           </p>
-        </details>
-        <details class="group faq-card rounded-2xl border border-slate-600/40 bg-slate-900/70 px-4 py-3 md:px-5 md:py-4 shadow-sm">
-          <summary class="flex items-center justify-between gap-3 cursor-pointer text-sm md:text-base text-ink">
-            <span class="font-medium">¿Hacen precios por cantidad?</span>
-            <span class="shrink-0 h-5 w-5 rounded-full border border-slate-500/70 flex items-center justify-center text-[11px] text-slate-300 group-open:rotate-90 transition-transform">
-              ▸
-            </span>
-          </summary>
-          <p class="mt-2 text-xs md:text-sm text-muted-700 leading-relaxed">
-            Sí, para comercios y empresas trabajamos escalas por volumen. Podés consultar con tu vendedor para recibir una propuesta a medida.
-          </p>
-        </details>
-        <details class="group faq-card rounded-2xl border border-slate-600/40 bg-slate-900/70 px-4 py-3 md:px-5 md:py-4 shadow-sm md:col-span-2">
-          <summary class="flex items-center justify-between gap-3 cursor-pointer text-sm md:text-base text-ink">
-            <span class="font-medium">¿Cuánto tarda el envío?</span>
-            <span class="shrink-0 h-5 w-5 rounded-full border border-slate-500/70 flex items-center justify-center text-[11px] text-slate-300 group-open:rotate-90 transition-transform">
-              ▸
-            </span>
-          </summary>
-          <p class="mt-2 text-xs md:text-sm text-muted-700 leading-relaxed">
-            Depende del destino y del operador logístico. En CABA y GBA suele ser más rápido; al resto del país te informamos el estimado al momento de coordinar el envío.
-          </p>
-        </details>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- CONTACTO (contenido movido a contact.html)
-  <section id="contacto" class="section py-12 bg-white/60">
+  <!-- CÓMO COMPRAR (AESTHETIC STEPS) -->
+  <section id="como-comprar" class="section py-16 bg-white/60">
     <div class="site-container">
-      <h2 class="section-title text-2xl font-bold mb-4">Contacto</h2>
-      <address class="not-italic text-muted-700">
-        <strong>Base de operaciones:</strong> Sarratea, Quilmes Oeste, Buenos Aires<br>
-        <strong>WhatsApp:</strong> <a class="text-brand-500 underline" href="https://wa.me/5491159914197" target="_blank" rel="noopener">+54 9 11 5991-4197</a><br>
-        <strong>Horarios:</strong> a coordinar (consultar disponibilidad)
-      </address>
+      <h2 class="section-title text-2xl font-bold mb-10">Cómo comprar en 4 pasos</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Paso 1 -->
+        <div class="step-card">
+          <span class="step-number">01</span>
+          <div class="step-icon">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+          <h4 class="font-bold text-lg mb-2">Elegí</h4>
+          <p class="text-sm text-muted-700">Explorá nuestro catálogo online y seleccioná los productos que necesitás para tu hogar o negocio.</p>
+        </div>
 
-      <div class="mt-6 flex gap-3">
-        <a href="/catalogo.html" class="btn btn-primary bg-brand-500 hover:bg-brand-600 text-white px-5 py-3 rounded-2xl shadow-sm card-hover">Ir al cat�logo</a>
-        <a href="https://wa.me/5491159914197" target="_blank" rel="noopener" class="btn btn-outline border border-gray-200 px-5 py-3 rounded-2xl">Escribir por WhatsApp</a>
+        <!-- Paso 2 -->
+        <div class="step-card">
+          <span class="step-number">02</span>
+          <div class="step-icon">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          </div>
+          <h4 class="font-bold text-lg mb-2">Consultá</h4>
+          <p class="text-sm text-muted-700">Contactanos por WhatsApp para confirmar stock en tiempo real y coordinar el método de pago.</p>
+        </div>
+
+        <!-- Paso 3 -->
+        <div class="step-card">
+          <span class="step-number">03</span>
+          <div class="step-icon">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+          </div>
+          <h4 class="font-bold text-lg mb-2">Pagá</h4>
+          <p class="text-sm text-muted-700">Realizá el pago de forma segura mediante transferencia, efectivo o el medio acordado.</p>
+        </div>
+
+        <!-- Paso 4 -->
+        <div class="step-card">
+          <span class="step-number">04</span>
+          <div class="step-icon">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          </div>
+          <h4 class="font-bold text-lg mb-2">Recibí</h4>
+          <p class="text-sm text-muted-700">Despachamos tu pedido o coordinamos el retiro. ¡Disfrutá de tu compra con total respaldo!</p>
+        </div>
       </div>
     </div>
-  </section> -->
+  </section>
+
+  <!-- FAQ (MEJORADO) -->
+  <section id="faq" class="section py-16">
+    <div class="site-container">
+      <h2 class="section-title text-2xl font-bold mb-8">Preguntas frecuentes</h2>
+      <div class="grid md:grid-cols-2 gap-5">
+        
+        <details class="group faq-card rounded-2xl p-5 shadow-sm">
+          <summary class="flex items-center justify-between gap-3 cursor-pointer text-base text-ink font-medium select-none">
+            <span>¿Tienen stock real inmediato?</span>
+            <span class="shrink-0 w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-brand-300 group-open:rotate-180 transition-transform duration-300">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </span>
+          </summary>
+          <div class="mt-3 text-sm text-muted-700 leading-relaxed border-t border-white/5 pt-3">
+            <p>Sí, manejamos stock físico. Nuestro inventario se actualiza a diario, pero siempre recomendamos confirmar disponibilidad vía WhatsApp antes de abonar, ya que los productos vuelan.</p>
+          </div>
+        </details>
+
+
+
+        <details class="group faq-card rounded-2xl p-5 shadow-sm">
+          <summary class="flex items-center justify-between gap-3 cursor-pointer text-base text-ink font-medium select-none">
+            <span>¿Tienen precios mayoristas?</span>
+            <span class="shrink-0 w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-brand-300 group-open:rotate-180 transition-transform duration-300">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </span>
+          </summary>
+          <div class="mt-3 text-sm text-muted-700 leading-relaxed border-t border-white/5 pt-3">
+            <p>¡Sí! Trabajamos con gremio y reventas. Comunicate con nuestro equipo comercial para acceder a la lista de precios por volumen y condiciones especiales.</p>
+          </div>
+        </details>
+
+        <details class="group faq-card rounded-2xl p-5 shadow-sm">
+          <summary class="flex items-center justify-between gap-3 cursor-pointer text-base text-ink font-medium select-none">
+            <span>¿Realizan envíos al interior?</span>
+            <span class="shrink-0 w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-brand-300 group-open:rotate-180 transition-transform duration-300">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </span>
+          </summary>
+          <div class="mt-3 text-sm text-muted-700 leading-relaxed border-t border-white/5 pt-3">
+            <p>Despachamos a todo el país. Trabajamos con Via Cargo, Correo Argentino y otros expresos. El costo de envío corre por cuenta del cliente y se abona en destino (salvo excepciones).</p>
+          </div>
+        </details>
+
+      </div>
+    </div>
+  </section>
 
   <!-- CIERRE -->
   <section id="cierre" class="section py-12">
@@ -1029,13 +418,13 @@
       <a href="/catalogo.html" class="btn btn-primary bg-brand-500 hover:bg-brand-600 text-white px-6 py-3 rounded-2xl shadow-sm card-hover">Ver catalogo</a>
     </div>
   </section>
-
+</main>
   <!-- FOOTER -->
   <footer class="bg-gradient-to-r from-[#0b132b] to-[#1c2541] text-slate-100 pt-10 pb-8 mt-8">
     <div class="site-container">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div class="flex items-center gap-3">
-          <img class="w-10 h-10 rounded-md" src="https://i.postimg.cc/YSDhn3jJ/Chat-GPT-Image-31-ago-2025-03-26-38-p-m.png" alt="Ensinton&iacute;a" loading="lazy" decoding="async">
+          <img class="w-10 h-10 rounded-md" src="https://i.postimg.cc/YSDhn3jJ/Chat-GPT-Image-31-ago-2025-03-26-38-p-m.png" alt="Logo de Ensintonía en el pie de página" loading="lazy" decoding="async">
           <div>
             <div class="neon-text text-xl leading-tight">Ensinton&iacute;a</div>
             <div class="text-xs text-slate-300">Importadora directa de electr&oacute;nica y hogar</div>
@@ -1065,35 +454,159 @@
     </div>
   </footer>
 
-  <!-- Schema.org JSON-LD (mantener) -->
-  <!-- ==========================
-Schema.org � Organization (ajust� datos si cambia el tel�fono o agreg�s redes)
-========================== -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "name": "Ensinton�a",
-  "description": "Importadora y distribuidora de electr�nica y productos para el hogar. Atenci�n mayorista y minorista desde Quilmes Oeste.",
-  "address": {
-    "@type": "PostalAddress",
-    "streetAddress": "Sarratea",
-    "addressLocality": "Quilmes Oeste",
-    "addressRegion": "Buenos Aires",
-    "addressCountry": "AR"
-  },
-  "telephone": "+54 9 11 5991 4197",
-  "url": "https://tusitio.com/",
-  "contactPoint": [{
-    "@type": "ContactPoint",
-    "contactType": "customer support",
+  <!-- Schema.org JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Ensintonía",
+    "description": "Importadora y distribuidora de electrónica y productos para el hogar. Atención mayorista y minorista desde Quilmes Oeste.",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Sarratea",
+      "addressLocality": "Quilmes Oeste",
+      "addressRegion": "Buenos Aires",
+      "addressCountry": "AR"
+    },
     "telephone": "+54 9 11 5991 4197",
-    "areaServed": "AR"
-  }]
-}
-</script>
+    "url": "https://tusitio.com/",
+    "contactPoint": [{
+      "@type": "ContactPoint",
+      "contactType": "customer support",
+      "telephone": "+54 9 11 5991 4197",
+      "areaServed": "AR"
+    }]
+  }
+  </script>
 
-  <!-- Small script to orchestrate hero entrance and small interactivity (delegado a main.js para la l�gica pesada) -->
+  <!-- ANIMACIÓN THREE.JS PARA EL HERO -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const container = document.getElementById('canvas-container');
+      if (!container) return;
+
+      // 1. Configuración Básica
+      const scene = new THREE.Scene();
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1); // Cámara 2D plana
+      const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+      
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Optimización retina
+      container.appendChild(renderer.domElement);
+
+      // 2. Definición del Shader (La "Magia" visual)
+      // Versión fluid mesh: mezcla tiempo, resolución y puntero para un gradiente vivo.
+      const fragmentShader = `
+        uniform float u_time;
+        uniform vec2 u_resolution;
+        uniform vec2 u_mouse;
+
+        #define PI 3.14159265359
+        #define TWO_PI 6.28318530718
+
+        vec3 colorA = vec3(0.1, 0.1, 0.3);
+        vec3 colorB = vec3(0.8, 0.1, 0.4);
+
+        float random(vec2 st) {
+          return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+        }
+
+        float noise(vec2 st) {
+          vec2 i = floor(st);
+          vec2 f = fract(st);
+
+          float a = random(i);
+          float b = random(i + vec2(1.0, 0.0));
+          float c = random(i + vec2(0.0, 1.0));
+          float d = random(i + vec2(1.0, 1.0));
+
+          vec2 u = f * f * (3.0 - 2.0 * f);
+          return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+        }
+
+        void main() {
+          vec2 st = gl_FragCoord.xy/u_resolution.xy;
+          st.x *= u_resolution.x/u_resolution.y;
+          
+          vec2 mouse = u_mouse / u_resolution;
+
+          float n = noise(st * 2.0 + u_time * 0.1);
+          
+          st += n * 0.2;
+
+          vec3 color = mix(colorA, colorB, st.x);
+          
+          float d = distance(st, mouse);
+          color += smoothstep(0.5, 0.0, d) * 0.5;
+
+          gl_FragColor = vec4(color,1.0);
+        }
+      `;
+
+      const vertexShader = `
+        void main() {
+          gl_Position = vec4( position, 1.0 );
+        }
+      `;
+
+      // 3. Crear el plano que ocupa toda la pantalla
+      const geometry = new THREE.PlaneGeometry(2, 2);
+      const uniforms = {
+        u_time: { value: 0.0 },
+        u_resolution: { value: new THREE.Vector2(container.clientWidth, container.clientHeight) },
+        u_mouse: { value: new THREE.Vector2(0, 0) }
+      };
+
+      const material = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
+
+      // 4. Loop de Animación
+      const clock = new THREE.Clock();
+      const pointer = new THREE.Vector2(0.5, 0.5);
+      const pointerTarget = new THREE.Vector2(0.5, 0.5);
+
+      function updatePointerFromEvent(event) {
+        const rect = container.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const x = (event.clientX - rect.left);
+        const y = (event.clientY - rect.top);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        pointerTarget.set(x,y);
+      }
+
+      window.addEventListener('pointermove', updatePointerFromEvent);
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const elapsed = clock.getElapsedTime();
+        uniforms.u_time.value = elapsed;
+
+        // suavizado tipo “spring” para movimiento fluido
+        pointer.lerp(pointerTarget, 0.06);
+        uniforms.u_mouse.value.copy(pointer);
+
+        renderer.render(scene, camera);
+      }
+
+      animate();
+
+      // 5. Manejar Redimensionamiento de ventana (Responsive)
+      window.addEventListener('resize', () => {
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        renderer.setSize(width, height);
+        uniforms.u_resolution.value.set(width, height);
+      });
+    });
+  </script>
+
+  <!-- Scripts funcionales del sitio (menú, cards, etc.) -->
   <script>
     // secuencia visual del hero (simple y ligera)
     (function(){
@@ -1247,10 +760,10 @@ Schema.org � Organization (ajust� datos si cambia el tel�fono o agreg�s 
   </script>
 
   <div id="mobile-nav" aria-hidden="true">
-    <button class="mn-overlay" data-close="1" aria-label="Cerrar men�"></button>
-    <nav class="mn-panel" role="dialog" aria-modal="true" aria-label="Men� m�vil">
+    <button class="mn-overlay" data-close="1" aria-label="Cerrar menú"></button>
+    <nav class="mn-panel" role="dialog" aria-modal="true" aria-label="Menú móvil">
       <div class="flex items-center justify-between mb-1">
-        <span class="font-semibold text-lg">Men�</span>
+        <span class="font-semibold text-lg">Menú</span>
         <button id="mobile-menu-close" class="p-2 rounded-md hover:bg-gray-100" aria-label="Cerrar">
           <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M6 18L18 6"/>
@@ -1264,7 +777,6 @@ Schema.org � Organization (ajust� datos si cambia el tel�fono o agreg�s 
         <a href="#propuesta-valor" data-link>Propuesta</a>
         <a href="/catalogo.html" data-link>Catalogo</a>
         <a href="/contact.html" data-link>Contacto</a>
-        <!-- <a href="contact.html" data-link>Contacto (p�gina)</a> -->
       </div>
 
       <div>
@@ -1288,7 +800,7 @@ Schema.org � Organization (ajust� datos si cambia el tel�fono o agreg�s 
 
       if(!btn || !panelWrap) return;
 
-      // syncCategories eliminado: ahora las categor�as se inyectan en vivo desde Firestore
+      // syncCategories eliminado: ahora las categorías se inyectan en vivo desde Firestore
 
       function trapFocus(e){
         if(e.key !== 'Tab') return;
@@ -1376,7 +888,7 @@ Schema.org � Organization (ajust� datos si cambia el tel�fono o agreg�s 
     })();
   </script>
 
-  <!-- Carga din�mica de categor�as (Firestore) -->
+  <!-- Carga dinámica de categorías (Firestore) -->
   <script type="module">
     console.log('BUILD ID:', '2025-08-31_15:40');
 
@@ -1387,16 +899,16 @@ Schema.org � Organization (ajust� datos si cambia el tel�fono o agreg�s 
     const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
 
     const $home   = document.getElementById('categories-list');   // chips en portada
-    const $mobile = document.getElementById('mobile-cats');       // men� hamburguesa
+    const $mobile = document.getElementById('mobile-cats');       // menú hamburguesa
     const $select = document.getElementById('category-jump');     // "Ir directo"
     const $clear  = document.getElementById('category-jump-clear');
 
-    // REEMPLAZO slugify previo por la versi�n solicitada
+    // REEMPLAZO slugify previo por la versión solicitada
     function slugify(s=''){
       return String(s)
         .normalize('NFD').replace(/[\u0300-\u036f]/g,'')   // quitar tildes
         .toLowerCase().trim()
-        .replace(/[^\w\s-]/g,'')                          // quitar s�mbolos raros
+        .replace(/[^\w\s-]/g,'')                          // quitar símbolos raros
         .replace(/\s+/g,'-')                              // espacios -> guion
         .replace(/-+/g,'-');                              // colapsar guiones
     }
@@ -1417,14 +929,14 @@ Schema.org � Organization (ajust� datos si cambia el tel�fono o agreg�s 
       const fragMob  = document.createDocumentFragment();
 
       categories.forEach(c=>{
-        const name = c.name || c.nombre || 'Categor�a';
+        const name = c.name || c.nombre || 'Categoría';
         const slug = c.slug ? String(c.slug) : slugify(name);
         const icon = c.icon || c.iconUrl;
 
         if ($home){
           const li = document.createElement('li');
           li.className = 'px-3 py-2 rounded-full category-tag';
-          li.innerHTML = `<a href=\"catalogo.html?cat=${'${encodeURIComponent(name)}'}\" class=\"flex items-center gap-1\" data-cat=\"${'${slug}'}\">
+          li.innerHTML = `<a href="catalogo.html?cat=${encodeURIComponent(name)}" class="flex items-center gap-1" data-cat="${slug}">
             ${icon ? `<img src="${icon}" class="w-4 h-4 object-contain" alt="">` : ''}
             <span>${name}</span>
           </a>`;
@@ -1433,7 +945,7 @@ Schema.org � Organization (ajust� datos si cambia el tel�fono o agreg�s 
 
         if ($mobile){
           const liM = document.createElement('li');
-          liM.innerHTML = `<a data-cat=\"${'${slug}'}\" href=\"catalogo.html?cat=${'${encodeURIComponent(name)}'}\"
+          liM.innerHTML = `<a data-cat="${slug}" href="catalogo.html?cat=${encodeURIComponent(name)}"
               class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 text-sm">
               ${icon ? `<img src="${icon}" class="w-4 h-4 object-contain" alt="">` : ''}
               <span>${name}</span>
@@ -1457,7 +969,7 @@ Schema.org � Organization (ajust� datos si cambia el tel�fono o agreg�s 
       }
     }
 
-    // Delegaci�n click m�vil para cerrar y navegar
+    // Delegación click móvil para cerrar y navegar
     (function wireMobileNav(){
       if (!$mobile) return;
       $mobile.addEventListener('click', e=>{
@@ -1467,7 +979,7 @@ Schema.org � Organization (ajust� datos si cambia el tel�fono o agreg�s 
         // cerrar usando overlay existente para mantener animaciones
         const overlay = document.querySelector('#mobile-nav .mn-overlay');
         if (overlay) overlay.click();
-        // navegaci�n natural
+        // navegación natural
       });
     })();
 
@@ -1504,7 +1016,7 @@ Schema.org � Organization (ajust� datos si cambia el tel�fono o agreg�s 
       }
     }
 
-    // --- fuerza href correcto en todos los links de categor�as (home + hamburguesa) ---
+    // --- fuerza href correcto en todos los links de categorías (home + hamburguesa) ---
     function fixCategoryLinks(){
       const roots = [
         document.getElementById('categories-list'),
@@ -1531,22 +1043,56 @@ Schema.org � Organization (ajust� datos si cambia el tel�fono o agreg�s 
       });
     }
 
-    // Cargar categor�as ahora (sin Firebase)
+    // Cargar categorías ahora (sin Firebase)
     loadCategories();
 
   </script>
+  <script>
+    window.addEventListener('load', () => {
+      const loader = document.querySelector('.loader');
+      loader.style.opacity = '0';
+      setTimeout(() => {
+        loader.style.display = 'none';
+      }, 500);
+    });
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const sections = document.querySelectorAll('.section');
 
-  <!-- catalogo.html (agreg� esto antes de filtrar productos por categor�a, por ejemplo antes de loadProductsByCategory)
-const urlParams = new URLSearchParams(window.location.search);
-const category = urlParams.get('category') || urlParams.get('cat'); // retrocompatibilidad
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('section-fade-in');
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, {
+        threshold: 0.1
+      });
 
-// Luego us� la constante category para filtrar productos por su slug
-// Ejemplo de uso:
-if (category) {
-  // filtrar productos por slug === category
-  loadProductsByCategory(category);
-} else {
--->
+      sections.forEach(section => {
+        observer.observe(section);
+      });
+
+      const scrollFadeInElements = document.querySelectorAll('.scroll-fade-in');
+
+      const scrollObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            scrollObserver.unobserve(entry.target);
+          }
+        });
+      }, {
+        threshold: 0.1
+      });
+
+      scrollFadeInElements.forEach(element => {
+        scrollObserver.observe(element);
+      });
+    });
+  </script>
 </body>
 </html>
-

@@ -300,4 +300,31 @@ async function bulkAssignProfiles(req, res) {
   }
 }
 
-module.exports = { createUser, listUsers, getUser, updateUser, updateStatus, resetPassword, revokeSessions, getAudit, assignProfile, assignRole, bulkAssignProfiles, assignPrimaryRole };
+async function deleteUser(req, res) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'ID invalido' });
+  try {
+    const r = await query('UPDATE Users SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL', [id]);
+    if (!r.rowCount) return res.status(404).json({ error: 'Usuario no encontrado' });
+    await audit(req.user && req.user.email, 'USER_DELETE', 'user', id, null);
+    return res.json({ deleted: true });
+  } catch (e) {
+    return res.status(500).json({ error: 'No se pudo eliminar el usuario' });
+  }
+}
+
+module.exports = {
+  createUser,
+  listUsers,
+  getUser,
+  updateUser,
+  updateStatus,
+  resetPassword,
+  revokeSessions,
+  getAudit,
+  assignProfile,
+  assignRole,
+  bulkAssignProfiles,
+  assignPrimaryRole,
+  deleteUser
+};

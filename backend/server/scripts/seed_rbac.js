@@ -83,8 +83,8 @@ async function main() {
   await mkProfile('VENTAS_APPROVER', ['ventas.approve']);
 
   await mkProfile('LOGISTICA_RO', ['logistica.read']);
-  await mkProfile('LOGISTICA_RW', ['logistica.read', 'logistica.write']);
-  await mkProfile('LOGISTICA_RWD', ['logistica.read', 'logistica.write', 'logistica.delete']);
+  await mkProfile('LOGISTICA_RW', ['logistica.read', 'logistica.write', 'ventas.read', 'ventas.write']);
+  await mkProfile('LOGISTICA_RWD', ['logistica.read', 'logistica.write', 'logistica.delete', 'ventas.read', 'ventas.write']);
 
   await mkProfile('RRHH_RO', ['rrhh.read']);
   await mkProfile('RRHH_RW', ['rrhh.read', 'rrhh.write']);
@@ -129,7 +129,7 @@ async function main() {
   ], 'Logística solo lectura');
 
   const roleLogisticaRW = await ensureRoleWithPerms('LOGISTICA_RW', [
-    'logistica.read','logistica.write','logistica.delete'
+    'logistica.read','logistica.write','logistica.delete','ventas.read','ventas.write'
   ], 'Logística edición');
 
   const roleVentasAdmin = await ensureRoleWithPerms('VENTAS_ADMIN', [
