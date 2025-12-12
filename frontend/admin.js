@@ -163,9 +163,12 @@ function showMessageBox(message, type = 'info') {
    Navegaci?n de secciones
 =========================== */
 const navButtons = document.querySelectorAll('.nav-button');
-const sections = document.querySelectorAll('.section-content');
 
 function showSection(sectionId) {
+  if (sectionId === 'reports') {
+    try { ensureReportsSection(); } catch (e) { console.error('ensureReportsSection error', e); }
+  }
+  const sections = document.querySelectorAll('.section-content');
   sections.forEach(s => s.classList.add('hidden'));
   document.getElementById(sectionId)?.classList.remove('hidden');
 
@@ -758,7 +761,6 @@ async function initPermissionsGates(){
     // Clientes: por ahora se controla con administracion.read hasta que definamos permisos clientes.*
     { section: 'customers', perm: 'administracion.read' },
     { section: 'finance', perm: 'administracion.read' },
-    { section: 'reports', perm: 'administracion.read' },
     { section: 'users', perm: 'administracion.users.read' }
   ];
   gates.forEach(g => {
@@ -768,6 +770,12 @@ async function initPermissionsGates(){
     const sec = document.getElementById(g.section);
     if (sec && !show) sec.classList.add('hidden');
   });
+  // Regla especial: reports visible si tiene ventas.read O administracion.read
+  const canSeeReports = hasPerm('ventas.read') || hasPerm('administracion.read');
+  const repBtn = document.querySelector('.nav-button[data-section="reports"]');
+  if (repBtn) repBtn.classList.toggle('hidden', !canSeeReports);
+  const repSec = document.getElementById('reports');
+  if (repSec && !canSeeReports) repSec.classList.add('hidden');
 
   // Limitar acciones de edici�n si no hay logistica.write
   if (!hasPerm('logistica.write')){
@@ -1079,7 +1087,10 @@ async function fetchSalesBySeller(fromIso, toIso){
   if (toIso) params.set('to', toIso);
   const qs = params.toString();
   const resp = await fetchWithAuth(ROUTES.salesBySeller(qs));
-  if (!resp || !resp.ok) return [];
+  if (!resp || !resp.ok) {
+    const status = resp ? resp.status : 'NO_RESPONSE';
+    throw new Error('salesBySeller HTTP ' + status);
+  }
   const data = await resp.json().catch(() => []);
   return Array.isArray(data) ? data : [];
 }
