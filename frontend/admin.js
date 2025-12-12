@@ -93,6 +93,7 @@ const ROUTES = {
   backup: () => `${API_BASE}/backup`,             // POST
   migrate: () => `${API_BASE}/migraciones/run`,   // POST (opcional)
   analyticsOverview: (qs = '') => `${API_BASE}/analytics/overview${qs ? ('?' + qs) : ''}`,
+  salesBySeller: (qs = '') => `${API_BASE}/analytics/sales-by-seller${qs ? ('?' + qs) : ''}`,
   // Clientes
   clients: (qs = '') => `${API_BASE}/clients${qs ? ('?' + qs) : ''}`,
   client: (id) => `${API_BASE}/clients/${encodeURIComponent(id)}`,
@@ -194,6 +195,8 @@ function showSection(sectionId) {
     loadCustomersAdmin();
   } else if (sectionId === 'finance') {
     loadFinanceOverview();
+  } else if (sectionId === 'reports') {
+    loadSalesReportsOverview();
   } else if (sectionId === 'users') {
     try { initUsersUiOnce(); } catch {}
     loadProfilesAndRoles();
@@ -296,11 +299,18 @@ const financePurchasesEl = document.getElementById('financePurchases');
 // Clientes
 const customersSearchInput = document.getElementById('customersSearch');
 const customersTaxIdInput = document.getElementById('customersTaxId');
-const customersStatusSelect = document.getElementById('customersStatus');
-const customersTypeSelect = document.getElementById('customersType');
-const customersTableBody = document.getElementById('customersTableBody');
-const customersDetailBox = document.getElementById('customersDetail');
-const customersDetailContent = document.getElementById('customersDetailContent');
+  const customersStatusSelect = document.getElementById('customersStatus');
+  const customersTypeSelect = document.getElementById('customersType');
+  const customersTableBody = document.getElementById('customersTableBody');
+  const customersDetailBox = document.getElementById('customersDetail');
+  const customersDetailContent = document.getElementById('customersDetailContent');
+  // Reportes de ventas por vendedor (se inicializa lazy desde JS)
+  let reportsPeriodEl = document.getElementById('reportsPeriod');
+  let reportsDateEl = document.getElementById('reportsDate');
+  let reportsCommissionEl = document.getElementById('reportsCommission');
+  let reportsRefreshBtn = document.getElementById('reportsRefreshBtn');
+  let reportsStatusEl = document.getElementById('reportsStatus');
+  let reportsTableBody = document.getElementById('reportsTableBody');
 
 /* ===========================
    Gestion de Usuarios (ABM)
@@ -748,6 +758,7 @@ async function initPermissionsGates(){
     // Clientes: por ahora se controla con administracion.read hasta que definamos permisos clientes.*
     { section: 'customers', perm: 'administracion.read' },
     { section: 'finance', perm: 'administracion.read' },
+    { section: 'reports', perm: 'administracion.read' },
     { section: 'users', perm: 'administracion.users.read' }
   ];
   gates.forEach(g => {
@@ -1061,6 +1072,186 @@ function saveLocalOrders(list){ try { localStorage.setItem(ORDERS_KEY, JSON.stri
 const HIDDEN_ORDERS_KEY = 'ens_orders_hidden_v1';
 function loadHiddenOrders(){ try { const raw = localStorage.getItem(HIDDEN_ORDERS_KEY); const arr = JSON.parse(raw||'[]'); return Array.isArray(arr)?arr:[]; } catch { return []; } }
 function saveHiddenOrders(list){ try { localStorage.setItem(HIDDEN_ORDERS_KEY, JSON.stringify(list||[])); } catch {} }
+// Helper para obtener ventas por vendedor desde backend (reportes)
+async function fetchSalesBySeller(fromIso, toIso){
+  const params = new URLSearchParams();
+  if (fromIso) params.set('from', fromIso);
+  if (toIso) params.set('to', toIso);
+  const qs = params.toString();
+  const resp = await fetchWithAuth(ROUTES.salesBySeller(qs));
+  if (!resp || !resp.ok) return [];
+  const data = await resp.json().catch(() => []);
+  return Array.isArray(data) ? data : [];
+}
+
+// Crea dinámicamente la sección de reportes si no existe aún
+let __reportsSectionReady = false;
+function ensureReportsSection(){
+  if (__reportsSectionReady) return;
+  const container = document.getElementById('sectionsContainer');
+  if (!container) return;
+
+  let section = document.getElementById('reports');
+  if (!section) {
+    section = document.createElement('div');
+    section.id = 'reports';
+    section.className = 'section-content hidden';
+    section.innerHTML = `
+      <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Reportes de Ventas por Vendedor</h2>
+      <p class="text-center text-gray-400 mb-6">
+        Consulta las ventas totales por vendedor en un rango de fechas y calcula la comisión según un porcentaje.
+      </p>
+      <div class="grid md:grid-cols-4 gap-4 items-end mb-6">
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Período</label>
+          <select id="reportsPeriod" class="input-field">
+            <option value="day">Hoy / Día</option>
+            <option value="week">Semana</option>
+            <option value="month" selected>Mes</option>
+            <option value="custom">Personalizado</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Fecha base</label>
+          <input id="reportsDate" type="date" class="input-field">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">% Comisión</label>
+          <input id="reportsCommission" type="number" step="0.01" min="0" class="input-field" value="1">
+        </div>
+        <div class="md:col-span-1 flex gap-3">
+          <button id="reportsRefreshBtn" class="action-button bg-sky-600 hover:bg-sky-700 flex-1">Actualizar</button>
+          <span id="reportsStatus" class="text-gray-400 self-center text-sm"></span>
+        </div>
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-white/10 bg-white/5">
+        <table class="min-w-full text-sm">
+          <thead class="bg-white/10 text-gray-300">
+            <tr>
+              <th class="px-4 py-2 text-left">Vendedor</th>
+              <th class="px-4 py-2 text-right">Cant. ventas</th>
+              <th class="px-4 py-2 text-right">Productos vendidos</th>
+              <th class="px-4 py-2 text-right">Total vendido</th>
+              <th class="px-4 py-2 text-right">Comisión %</th>
+              <th class="px-4 py-2 text-right">Total recibido</th>
+            </tr>
+          </thead>
+          <tbody id="reportsTableBody" class="divide-y divide-white/10">
+            <tr>
+              <td colspan="6" class="px-4 py-3 text-center text-gray-400">
+                No hay datos para el rango seleccionado.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+    container.appendChild(section);
+  }
+
+  // Re-resolver referencias a elementos ahora que existen
+  reportsPeriodEl = document.getElementById('reportsPeriod');
+  reportsDateEl = document.getElementById('reportsDate');
+  reportsCommissionEl = document.getElementById('reportsCommission');
+  reportsRefreshBtn = document.getElementById('reportsRefreshBtn');
+  reportsStatusEl = document.getElementById('reportsStatus');
+  reportsTableBody = document.getElementById('reportsTableBody');
+
+  if (reportsRefreshBtn && !reportsRefreshBtn.__bound) {
+    reportsRefreshBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      loadSalesReportsOverview();
+    });
+    reportsRefreshBtn.__bound = true;
+  }
+
+  __reportsSectionReady = true;
+}
+
+async function loadSalesReportsOverview(){
+  ensureReportsSection();
+  if (!reportsTableBody) return;
+  try {
+    if (reportsStatusEl) reportsStatusEl.textContent = 'Cargando...';
+    const { from, to } = computeReportsRange();
+    const commissionPct = Number(reportsCommissionEl?.value || 0) || 0;
+    const rows = await fetchSalesBySeller(from, to);
+    reportsTableBody.innerHTML = '';
+    if (!rows.length){
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 6;
+      td.className = 'px-4 py-3 text-center text-gray-400';
+      td.textContent = 'No hay datos para el rango seleccionado.';
+      tr.appendChild(td);
+      reportsTableBody.appendChild(tr);
+      return;
+    }
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      const displayName = (r.sellerUsername && String(r.sellerUsername).trim())
+        || (r.sellerName && String(r.sellerName).trim())
+        || (`#${r.sellerId}`);
+      const ordersCount = Number(r.ordersCount || 0);
+      const productsSold = Number(r.productsSold || 0);
+      const totalAmount = Number(r.totalAmount || 0);
+      const commissionAmount = totalAmount * (commissionPct / 100);
+      const cells = [
+        displayName,
+        ordersCount.toString(),
+        productsSold.toString(),
+        currency(totalAmount),
+        `${commissionPct.toFixed(2)} %`,
+        currency(commissionAmount)
+      ];
+      cells.forEach((val, idx) => {
+        const td = document.createElement('td');
+        td.className = 'px-4 py-2' + (idx === 0 ? ' text-left' : ' text-right');
+        td.textContent = val;
+        tr.appendChild(td);
+      });
+      reportsTableBody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error('loadSalesReportsOverview error', err);
+    if (reportsTableBody) {
+      reportsTableBody.innerHTML = '';
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 6;
+      td.className = 'px-4 py-3 text-center text-red-400';
+      td.textContent = 'No se pudieron cargar los reportes.';
+      tr.appendChild(td);
+      reportsTableBody.appendChild(tr);
+    }
+  } finally {
+    if (reportsStatusEl) reportsStatusEl.textContent = '';
+  }
+}
+// Calcula rango [from,to] seg�n periodo y fecha base (local a reports)
+function computeReportsRange(){
+  const period = reportsPeriodEl?.value || 'month';
+  const baseStr = reportsDateEl?.value || '';
+  const base = baseStr ? new Date(baseStr + 'T00:00:00') : new Date();
+  if (isNaN(base.getTime())) return { from: null, to: null };
+  let from = new Date(base);
+  let to = new Date(base);
+  if (period === 'day'){
+    // mismo d�a
+  } else if (period === 'week'){
+    const day = base.getDay() || 7; // lunes=1 ... domingo=7
+    from.setDate(base.getDate() - (day - 1));
+    to.setDate(from.getDate() + 6);
+  } else if (period === 'month'){
+    from = new Date(base.getFullYear(), base.getMonth(), 1);
+    to = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+  } else if (period === 'custom'){
+    // en custom usamos solo la fecha elegida como from, sin to
+  }
+  const fromIso = from.toISOString();
+  const toIso = period === 'custom' ? null : new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999).toISOString();
+  return { from: fromIso, to: toIso };
+}
 function isOrderHidden(id){ try { return loadHiddenOrders().some(x => String(x) === String(id)); } catch { return false; } }
 function hideOrderId(id){ const arr = loadHiddenOrders(); if (!arr.some(x => String(x)===String(id))) { arr.push(String(id)); saveHiddenOrders(arr); } }
 

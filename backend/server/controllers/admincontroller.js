@@ -32,7 +32,59 @@ async function deleteContactMessage(req, res) {
   }
 }
 
-module.exports = { listContactMessages, deleteContactMessage };
+// --- Resumen de ventas por vendedor (para comisiones) ---
+async function salesBySeller(req, res) {
+  try {
+    const fromRaw = req.query?.from;
+    const toRaw = req.query?.to;
+    const from = fromRaw ? new Date(fromRaw) : null;
+    const to = toRaw ? new Date(toRaw) : null;
+
+    const params = [];
+    let where = `o.deleted_at IS NULL AND o.seller_user_id IS NOT NULL AND o.status <> 'CANCELED'`;
+    if (from && !isNaN(from.getTime())) {
+      params.push(from.toISOString());
+      where += ` AND o.order_date >= $${params.length}`;
+    }
+    if (to && !isNaN(to.getTime())) {
+      params.push(to.toISOString());
+      where += ` AND o.order_date <= $${params.length}`;
+    }
+
+    const { rows } = await query(
+      `SELECT
+         o.seller_user_id AS seller_id,
+         u.name AS seller_name,
+         u.username AS seller_username,
+         COUNT(DISTINCT o.id) AS orders_count,
+         COALESCE(SUM(oi.quantity), 0) AS products_sold,
+         COALESCE(SUM(o.total_amount), 0)::float AS total_amount
+       FROM Orders o
+       LEFT JOIN Users u ON u.id = o.seller_user_id
+       LEFT JOIN OrderItems oi ON oi.order_id = o.id AND oi.deleted_at IS NULL
+       WHERE ${where}
+       GROUP BY o.seller_user_id, u.name, u.username
+       ORDER BY total_amount DESC, seller_id ASC`,
+      params
+    );
+
+    const result = rows.map((r) => ({
+      sellerId: r.seller_id,
+      sellerName: r.seller_name || null,
+      sellerUsername: r.seller_username || null,
+      ordersCount: Number(r.orders_count || 0),
+      productsSold: Number(r.products_sold || 0),
+      totalAmount: Number(r.total_amount || 0),
+    }));
+
+    return res.json(result);
+  } catch (err) {
+    console.error('salesBySeller error:', err.message);
+    return res.status(500).json({ error: 'No se pudieron obtener ventas por vendedor' });
+  }
+}
+
+module.exports = { listContactMessages, deleteContactMessage, salesBySeller };
 
 // --- Compras (ingreso de stock) ---
 async function createPurchase(req, res) {
