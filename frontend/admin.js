@@ -84,6 +84,7 @@ async function fetchWithAuth(url, opt = {}, retry = true) {
 const ROUTES = {
   categories: () => `${API_BASE}/categorias`,
   category: (id) => `${API_BASE}/categorias/${encodeURIComponent(id)}`,
+  categoryPriceAdjust: (id) => `${API_BASE}/categorias/${encodeURIComponent(id)}/ajustar-precios`,
   products: () => `${API_BASE}/productos`,
   product: (id) => `${API_BASE}/productos/${encodeURIComponent(id)}`,
   stock: (id) => `${API_BASE}/productos/${encodeURIComponent(id)}/stock`, // PATCH {delta, reason}
@@ -177,8 +178,9 @@ function showSection(sectionId) {
 
   // Cargas perezosas por secci?n
   if (sectionId === 'editCategory') {
-    try { ensureDeleteButtons('category'); } catch {}
-    loadCategoriesForEdit();
+      try { ensureDeleteButtons('category'); } catch {}
+      try { initCategoryPriceAdjustUI(); } catch {}
+      loadCategoriesForEdit();
   } else if (sectionId === 'createProduct' || sectionId === 'editProduct') {
     loadCategoriesForProductForms();
     // Asegurar detecci?n de mapeo de claves del backend para crear/editar
@@ -1494,6 +1496,76 @@ function populateCategoryEditForm(category) {
   if (descEl) descEl.value = desc;
 }
 
+// Inicializar UI para ajuste de precios por categoria (crea input y boton si no existen)
+function initCategoryPriceAdjustUI(){
+  const container = document.getElementById('editCategory');
+  if (!container) return;
+  if (document.getElementById('categoryPriceAdjustBlock')) return;
+
+  const block = document.createElement('div');
+  block.id = 'categoryPriceAdjustBlock';
+  block.className = 'mt-6 border-t border-white/10 pt-4';
+  block.innerHTML = `
+    <h3 class="text-xl font-semibold mb-2 text-blue-200">Ajustar precios por porcentaje</h3>
+    <p class="text-sm text-gray-400 mb-3">
+      Ingresa un porcentaje para aumentar o disminuir los precios de todos los productos de esta categoria.
+      Por ejemplo, 5 aumenta los precios un 5%, -5 los baja un 5%.
+    </p>
+    <div class="flex flex-col sm:flex-row gap-3 items-center">
+      <input type="number" step="0.01" id="categoryPriceAdjustPercent" class="input-field sm:flex-grow" placeholder="Porcentaje (ej: 5 o -5)">
+      <button type="button" id="applyCategoryPriceAdjustButton" class="action-button w-full sm:w-auto">
+        Aplicar a precios de la categoria
+      </button>
+    </div>
+    <p class="text-xs text-gray-500 mt-2">
+      Rango permitido: entre -90% y 200%. Esta acci&oacute;n afecta solo productos activos de la categoria seleccionada.
+    </p>
+  `;
+
+  const space = container.querySelector('.space-y-4') || container;
+  space.appendChild(block);
+
+  const btn = document.getElementById('applyCategoryPriceAdjustButton');
+  if (!btn) return;
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const catId = selectCategoryToEdit?.value || '';
+    if (!catId) { showMessageBox('Eleg&iacute; una categoria primero.', 'warning'); return; }
+    const percentInput = document.getElementById('categoryPriceAdjustPercent');
+    const raw = percentInput ? percentInput.value : '';
+    const percent = Number(raw);
+    if (!Number.isFinite(percent)) {
+      showMessageBox('Porcentaje inv&aacute;lido.', 'error');
+      return;
+    }
+    if (percent < -90 || percent > 200) {
+      showMessageBox('El porcentaje debe estar entre -90 y 200.', 'warning');
+      return;
+    }
+    const catName = editedCategoryNameInput?.value?.trim() || 'la categoria seleccionada';
+    const ok = window.confirm(`Vas a ajustar los precios de ${catName} en ${percent}%.\nEsta acci&oacute;n afecta todos los productos activos de esa categoria.\n\n&iquest;Confirmas?`);
+    if (!ok) return;
+    try {
+      const resp = await fetchWithAuth(ROUTES.categoryPriceAdjust(catId), {
+        method: 'POST',
+        body: JSON.stringify({ percent })
+      });
+      if (!resp.ok) {
+        let details = '';
+        try { details = await resp.text(); } catch {}
+        console.error('category price adjust failed', resp.status, details);
+        throw new Error(`HTTP ${resp.status}`);
+      }
+      const data = await resp.json().catch(() => ({}));
+      const affected = Number(data.affectedProducts || data.affected || 0) || 0;
+      showMessageBox(`Precios actualizados correctamente (${affected} productos afectados).`, 'success');
+    } catch (err) {
+      console.error('category price adjust error', err);
+      showMessageBox('No se pudieron ajustar los precios de la categoria', 'error');
+    }
+  });
+}
+
 selectCategoryToEdit?.addEventListener('change', async () => {
   const id = selectCategoryToEdit.value;
   if (!id) { populateCategoryEditForm({}); return; }
@@ -2551,6 +2623,10 @@ async function loadOrdersAdminServer(){
           email: r.buyer_email || '',
           telefono: r.buyer_phone || ''
         },
+        seller: {
+          nombre: r.seller_name || '',
+          email: r.seller_email || ''
+        },
         items: Array.isArray(r.items) ? r.items : []
       };
     });
@@ -2642,53 +2718,55 @@ function renderOrdersList(orders){
 }
 
 function renderOrderCard2(order){
-  const itemsHtml = (order.items||[]).map(it => {
+  const itemsHtml = (order.items || []).map((it) => {
     const qty = Number(it.qty != null ? it.qty : it.quantity || 0);
     const unit = Number(it.unit_price != null ? it.unit_price : it.price || 0);
     return `
-    <div class="flex items-center justify-between text-sm">
-      <div class="text-gray-200">${it.name} <span class="text-gray-400">x${qty}</span></div>
-      <div class="text-gray-300">${currency(unit)} <span class="text-gray-500">c/u</span></div>
-    </div>`;
+      <div class="flex items-center justify-between text-sm">
+        <div class="text-gray-200">${it.name} <span class="text-gray-400">x${qty}</span></div>
+        <div class="text-gray-300">${currency(unit)} <span class="text-gray-500">c/u</span></div>
+      </div>`;
   }).join('');
   const buyer = order.buyer || {};
+  const seller = order.seller || {};
   const pdfHref = `${API_BASE}/pedidos/${encodeURIComponent(order.id)}/pdf`;
-  const delivered = String(order.status||'pending') === 'delivered';
+  const delivered = String(order.status || 'pending') === 'delivered';
   const canDeliver = hasPerm('ventas.write');
   return `
-    <div class="rounded-xl border border-white/10 bg-white/5 p-4 shadow">
-      <div class="flex items-center justify-between">
-        <div>
-          <div class="text-sm text-gray-400">N de pedido</div>
-          <div class="font-semibold text-blue-200">${order.orderNumber || order.id}</div>
+      <div class="rounded-xl border border-white/10 bg-white/5 p-4 shadow">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm text-gray-400">N de pedido</div>
+            <div class="font-semibold text-blue-200">${order.orderNumber || order.id}</div>
+          </div>
+          <div class="text-right">
+            <div class="text-sm text-gray-400">Total</div>
+            <div class="font-semibold">${currency(order.total || 0)}</div>
+            <div class="mt-1 text-xs text-gray-400">Estado: <span class="inline-block rounded px-2 py-0.5 border border-white/10">${String(order.status || '').toUpperCase()}</span></div>
+          </div>
         </div>
-        <div class="text-right">
-          <div class="text-sm text-gray-400">Total</div>
-          <div class="font-semibold">${currency(order.total||0)}</div>
-          <div class="mt-1 text-xs text-gray-400">Estado: <span class="inline-block rounded px-2 py-0.5 border border-white/10">${String(order.status||'').toUpperCase()}</span></div>
+        <div class="mt-3 grid md:grid-cols-2 gap-3">
+          <div>
+            <div class="text-sm text-gray-400 mb-1">Cliente</div>
+            <div class="text-gray-200">${buyer.nombre || ''} ${buyer.apellido || ''}</div>
+            <div class="text-gray-400 text-sm">DNI: ${buyer.dni || ''}</div>
+            ${buyer.email ? `<div class="text-gray-400 text-sm">Email: <a class="underline" href="mailto:${buyer.email}">${buyer.email}</a></div>` : ''}
+            ${buyer.telefono ? `<div class="text-gray-400 text-sm">Tel: <a class="underline" href="https://wa.me/${encodeURIComponent(String(buyer.telefono).replace(/[^0-9]/g, ''))}" target="_blank" rel="noopener">${buyer.telefono}</a></div>` : ''}
+            ${(seller.nombre || seller.email) ? `<div class="text-gray-400 text-sm mt-1">Vendedor: ${seller.nombre || '(sin nombre)'}${seller.email ? ` &lt;${seller.email}&gt;` : ''}</div>` : ''}
+          </div>
+          <div>
+            <div class="text-sm text-gray-400 mb-1">items</div>
+            <div class="space-y-1">${itemsHtml || '<div class="text-gray-400 text-sm">(sin items)</div>'}</div>
+          </div>
         </div>
-      </div>
-      <div class="mt-3 grid md:grid-cols-2 gap-3">
-        <div>
-          <div class="text-sm text-gray-400 mb-1">Cliente</div>
-          <div class="text-gray-200">${buyer.nombre||''} ${buyer.apellido||''}</div>
-          <div class="text-gray-400 text-sm">DNI: ${buyer.dni||''}</div>
-          ${buyer.email ? `<div class="text-gray-400 text-sm">Email: <a class="underline" href="mailto:${buyer.email}">${buyer.email}</a></div>` : ''}
-          ${buyer.telefono ? `<div class="text-gray-400 text-sm">Tel: <a class="underline" href="https://wa.me/${encodeURIComponent(String(buyer.telefono).replace(/[^0-9]/g,''))}" target="_blank" rel="noopener">${buyer.telefono}</a></div>` : ''}
+        <div class="mt-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <a class="px-3 py-2 rounded-lg border border-white/20 text-white/90 hover:bg-white/10" href="${pdfHref}" target="_blank" rel="noopener">Ver CR</a>
+            <div class="text-sm text-gray-400">Entregado?</div>
+          </div>
+          ${canDeliver ? `<button class="mark-delivered px-3 py-2 rounded-lg ${delivered ? 'bg-green-700 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold" data-order-id="${order.id}" ${delivered ? 'disabled' : ''}>${delivered ? 'Entregado' : 'Marcar como entregado'}</button>` : ''}
         </div>
-        <div>
-          <div class="text-sm text-gray-400 mb-1">items</div>
-          <div class="space-y-1">${itemsHtml || '<div class="text-gray-400 text-sm">(sin items)</div>'}</div>
-        </div>
-      </div>
-      <div class="mt-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <a class="px-3 py-2 rounded-lg border border-white/20 text-white/90 hover:bg-white/10" href="${pdfHref}" target="_blank" rel="noopener">Ver CR</a>
-          <div class="text-sm text-gray-400">Entregado?</div>
-        </div>
-        ${canDeliver ? `<button class="mark-delivered px-3 py-2 rounded-lg ${delivered? 'bg-green-700 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold" data-order-id="${order.id}" ${delivered? 'disabled' : ''}>${delivered? 'Entregado' : 'Marcar como entregado'}</button>` : ''}
-      </div>
-    </div>`;
+      </div>`;
 }
 
 async function loadOrdersAdminServer2(){

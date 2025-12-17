@@ -358,9 +358,21 @@ async function orderPdf(req, res) {
   const { id } = req.params;
   try {
     const { rows: orders } = await query(
-      `SELECT id, order_number, buyer_name, buyer_lastname, buyer_dni, buyer_email, buyer_phone,
-              total_amount::float AS total_amount, status, order_date
-         FROM Orders WHERE id = $1`,
+      `SELECT o.id,
+              o.order_number,
+              o.buyer_name,
+              o.buyer_lastname,
+              o.buyer_dni,
+              o.buyer_email,
+              o.buyer_phone,
+              o.total_amount::float AS total_amount,
+              o.status,
+              o.order_date,
+              u.name AS seller_name,
+              u.email AS seller_email
+         FROM Orders o
+         LEFT JOIN Users u ON u.id = COALESCE(o.seller_user_id, o.user_id)
+        WHERE o.id = $1`,
       [id]
     );
     if (!orders.length) return res.status(404).json({ error: 'Orden no encontrada' });
@@ -464,9 +476,21 @@ async function orderRemitoPdf(req, res) {
   const { id } = req.params;
   try {
     const { rows: orders } = await query(
-      `SELECT id, order_number, buyer_name, buyer_lastname, buyer_dni, buyer_email, buyer_phone,
-              total_amount::float AS total_amount, status, order_date
-         FROM Orders WHERE id = $1`,
+      `SELECT o.id,
+              o.order_number,
+              o.buyer_name,
+              o.buyer_lastname,
+              o.buyer_dni,
+              o.buyer_email,
+              o.buyer_phone,
+              o.total_amount::float AS total_amount,
+              o.status,
+              o.order_date,
+              u.name AS seller_name,
+              u.email AS seller_email
+         FROM Orders o
+         LEFT JOIN Users u ON u.id = COALESCE(o.seller_user_id, o.user_id)
+        WHERE o.id = $1`,
       [id]
     );
     if (!orders.length) return res.status(404).json({ error: 'Orden no encontrada' });
@@ -510,24 +534,28 @@ async function orderRemitoPdf(req, res) {
     };
 
     const drawClientInfo = () => {
-      const buyerFull = `${order.buyer_name || ''}${order.buyer_lastname ? ' ' + order.buyer_lastname : ''}`.trim();
-      const colW = (PAGE_W - MARGIN * 2) / 2;
-
-      doc.fillColor('#111').font('Helvetica-Bold').fontSize(12).text('Datos del cliente', MARGIN, MARGIN + 48);
-      doc.font('Helvetica').fontSize(10).fillColor('#333');
-      let y = doc.y + 4;
-      doc.text(`Nombre: ${buyerFull || '-'}`, MARGIN, y, { width: colW - 10 }); y = doc.y;
-      doc.text(`DNI: ${order.buyer_dni || '-'}`, MARGIN, y);
-      doc.text(`Email: ${order.buyer_email || '-'}`, MARGIN, doc.y);
-      doc.text(`Telefono: ${order.buyer_phone || '-'}`, MARGIN, doc.y);
-
-      doc.fillColor('#111').font('Helvetica-Bold').fontSize(12).text('Detalle de la orden', MARGIN + colW, MARGIN + 48);
-      doc.font('Helvetica').fontSize(10).fillColor('#333');
-      let y2 = doc.y + 4;
-      doc.text(`Orden: ${order.order_number || id}`, MARGIN + colW, y2, { width: colW - 10 }); y2 = doc.y;
-      doc.text(`Fecha de compra: ${new Date(order.order_date).toLocaleDateString()}`, MARGIN + colW, y2);
-      doc.moveDown(1);
-    };
+        const buyerFull = `${order.buyer_name || ''}${order.buyer_lastname ? ' ' + order.buyer_lastname : ''}`.trim();
+        const colW = (PAGE_W - MARGIN * 2) / 2;
+  
+        doc.fillColor('#111').font('Helvetica-Bold').fontSize(12).text('Datos del cliente', MARGIN, MARGIN + 48);
+        doc.font('Helvetica').fontSize(10).fillColor('#333');
+        let y = doc.y + 4;
+        doc.text(`Nombre: ${buyerFull || '-'}`, MARGIN, y, { width: colW - 10 }); y = doc.y;
+        doc.text(`DNI: ${order.buyer_dni || '-'}`, MARGIN, y);
+        doc.text(`Email: ${order.buyer_email || '-'}`, MARGIN, doc.y);
+        doc.text(`Telefono: ${order.buyer_phone || '-'}`, MARGIN, doc.y);
+        if (order.seller_name || order.seller_email) {
+          const sellerLine = `Vendedor: ${order.seller_name || ''}${order.seller_email ? ` <${order.seller_email}>` : ''}`.trim();
+          doc.text(sellerLine, MARGIN, doc.y);
+        }
+  
+        doc.fillColor('#111').font('Helvetica-Bold').fontSize(12).text('Detalle de la orden', MARGIN + colW, MARGIN + 48);
+        doc.font('Helvetica').fontSize(10).fillColor('#333');
+        let y2 = doc.y + 4;
+        doc.text(`Orden: ${order.order_number || id}`, MARGIN + colW, y2, { width: colW - 10 }); y2 = doc.y;
+        doc.text(`Fecha de compra: ${new Date(order.order_date).toLocaleDateString()}`, MARGIN + colW, y2);
+        doc.moveDown(1);
+      };
 
     const drawTableHeader = (y) => {
       doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, 20).fillAndStroke('#f2f2f2', '#cccccc');

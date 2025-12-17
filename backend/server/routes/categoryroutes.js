@@ -11,6 +11,11 @@ router.get('/categorias', categoryController.getCategorias);
 router.post('/categorias', authMiddleware, requirePermission('logistica.write'), categoryController.createCategoria);
 router.put('/categorias/:id', authMiddleware, requirePermission('logistica.write'), categoryController.updateCategoria);
 router.delete('/categorias/:id', authMiddleware, requirePermission('logistica.write'), categoryController.deleteCategoria);
+router.post(
+  '/categorias/:id/ajustar-precios',
+  authMiddleware,
+  requirePermission('logistica.write'),
+  categoryController.adjustCategoryPrices
+);
 
 module.exports = router;
-

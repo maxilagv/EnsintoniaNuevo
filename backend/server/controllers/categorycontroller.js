@@ -1,5 +1,6 @@
 const { check, validationResult } = require('express-validator');
 const { query, withTransaction } = require('../db/pg');
+const { audit } = require('../utils/audit');
 
 // Obtener categorías (estandarizado en inglés)
 async function getCategorias(req, res) {
@@ -218,11 +219,89 @@ async function deleteCategoria(req, res) {
   }
 }
 
+// Ajustar precios de todos los productos de una categor��a por un porcentaje
+async function adjustCategoryPrices(req, res) {
+  const rawId = req.params.id;
+  const rawPercent = req.body && (req.body.percent ?? req.body.porcentaje);
+
+  const categoryId = Number(rawId);
+  const percent = Number(rawPercent);
+
+  if (!Number.isInteger(categoryId) || categoryId <= 0) {
+    return res.status(400).json({ error: 'ID de la categor��a inv��lido' });
+  }
+  if (!Number.isFinite(percent)) {
+    return res.status(400).json({ error: 'Porcentaje inv��lido' });
+  }
+  // Limitar rango para evitar errores humanos grandes
+  if (percent < -90 || percent > 200) {
+    return res.status(400).json({ error: 'Porcentaje fuera de rango permitido (-90 a 200)' });
+  }
+
+  try {
+    const result = await withTransaction(async (client) => {
+      // Asegurar que la categor��a exista y no est�� eliminada
+      const { rows: cats } = await client.query(
+        'SELECT id, name FROM Categories WHERE id = $1 AND deleted_at IS NULL',
+        [categoryId]
+      );
+      if (!cats.length) {
+        const e = new Error('Categoria no encontrada');
+        e.statusCode = 404;
+        throw e;
+      }
+      const categoryName = cats[0].name;
+
+      const factor = 1 + (percent / 100);
+      // Actualizar precios: multiplicar por factor, redondear a 2 decimales y evitar negativos
+      const upd = await client.query(
+        `UPDATE Products
+            SET price = GREATEST(ROUND(price * $2::numeric, 2), 0),
+                updated_at = CURRENT_TIMESTAMP
+          WHERE category_id = $1
+            AND deleted_at IS NULL`,
+        [categoryId, factor]
+      );
+
+      return {
+        affected: upd.rowCount || 0,
+        categoryName,
+      };
+    });
+
+    // Registrar en AuditLog (no bloquea la respuesta si falla)
+    try {
+      await audit(
+        (req.user && req.user.email) || null,
+        'CATEGORY_PRICE_ADJUST',
+        'CATEGORY',
+        categoryId,
+        { percent, affected: result.affected, categoryName: result.categoryName }
+      );
+    } catch (_) {}
+
+    return res.json({
+      ok: true,
+      categoryId,
+      categoryName: result.categoryName,
+      percent,
+      affectedProducts: result.affected,
+    });
+  } catch (err) {
+    if (err && err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message || 'Error ajustando precios' });
+    }
+    console.error('Error al ajustar precios por categor��a:', err);
+    return res.status(500).json({ error: 'No se pudieron ajustar los precios de la categor��a' });
+  }
+}
+
 module.exports = {
   getCategorias,
   createCategoria: [...validateCategory, createCategoria],
   updateCategoria: [...validateCategoryUpdate, updateCategoria],
-  deleteCategoria
+  deleteCategoria,
+  adjustCategoryPrices,
 };
 
 

@@ -22,9 +22,7 @@ async function createUser(req, res) {
   if (!email || !name) return res.status(400).json({ error: 'email y name requeridos' });
 
   try {
-    // Pre-chequeos de unicidad para error claro
-    const existsEmail = await query('SELECT 1 FROM Users WHERE LOWER(email) = $1 AND deleted_at IS NULL LIMIT 1', [email]);
-    if (existsEmail.rows.length) return res.status(409).json({ error: 'El email ya existe' });
+    // Pre-chequeos de unicidad para error claro (solo username debe ser único entre usuarios activos)
     if (username) {
       const existsUser = await query('SELECT 1 FROM Users WHERE LOWER(username) = $1 AND deleted_at IS NULL LIMIT 1', [username]);
       if (existsUser.rows.length) return res.status(409).json({ error: 'El nombre de usuario ya existe' });
