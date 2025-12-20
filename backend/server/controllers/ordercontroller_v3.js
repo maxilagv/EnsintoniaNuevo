@@ -24,6 +24,7 @@ async function createOrderUnified(req, res) {
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
   const { buyer = {}, items = [], sellerUserId: sellerUserIdRaw, seller_user_id: sellerUserIdRaw2 } = req.body || {};
+  const paymentMethodRaw = req.body && req.body.paymentMethod;
 
   // El checkout requiere que el usuario est� autenticado y vinculado a un cliente
   const authUser = req.user || {};
@@ -177,6 +178,13 @@ async function createOrderUnified(req, res) {
         if (!ok) buyerCode = `C-${Date.now().toString(36).toUpperCase()}`;
       }
 
+      // 5.1) Normalizar forma de pago
+      const paymentRaw = typeof paymentMethodRaw === 'string' ? paymentMethodRaw.toUpperCase() : null;
+      let paymentCode = 'CASH';
+      if (paymentRaw === 'TRANSFER') paymentCode = 'TRANSFER';
+      let paymentMethodDb = 'EFECTIVO';
+      if (paymentCode === 'TRANSFER') paymentMethodDb = 'TRANSFERENCIA';
+
       // 6) Crear orden con todos los campos
       const insOrder = await client.query(
         `INSERT INTO Orders(user_id, client_id, seller_user_id, order_date, status, total_amount,
@@ -198,6 +206,17 @@ async function createOrderUnified(req, res) {
       );
       const orderId = insOrder.rows[0].id;
       if (buyerCode) await client.query('UPDATE Orders SET buyer_code = $1 WHERE id = $2', [buyerCode, orderId]);
+
+      // 6.1) Registrar pago asociado a la orden
+      try {
+        await client.query(
+          `INSERT INTO Payments(order_id, amount, payment_method, status)
+           VALUES ($1, $2, $3, $4)`,
+          [orderId, total, paymentMethodDb, 'CONFIRMED']
+        );
+      } catch (err) {
+        console.error('Error registrando pago para la orden', orderId, err && err.message ? err.message : err);
+      }
 
       // 7) Insertar items + movimientos
       for (const item of items) {
@@ -322,9 +341,18 @@ async function listOrdersV2(req, res) {
               o.status,
               o.order_date,
               u.name AS seller_name,
-              u.email AS seller_email
+              u.email AS seller_email,
+              p.payment_method AS payment_method
          FROM Orders o
          LEFT JOIN Users u ON u.id = COALESCE(o.seller_user_id, o.user_id)
+         LEFT JOIN LATERAL (
+           SELECT payment_method
+             FROM Payments
+            WHERE order_id = o.id
+              AND deleted_at IS NULL
+            ORDER BY payment_date DESC, id DESC
+            LIMIT 1
+         ) p ON TRUE
          ${whereSql}
         ORDER BY o.id DESC
         LIMIT 200`,
@@ -369,9 +397,18 @@ async function orderPdf(req, res) {
               o.status,
               o.order_date,
               u.name AS seller_name,
-              u.email AS seller_email
+              u.email AS seller_email,
+              p.payment_method AS payment_method
          FROM Orders o
          LEFT JOIN Users u ON u.id = COALESCE(o.seller_user_id, o.user_id)
+         LEFT JOIN LATERAL (
+           SELECT payment_method
+             FROM Payments
+            WHERE order_id = o.id
+              AND deleted_at IS NULL
+            ORDER BY payment_date DESC, id DESC
+            LIMIT 1
+         ) p ON TRUE
         WHERE o.id = $1`,
       [id]
     );
@@ -399,6 +436,9 @@ async function orderPdf(req, res) {
     if (order.buyer_email) doc.text(`Email: ${order.buyer_email}`);
     if (order.buyer_phone) doc.text(`Teléfono: ${order.buyer_phone}`);
 
+    if (order.payment_method) {
+      doc.moveDown(0.5).fontSize(12).text(`Forma de pago: ${order.payment_method}`);
+    }
     doc.moveDown(1).fontSize(14).text('Items:');
     doc.moveDown(0.5).fontSize(12);
     items.forEach((it, idx) => {
@@ -487,9 +527,18 @@ async function orderRemitoPdf(req, res) {
               o.status,
               o.order_date,
               u.name AS seller_name,
-              u.email AS seller_email
+              u.email AS seller_email,
+              p.payment_method AS payment_method
          FROM Orders o
          LEFT JOIN Users u ON u.id = COALESCE(o.seller_user_id, o.user_id)
+         LEFT JOIN LATERAL (
+           SELECT payment_method
+             FROM Payments
+            WHERE order_id = o.id
+              AND deleted_at IS NULL
+            ORDER BY payment_date DESC, id DESC
+            LIMIT 1
+         ) p ON TRUE
         WHERE o.id = $1`,
       [id]
     );
@@ -544,6 +593,9 @@ async function orderRemitoPdf(req, res) {
         doc.text(`DNI: ${order.buyer_dni || '-'}`, MARGIN, y);
         doc.text(`Email: ${order.buyer_email || '-'}`, MARGIN, doc.y);
         doc.text(`Telefono: ${order.buyer_phone || '-'}`, MARGIN, doc.y);
+        if (order.payment_method) {
+          doc.text(`Forma de pago: ${order.payment_method}`, MARGIN, doc.y);
+        }
         if (order.seller_name || order.seller_email) {
           const sellerLine = `Vendedor: ${order.seller_name || ''}${order.seller_email ? ` <${order.seller_email}>` : ''}`.trim();
           doc.text(sellerLine, MARGIN, doc.y);
@@ -608,7 +660,20 @@ async function orderRemitoPdf(req, res) {
     };
 
     const drawTotalsAndSign = (y, totalFinal) => {
-      doc.font('Helvetica-Bold').fontSize(12).fillColor('#111').text(`Total entregado: ${fmtMoney(totalFinal)}`, MARGIN, y + 10, { width: RIGHT_X - MARGIN, align: 'right' });
+      const lineY = y + 10;
+      const colW = (RIGHT_X - MARGIN) / 2;
+
+      if (order.seller_name || order.seller_email) {
+        const sellerLine = `Vendedor: ${order.seller_name || ''}${order.seller_email ? ` <${order.seller_email}>` : ''}`.trim();
+        doc.font('Helvetica').fontSize(10).fillColor('#333').text(sellerLine, MARGIN, lineY, { width: colW, align: 'left' });
+      }
+
+      doc.font('Helvetica-Bold').fontSize(12).fillColor('#111').text(
+        `Total entregado: ${fmtMoney(totalFinal)}`,
+        MARGIN + colW,
+        lineY,
+        { width: colW, align: 'right' }
+      );
 
       const baseY = y + 50;
       const lineW = 180;

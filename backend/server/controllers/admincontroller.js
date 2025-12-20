@@ -337,3 +337,339 @@ module.exports.getPurchase = getPurchase;
 module.exports.updatePurchaseStatus = updatePurchaseStatus;
 module.exports.deletePurchase = deletePurchase;
 module.exports.analyticsOverview = analyticsOverview;
+module.exports.analyticsFinance = analyticsFinance;
+module.exports.listExtraExpenses = listExtraExpenses;
+module.exports.createExtraExpense = createExtraExpense;
+module.exports.updateExtraExpense = updateExtraExpense;
+module.exports.deleteExtraExpense = deleteExtraExpense;
+
+// --- Anal�tica avanzada de finanzas (ingreso bruto / neto / gastos) ---
+async function analyticsFinance(req, res) {
+  try {
+    const fromRaw = req.query?.from;
+    const toRaw = req.query?.to;
+    const from = fromRaw ? new Date(fromRaw) : null;
+    const to = toRaw ? new Date(toRaw) : null;
+
+    // Normaliza la comisi�n de vendedores a un porcentaje (0-1)
+    let commissionRate = Number(process.env.SELLER_COMMISSION_RATE || '0.05');
+    if (!Number.isFinite(commissionRate) || commissionRate < 0) commissionRate = 0;
+    if (commissionRate > 1 && commissionRate <= 100) {
+      commissionRate = commissionRate / 100;
+    }
+
+    // Ingreso bruto (ventas) - excluye pedidos cancelados
+    const orderParams = [];
+    let ordersWhere = `o.deleted_at IS NULL AND o.status <> 'CANCELED'`;
+    if (from && !isNaN(from.getTime())) {
+      orderParams.push(from.toISOString());
+      ordersWhere += ` AND o.order_date >= $${orderParams.length}`;
+    }
+    if (to && !isNaN(to.getTime())) {
+      orderParams.push(to.toISOString());
+      ordersWhere += ` AND o.order_date <= $${orderParams.length}`;
+    }
+
+    // Gastos de stock (compras)
+    const purchaseParams = [];
+    let purchasesWhere = 'pu.deleted_at IS NULL';
+    if (from && !isNaN(from.getTime())) {
+      purchaseParams.push(from.toISOString());
+      purchasesWhere += ` AND pu.purchase_date >= $${purchaseParams.length}`;
+    }
+    if (to && !isNaN(to.getTime())) {
+      purchaseParams.push(to.toISOString());
+      purchasesWhere += ` AND pu.purchase_date <= $${purchaseParams.length}`;
+    }
+
+    // Gastos extraordinarios
+    const extraParams = [];
+    let extraWhere = 'ee.deleted_at IS NULL';
+    if (from && !isNaN(from.getTime())) {
+      extraParams.push(from.toISOString());
+      extraWhere += ` AND ee.expense_date >= $${extraParams.length}`;
+    }
+    if (to && !isNaN(to.getTime())) {
+      extraParams.push(to.toISOString());
+      extraWhere += ` AND ee.expense_date <= $${extraParams.length}`;
+    }
+
+    // Ventas atribuibles a vendedores (base para salarios / comisiones)
+    const salaryParams = [];
+    let salaryWhere = `o.deleted_at IS NULL AND o.seller_user_id IS NOT NULL AND o.status <> 'CANCELED'`;
+    if (from && !isNaN(from.getTime())) {
+      salaryParams.push(from.toISOString());
+      salaryWhere += ` AND o.order_date >= $${salaryParams.length}`;
+    }
+    if (to && !isNaN(to.getTime())) {
+      salaryParams.push(to.toISOString());
+      salaryWhere += ` AND o.order_date <= $${salaryParams.length}`;
+    }
+
+    const [ordersRes, purchasesRes, extraRes, salaryRes] = await Promise.all([
+      query(
+        `SELECT COALESCE(SUM(o.total_amount),0)::float AS gross_income
+           FROM Orders o
+          WHERE ${ordersWhere}`,
+        orderParams
+      ),
+      query(
+        `SELECT COALESCE(SUM(pu.total_amount),0)::float AS stock_expenses
+           FROM Purchases pu
+          WHERE ${purchasesWhere}`,
+        purchaseParams
+      ),
+      query(
+        `SELECT COALESCE(SUM(ee.amount),0)::float AS extra_expenses
+           FROM ExtraExpenses ee
+          WHERE ${extraWhere}`,
+        extraParams
+      ),
+      query(
+        `SELECT COALESCE(SUM(o.total_amount),0)::float AS total_sales_for_sellers
+           FROM Orders o
+          WHERE ${salaryWhere}`,
+        salaryParams
+      ),
+    ]);
+
+    const grossIncome = Number(ordersRes.rows?.[0]?.gross_income || 0);
+    const stockExpenses = Number(purchasesRes.rows?.[0]?.stock_expenses || 0);
+    const extraExpenses = Number(extraRes.rows?.[0]?.extra_expenses || 0);
+    const totalSalesForSellers = Number(salaryRes.rows?.[0]?.total_sales_for_sellers || 0);
+    const salaryExpenses = totalSalesForSellers * commissionRate;
+
+    const totalExpenses = stockExpenses + salaryExpenses + extraExpenses;
+    const netIncome = grossIncome - totalExpenses;
+
+    return res.json({
+      grossIncome,
+      stockExpenses,
+      salaryExpenses,
+      extraExpenses,
+      totalExpenses,
+      netIncome,
+      commissionRate,
+    });
+  } catch (err) {
+    console.error('analyticsFinance error:', err.message);
+    return res.status(500).json({ error: 'No se pudieron obtener m�tricas de finanzas' });
+  }
+}
+
+// --- Gastos extraordinarios (ExtraExpenses) ---
+async function listExtraExpenses(req, res) {
+  try {
+    const fromRaw = req.query?.from;
+    const toRaw = req.query?.to;
+    const categoryFilter = req.query?.category;
+    const from = fromRaw ? new Date(fromRaw) : null;
+    const to = toRaw ? new Date(toRaw) : null;
+
+    const params = [];
+    let where = 'ee.deleted_at IS NULL';
+    if (from && !isNaN(from.getTime())) {
+      params.push(from.toISOString());
+      where += ` AND ee.expense_date >= $${params.length}`;
+    }
+    if (to && !isNaN(to.getTime())) {
+      params.push(to.toISOString());
+      where += ` AND ee.expense_date <= $${params.length}`;
+    }
+    if (categoryFilter) {
+      params.push(String(categoryFilter));
+      where += ` AND ee.category = $${params.length}`;
+    }
+
+    const { rows } = await query(
+      `SELECT
+         ee.id,
+         ee.expense_date,
+         ee.amount::float AS amount,
+         ee.description,
+         ee.category,
+         ee.notes,
+         ee.created_by
+       FROM ExtraExpenses ee
+      WHERE ${where}
+      ORDER BY ee.expense_date DESC, ee.id DESC
+      LIMIT 500`,
+      params
+    );
+
+    const result = rows.map((r) => ({
+      id: r.id,
+      expenseDate: r.expense_date,
+      amount: Number(r.amount || 0),
+      description: r.description || null,
+      category: r.category || null,
+      notes: r.notes || null,
+      createdBy: r.created_by || null,
+    }));
+
+    return res.json(result);
+  } catch (err) {
+    console.error('listExtraExpenses error:', err.message);
+    return res.status(500).json({ error: 'No se pudieron obtener los gastos extraordinarios' });
+  }
+}
+
+async function createExtraExpense(req, res) {
+  try {
+    const body = req.body || {};
+    const rawAmount = body.amount ?? body.monto;
+    const amount = Number(rawAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'amount inv�lido' });
+    }
+
+    const dateRaw = body.date || body.expense_date || body.fecha;
+    let expenseDate = null;
+    if (dateRaw) {
+      const d = new Date(dateRaw);
+      if (isNaN(d.getTime())) {
+        return res.status(400).json({ error: 'fecha inv�lida' });
+      }
+      expenseDate = d.toISOString();
+    }
+
+    const description = body.description ? String(body.description).trim() : null;
+    const category = body.category ? String(body.category).trim() : null;
+    const notes = body.notes ? String(body.notes).trim() : body.observaciones ? String(body.observaciones).trim() : null;
+    const createdBy = (req.user && req.user.id) || null;
+
+    const { rows } = await query(
+      `INSERT INTO ExtraExpenses(expense_date, amount, description, category, notes, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, expense_date, amount::float AS amount, description, category, notes, created_by`,
+      [
+        expenseDate || new Date().toISOString(),
+        amount,
+        description,
+        category,
+        notes,
+        createdBy,
+      ]
+    );
+
+    const r = rows[0];
+    const result = {
+      id: r.id,
+      expenseDate: r.expense_date,
+      amount: Number(r.amount || 0),
+      description: r.description || null,
+      category: r.category || null,
+      notes: r.notes || null,
+      createdBy: r.created_by || null,
+    };
+
+    return res.status(201).json(result);
+  } catch (err) {
+    console.error('createExtraExpense error:', err.message);
+    return res.status(500).json({ error: 'No se pudo crear el gasto extraordinario' });
+  }
+}
+
+async function updateExtraExpense(req, res) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inv�lido' });
+  }
+
+  try {
+    const body = req.body || {};
+    const fields = [];
+    const params = [];
+
+    if (body.amount != null || body.monto != null) {
+      const rawAmount = body.amount ?? body.monto;
+      const amount = Number(rawAmount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return res.status(400).json({ error: 'amount inv�lido' });
+      }
+      params.push(amount);
+      fields.push(`amount = $${params.length}`);
+    }
+
+    if (body.date || body.expense_date || body.fecha) {
+      const dateRaw = body.date || body.expense_date || body.fecha;
+      const d = new Date(dateRaw);
+      if (isNaN(d.getTime())) {
+        return res.status(400).json({ error: 'fecha inv�lida' });
+      }
+      params.push(d.toISOString());
+      fields.push(`expense_date = $${params.length}`);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'description')) {
+      params.push(body.description ? String(body.description).trim() : null);
+      fields.push(`description = $${params.length}`);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'category')) {
+      params.push(body.category ? String(body.category).trim() : null);
+      fields.push(`category = $${params.length}`);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'notes') || Object.prototype.hasOwnProperty.call(body, 'observaciones')) {
+      const notes = body.notes != null ? body.notes : body.observaciones;
+      params.push(notes ? String(notes).trim() : null);
+      fields.push(`notes = $${params.length}`);
+    }
+
+    if (!fields.length) {
+      return res.status(400).json({ error: 'No hay campos para actualizar' });
+    }
+
+    params.push(id);
+    const sql = `
+      UPDATE ExtraExpenses
+         SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $${params.length} AND deleted_at IS NULL
+       RETURNING id, expense_date, amount::float AS amount, description, category, notes, created_by
+    `;
+    const { rows, rowCount } = await query(sql, params);
+    if (!rowCount) {
+      return res.status(404).json({ error: 'Gasto extraordinario no encontrado' });
+    }
+
+    const r = rows[0];
+    const result = {
+      id: r.id,
+      expenseDate: r.expense_date,
+      amount: Number(r.amount || 0),
+      description: r.description || null,
+      category: r.category || null,
+      notes: r.notes || null,
+      createdBy: r.created_by || null,
+    };
+
+    return res.json(result);
+  } catch (err) {
+    console.error('updateExtraExpense error:', err.message);
+    return res.status(500).json({ error: 'No se pudo actualizar el gasto extraordinario' });
+  }
+}
+
+async function deleteExtraExpense(req, res) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inv�lido' });
+  }
+
+  try {
+    const { rowCount } = await query(
+      `UPDATE ExtraExpenses
+          SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    );
+    if (!rowCount) {
+      return res.status(404).json({ error: 'Gasto extraordinario no encontrado' });
+    }
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('deleteExtraExpense error:', err.message);
+    return res.status(500).json({ error: 'No se pudo eliminar el gasto extraordinario' });
+  }
+}

@@ -94,7 +94,13 @@ const ROUTES = {
   backup: () => `${API_BASE}/backup`,             // POST
   migrate: () => `${API_BASE}/migraciones/run`,   // POST (opcional)
   analyticsOverview: (qs = '') => `${API_BASE}/analytics/overview${qs ? ('?' + qs) : ''}`,
+  financeAnalytics: (qs = '') => `${API_BASE}/analytics/finance${qs ? ('?' + qs) : ''}`,
   salesBySeller: (qs = '') => `${API_BASE}/analytics/sales-by-seller${qs ? ('?' + qs) : ''}`,
+  extraExpenses: (qs = '') => `${API_BASE}/extra-expenses${qs ? ('?' + qs) : ''}`,
+  extraExpense: (id) => `${API_BASE}/extra-expenses/${encodeURIComponent(id)}`,
+  purchases: () => `${API_BASE}/purchases`,
+  purchase: (id) => `${API_BASE}/purchases/${encodeURIComponent(id)}`,
+  purchaseStatus: (id) => `${API_BASE}/purchases/${encodeURIComponent(id)}`,
   // Clientes
   clients: (qs = '') => `${API_BASE}/clients${qs ? ('?' + qs) : ''}`,
   client: (id) => `${API_BASE}/clients/${encodeURIComponent(id)}`,
@@ -199,7 +205,7 @@ function showSection(sectionId) {
     try { initCustomersUiOnce(); } catch {}
     loadCustomersAdmin();
   } else if (sectionId === 'finance') {
-    loadFinanceOverview();
+    loadFinanceDashboard();
   } else if (sectionId === 'reports') {
     loadSalesReportsOverview();
   } else if (sectionId === 'users') {
@@ -1070,6 +1076,9 @@ const financeFromEl = document.getElementById('financeFrom');
 const financeToEl = document.getElementById('financeTo');
 const financeRefreshBtn = document.getElementById('financeRefreshBtn');
 const financeStatusEl = document.getElementById('financeStatus');
+const financeTodayBtn = document.getElementById('financeTodayBtn');
+const financeWeekBtn = document.getElementById('financeWeekBtn');
+const financeMonthBtn = document.getElementById('financeMonthBtn');
 
 /* ===========================
    Helpers
@@ -1095,6 +1104,23 @@ async function fetchSalesBySeller(fromIso, toIso){
   }
   const data = await resp.json().catch(() => []);
   return Array.isArray(data) ? data : [];
+}
+
+function parseDateInputToRange(value, endOfDay) {
+  if (!value) return null;
+  // value esperado: 'YYYY-MM-DD' proveniente de <input type="date">
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const year = Number(m[1]);
+  const month = Number(m[2]) - 1;
+  const day = Number(m[3]);
+  const d = endOfDay
+    ? new Date(year, month, day, 23, 59, 59, 999)
+    : new Date(year, month, day, 0, 0, 0, 0);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 // Crea dinámicamente la sección de reportes si no existe aún
@@ -2370,26 +2396,30 @@ async function loadOrdersAdmin(){
 }
 
 /* ===========================
-   Finanzas (overview)
+   Finanzas (dashboard)
 =========================== */
-async function loadFinanceOverview(){
+async function loadFinanceDashboard(){
   const from = financeFromEl?.value || '';
   const to = financeToEl?.value || '';
+  // Asegura que la UI de gastos detallados exista
+  try { ensureFinanceExpensesUi(); } catch {}
   const params = new URLSearchParams();
-  if (from) params.set('from', new Date(from).toISOString());
-  if (to) params.set('to', new Date(to).toISOString());
+  if (from) {
+    const d = parseDateInputToRange(from, false);
+    if (d) params.set('from', d.toISOString());
+  }
+  if (to) {
+    const d2 = parseDateInputToRange(to, true);
+    if (d2) params.set('to', d2.toISOString());
+  }
   const qs = params.toString();
   try {
     if (financeStatusEl) financeStatusEl.textContent = 'Cargando...';
-    let resp = await fetchWithAuth(ROUTES.analyticsOverview(qs));
-    // Fallbacks por si el backend expone variantes del endpoint
+
+    let resp = await fetchWithAuth(ROUTES.financeAnalytics(qs));
+    // Fallback por si el backend a�n no tiene /analytics/finance
     if (resp && resp.status === 404) {
-      const alt1 = `${API_BASE}/analytics-overview${qs ? ('?' + qs) : ''}`;
-      resp = await fetchWithAuth(alt1);
-    }
-    if (resp && resp.status === 404) {
-      const alt2 = `${API_BASE}/admin/analytics/overview${qs ? ('?' + qs) : ''}`;
-      resp = await fetchWithAuth(alt2);
+      resp = await fetchWithAuth(ROUTES.analyticsOverview(qs));
     }
 
     let data;
@@ -2404,48 +2434,93 @@ async function loadFinanceOverview(){
         if (!isNaN(toTs) && t > toTs) return false;
         return true;
       });
-      const revenue = filtered.reduce((s, o) => s + Number(o.total || 0), 0);
-      const purchases = 0; // sin backend no conocemos compras de stock
-      const gross = revenue - purchases;
-      data = { revenue, purchases, gross };
+      const grossIncome = filtered.reduce((s, o) => s + Number(o.total || 0), 0);
+      data = {
+        grossIncome,
+        stockExpenses: 0,
+        salaryExpenses: 0,
+        extraExpenses: 0,
+        totalExpenses: 0,
+        netIncome: grossIncome,
+      };
     } else {
       data = await resp.json();
     }
 
-    const revenue = Number(data?.revenue || 0);
-    const purchases = Number(data?.purchases || 0);
-    const gross = (data?.gross != null) ? Number(data.gross) : (revenue - purchases);
-    if (financeRevenueEl) financeRevenueEl.textContent = currency(revenue);
-    if (financePurchasesEl) financePurchasesEl.textContent = currency(purchases);
-    if (financeGrossEl) financeGrossEl.textContent = currency(gross);
+    const grossIncome = Number(
+      (data && data.grossIncome != null ? data.grossIncome : undefined) ??
+      (data && data.revenue != null ? data.revenue : 0)
+    );
+    const stockExpenses = Number(
+      (data && data.stockExpenses != null ? data.stockExpenses : undefined) ??
+      (data && data.purchases != null ? data.purchases : 0)
+    );
+    const salaryExpenses = Number(data?.salaryExpenses || 0);
+    const extraExpenses = Number(data?.extraExpenses || 0);
+    let totalExpenses = data && data.totalExpenses != null
+      ? Number(data.totalExpenses)
+      : stockExpenses + salaryExpenses + extraExpenses;
+    if (!Number.isFinite(totalExpenses)) totalExpenses = 0;
+    let netIncome = data && data.netIncome != null
+      ? Number(data.netIncome)
+      : grossIncome - totalExpenses;
+    if (!Number.isFinite(netIncome)) netIncome = 0;
 
-    // Gr?fico simple Ingresos vs Compras
+    if (financeRevenueEl) financeRevenueEl.textContent = currency(grossIncome);
+    if (financePurchasesEl) financePurchasesEl.textContent = currency(totalExpenses);
+    if (financeGrossEl) financeGrossEl.textContent = currency(netIncome);
+
+    const stockEl = document.getElementById('financeStockExpenses');
+    if (stockEl) stockEl.textContent = currency(stockExpenses);
+    const salaryEl = document.getElementById('financeSalaryExpenses');
+    if (salaryEl) salaryEl.textContent = currency(salaryExpenses);
+    const extraEl = document.getElementById('financeExtraExpenses');
+    if (extraEl) extraEl.textContent = currency(extraExpenses);
+    const totalEl = document.getElementById('financeTotalExpenses');
+    if (totalEl) totalEl.textContent = currency(totalExpenses);
+
+    // Gr�fico simple Ingreso bruto vs Gastos totales
     try {
       if (window.Chart) {
-        const ctx = document.getElementById('financeChart');
-        if (ctx) {
+        const placeholder = document.getElementById('financeChartPlaceholder');
+        let canvas = document.getElementById('financeChart');
+        if (!canvas && placeholder) {
+          canvas = document.createElement('canvas');
+          canvas.id = 'financeChart';
+          canvas.className = 'w-full h-48';
+          placeholder.innerHTML = '';
+          placeholder.appendChild(canvas);
+        }
+        if (canvas) {
           if (window.__financeChart) { window.__financeChart.destroy(); }
-          window.__financeChart = new window.Chart(ctx, {
+          window.__financeChart = new window.Chart(canvas, {
             type: 'bar',
             data: {
-              labels: ['Ingresos', 'Compras'],
+              labels: ['Ingreso bruto', 'Gastos totales'],
               datasets: [{
                 label: 'ARS',
-                data: [revenue, purchases],
-                backgroundColor: ['rgba(34,197,94,0.6)','rgba(234,179,8,0.6)'],
-                borderColor: ['rgba(34,197,94,1)','rgba(234,179,8,1)'],
+                data: [grossIncome, totalExpenses],
+                backgroundColor: ['rgba(34,197,94,0.6)','rgba(239,68,68,0.6)'],
+                borderColor: ['rgba(34,197,94,1)','rgba(239,68,68,1)'],
                 borderWidth: 1
               }]
             },
             options: { responsive: true, scales: { y: { beginAtZero: true } } }
           });
-          const ph = document.getElementById('financeChartPlaceholder');
-          if (ph) ph.textContent = '';
         }
       }
-    } catch {}
+    } catch (chartErr) {
+      console.warn('loadFinanceDashboard chart error', chartErr);
+    }
+
+    // Cargar lista de gastos extraordinarios (mejor esfuerzo)
+    try {
+      await loadExtraExpensesList(from, to);
+    } catch (errList) {
+      console.warn('loadExtraExpensesList error', errList);
+    }
   } catch (err) {
-    console.error('loadFinanceOverview error', err);
+    console.error('loadFinanceDashboard error', err);
     try {
       const orders = loadLocalOrders();
       const fromTs = from ? new Date(from).getTime() : NaN;
@@ -2456,12 +2531,12 @@ async function loadFinanceOverview(){
         if (!isNaN(toTs) && t > toTs) return false;
         return true;
       });
-      const revenue = filtered.reduce((s, o) => s + Number(o.total || 0), 0);
-      const purchases = 0;
-      const gross = revenue - purchases;
-      if (financeRevenueEl) financeRevenueEl.textContent = currency(revenue);
-      if (financePurchasesEl) financePurchasesEl.textContent = currency(purchases);
-      if (financeGrossEl) financeGrossEl.textContent = currency(gross);
+      const grossIncome = filtered.reduce((s, o) => s + Number(o.total || 0), 0);
+      const totalExpenses = 0;
+      const netIncome = grossIncome;
+      if (financeRevenueEl) financeRevenueEl.textContent = currency(grossIncome);
+      if (financePurchasesEl) financePurchasesEl.textContent = currency(totalExpenses);
+      if (financeGrossEl) financeGrossEl.textContent = currency(netIncome);
       showMessageBox('Mostrando datos locales de finanzas', 'warning');
     } catch (_) {
       showMessageBox('Error al cargar finanzas', 'error');
@@ -2473,7 +2548,260 @@ async function loadFinanceOverview(){
 
 financeRefreshBtn?.addEventListener('click', (e) => {
   e.preventDefault();
-  loadFinanceOverview();
+  loadFinanceDashboard();
+});
+
+function setFinanceRange(fromDate, toDate) {
+  if (financeFromEl && fromDate) {
+    financeFromEl.value = fromDate.toISOString().slice(0, 10);
+  }
+  if (financeToEl && toDate) {
+    financeToEl.value = toDate.toISOString().slice(0, 10);
+  }
+  loadFinanceDashboard();
+}
+
+financeTodayBtn?.addEventListener('click', (e) => {
+  e.preventDefault();
+  const today = new Date();
+  setFinanceRange(today, today);
+});
+
+financeWeekBtn?.addEventListener('click', (e) => {
+  e.preventDefault();
+  const today = new Date();
+  const day = today.getDay(); // 0 (domingo) - 6 (sábado)
+  const diffToMonday = (day + 6) % 7; // lunes como inicio
+  const from = new Date(today);
+  from.setDate(today.getDate() - diffToMonday);
+  setFinanceRange(from, today);
+});
+
+financeMonthBtn?.addEventListener('click', (e) => {
+  e.preventDefault();
+  const today = new Date();
+  const from = new Date(today.getFullYear(), today.getMonth(), 1);
+  setFinanceRange(from, today);
+});
+
+function ensureFinanceExpensesUi(){
+  const section = document.getElementById('finance');
+  if (!section) return;
+  if (document.getElementById('financeExtraTableBody')) return; // ya creada
+
+  const container = document.createElement('div');
+  container.className = 'mt-8';
+  container.innerHTML = `
+    <h3 class="text-xl font-semibold text-white mb-3">Pagos extraordinarios</h3>
+    <form id="extraExpenseForm" class="grid md:grid-cols-5 gap-3 mb-6">
+      <div>
+        <label class="block text-sm text-gray-400 mb-1">Fecha</label>
+        <input id="extraExpDate" type="date" class="input-field">
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-sm text-gray-400 mb-1">Concepto</label>
+        <input id="extraExpDesc" type="text" class="input-field" placeholder="Ej: Luz, alquiler, servicio tecnico">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-400 mb-1">Categoría</label>
+        <input id="extraExpCategory" type="text" class="input-field" placeholder="Opcional">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-400 mb-1">Monto</label>
+        <input id="extraExpAmount" type="number" step="0.01" min="0" class="input-field" required>
+      </div>
+      <div class="md:col-span-4">
+        <label class="block text-sm text-gray-400 mb-1">Observaciones</label>
+        <input id="extraExpNotes" type="text" class="input-field" placeholder="Opcional">
+      </div>
+      <div class="flex items-end">
+        <button type="submit" class="action-button bg-emerald-600 hover:bg-emerald-700 w-full">Registrar gasto</button>
+      </div>
+    </form>
+
+    <h3 class="text-xl font-semibold text-white mb-3">Gastos detallados</h3>
+    <div class="rounded-xl border border-white/10 bg-white/5 divide-y divide-white/10">
+      <div class="flex items-center justify-between p-3">
+        <div class="text-sm text-gray-400">Stock (compras de proveedores)</div>
+        <div id="financeStockExpenses" class="text-sm font-semibold text-yellow-300">$0</div>
+      </div>
+      <div class="flex items-center justify-between p-3">
+        <div class="text-sm text-gray-400">Salarios vendedores (estimado)</div>
+        <div id="financeSalaryExpenses" class="text-sm font-semibold text-rose-300">$0</div>
+      </div>
+      <div class="p-3">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-sm text-gray-400">Gastos extraordinarios</div>
+          <div id="financeExtraExpenses" class="text-sm font-semibold text-orange-300">$0</div>
+        </div>
+        <div class="max-h-40 overflow-auto border border-white/5 rounded-lg">
+          <table class="min-w-full text-xs">
+            <thead class="bg-white/5">
+              <tr>
+                <th class="px-2 py-1 text-left text-gray-400 font-medium">Fecha</th>
+                <th class="px-2 py-1 text-left text-gray-400 font-medium">Concepto</th>
+                <th class="px-2 py-1 text-right text-gray-400 font-medium">Monto</th>
+                <th class="px-2 py-1 text-right text-gray-400 font-medium">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="financeExtraTableBody" class="divide-y divide-white/5">
+              <tr>
+                <td colspan="4" class="px-2 py-2 text-center text-gray-500">
+                  Sin gastos extraordinarios en el periodo.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="flex items-center justify-between p-3 bg-black/20 rounded-b-xl">
+        <div class="text-sm text-gray-300">Total gastos</div>
+        <div id="financeTotalExpenses" class="text-sm font-semibold text-yellow-200">$0</div>
+      </div>
+    </div>
+  `;
+  section.appendChild(container);
+
+  const form = document.getElementById('extraExpenseForm');
+  if (form && !form.__bound) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const dateInput = document.getElementById('extraExpDate');
+        const descInput = document.getElementById('extraExpDesc');
+        const catInput = document.getElementById('extraExpCategory');
+        const amountInput = document.getElementById('extraExpAmount');
+        const notesInput = document.getElementById('extraExpNotes');
+        const rawAmount = amountInput?.value || '';
+        const amount = Number(rawAmount);
+        if (!Number.isFinite(amount) || amount <= 0) {
+          showMessageBox('Ingresa un monto válido mayor a 0', 'warning');
+          return;
+        }
+        const payload = {
+          amount,
+          description: descInput?.value || '',
+          category: catInput?.value || '',
+          notes: notesInput?.value || '',
+        };
+        const dateStr = dateInput?.value || '';
+        if (dateStr) {
+          payload.date = dateStr;
+        }
+        const resp = await fetchWithAuth(ROUTES.extraExpenses(), {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        if (!resp || !resp.ok) {
+          const tx = resp ? await resp.text().catch(() => '') : '';
+          console.error('create extra expense', resp && resp.status, tx);
+          showMessageBox('No se pudo registrar el gasto extraordinario', 'error');
+          return;
+        }
+        showMessageBox('Gasto extraordinario registrado', 'success');
+        // Limpiar formulario
+        if (amountInput) amountInput.value = '';
+        if (descInput) descInput.value = '';
+        if (catInput) catInput.value = '';
+        if (notesInput) notesInput.value = '';
+        // Recargar lista y dashboard
+        const fromVal = financeFromEl?.value || '';
+        const toVal = financeToEl?.value || '';
+        await loadExtraExpensesList(fromVal, toVal);
+        await loadFinanceDashboard();
+      } catch (err) {
+        console.error('extraExpenseForm submit error', err);
+        showMessageBox('Error al registrar el gasto extraordinario', 'error');
+      }
+    });
+    form.__bound = true;
+  }
+}
+
+async function loadExtraExpensesList(fromDateStr, toDateStr) {
+  const tbody = document.getElementById('financeExtraTableBody');
+  if (!tbody) return;
+  const params = new URLSearchParams();
+  if (fromDateStr) {
+    const d = parseDateInputToRange(fromDateStr, false);
+    if (d) params.set('from', d.toISOString());
+  }
+  if (toDateStr) {
+    const d2 = parseDateInputToRange(toDateStr, true);
+    if (d2) params.set('to', d2.toISOString());
+  }
+  const qs = params.toString();
+  try {
+    const resp = await fetchWithAuth(ROUTES.extraExpenses(qs));
+    if (!resp || !resp.ok) throw new Error('HTTP ' + (resp && resp.status));
+    const data = await resp.json().catch(() => []);
+    const rows = Array.isArray(data) ? data : [];
+    tbody.innerHTML = '';
+    if (!rows.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="4" class="px-2 py-2 text-center text-gray-500">
+            Sin gastos extraordinarios en el periodo.
+          </td>
+        </tr>`;
+      return;
+    }
+    rows.slice(0, 20).forEach((r) => {
+      const tr = document.createElement('tr');
+      const d = r.expenseDate || r.expense_date || r.date;
+      const dateLabel = d ? new Date(d).toLocaleDateString('es-AR') : '';
+      const desc = r.description || r.descripcion || '';
+      const amount = Number(r.amount || r.monto || 0);
+      const id = r.id;
+      tr.innerHTML = `
+        <td class="px-2 py-1 text-left text-gray-300">${escapeHtml(dateLabel)}</td>
+        <td class="px-2 py-1 text-left text-gray-300">${escapeHtml(desc)}</td>
+        <td class="px-2 py-1 text-right text-gray-300">${currency(amount)}</td>
+        <td class="px-2 py-1 text-right text-gray-300">
+          <button
+            type="button"
+            class="px-2 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-xs extra-exp-delete"
+            data-extra-id="${id}"
+          >Eliminar</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error('loadExtraExpensesList error', err);
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="4" class="px-2 py-2 text-center text-red-400">
+          No se pudieron cargar los gastos extraordinarios.
+        </td>
+      </tr>`;
+  }
+}
+
+document.getElementById('finance')?.addEventListener('click', async (e) => {
+  const btn = e.target && e.target.closest ? e.target.closest('.extra-exp-delete') : null;
+  if (!btn) return;
+  const id = btn.getAttribute('data-extra-id');
+  if (!id) return;
+  const ok = window.confirm('¿Eliminar este gasto extraordinario?');
+  if (!ok) return;
+  try {
+    const resp = await fetchWithAuth(ROUTES.extraExpense(id), { method: 'DELETE' });
+    if (!resp || !resp.ok) {
+      const tx = resp ? await resp.text().catch(() => '') : '';
+      console.error('delete extra expense', resp && resp.status, tx);
+      showMessageBox('No se pudo eliminar el gasto extraordinario', 'error');
+      return;
+    }
+    showMessageBox('Gasto extraordinario eliminado', 'success');
+    const fromVal = financeFromEl?.value || '';
+    const toVal = financeToEl?.value || '';
+    await loadExtraExpensesList(fromVal, toVal);
+    await loadFinanceDashboard();
+  } catch (err) {
+    console.error('extra-exp-delete click error', err);
+    showMessageBox('Error al eliminar el gasto extraordinario', 'error');
+  }
 });
 
 async function markOrderDelivered(orderId){
@@ -2627,6 +2955,7 @@ async function loadOrdersAdminServer(){
           nombre: r.seller_name || '',
           email: r.seller_email || ''
         },
+        paymentMethod: r.payment_method || '',
         items: Array.isArray(r.items) ? r.items : []
       };
     });
@@ -2729,6 +3058,7 @@ function renderOrderCard2(order){
   }).join('');
   const buyer = order.buyer || {};
   const seller = order.seller || {};
+  const paymentMethod = (order.paymentMethod || '').toString().trim();
   const pdfHref = `${API_BASE}/pedidos/${encodeURIComponent(order.id)}/pdf`;
   const delivered = String(order.status || 'pending') === 'delivered';
   const canDeliver = hasPerm('ventas.write');
@@ -2753,6 +3083,7 @@ function renderOrderCard2(order){
             ${buyer.email ? `<div class="text-gray-400 text-sm">Email: <a class="underline" href="mailto:${buyer.email}">${buyer.email}</a></div>` : ''}
             ${buyer.telefono ? `<div class="text-gray-400 text-sm">Tel: <a class="underline" href="https://wa.me/${encodeURIComponent(String(buyer.telefono).replace(/[^0-9]/g, ''))}" target="_blank" rel="noopener">${buyer.telefono}</a></div>` : ''}
             ${(seller.nombre || seller.email) ? `<div class="text-gray-400 text-sm mt-1">Vendedor: ${seller.nombre || '(sin nombre)'}${seller.email ? ` &lt;${seller.email}&gt;` : ''}</div>` : ''}
+            ${paymentMethod ? `<div class="text-gray-400 text-sm mt-1">Forma de pago: ${paymentMethod}</div>` : ''}
           </div>
           <div>
             <div class="text-sm text-gray-400 mb-1">items</div>
@@ -2785,18 +3116,35 @@ async function loadOrdersAdminServer2(){
     const resp = await fetchWithAuth(url);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const rows = await resp.json();
-    const orders = (Array.isArray(rows) ? rows : []).map(function(r){
-      const items = Array.isArray(r.items) ? r.items.map(it => ({ name: it.name, qty: it.quantity, price: it.unit_price })) : [];
+    const orders = (Array.isArray(rows) ? rows : []).map(function (r) {
+      const items = Array.isArray(r.items)
+        ? r.items.map(function (it) {
+            return { name: it.name, qty: it.quantity, price: it.unit_price };
+          })
+        : [];
       const total = Number(r.total_amount || r.total || 0) || 0;
       const createdAt = r.order_date || r.created_at || r.createdAt || null;
+      const buyerPhone = r.buyer_phone || '';
       return {
         id: r.id,
         orderNumber: r.order_number || r.orderNumber || '',
         total,
         status: String(r.status || 'PENDING').toLowerCase(),
         createdAt,
-        buyer: { nombre: r.buyer_name || '', apellido: r.buyer_lastname || '', dni: r.buyer_dni || '', email: r.buyer_email || '', phone: r.buyer_phone || '' },
-        items
+        buyer: {
+          nombre: r.buyer_name || '',
+          apellido: r.buyer_lastname || '',
+          dni: r.buyer_dni || '',
+          email: r.buyer_email || '',
+          telefono: buyerPhone,
+          phone: buyerPhone,
+        },
+        seller: {
+          nombre: r.seller_name || '',
+          email: r.seller_email || '',
+        },
+        paymentMethod: r.payment_method || '',
+        items,
       };
     });
     orders.sort(function(a,b){ return new Date(b.createdAt||0) - new Date(a.createdAt||0); });
@@ -2944,7 +3292,7 @@ async function loadPurchases(){
   try {
     const box = document.getElementById('purchasesList');
     if (!box) return;
-    const resp = await fetchWithAuth(`${API_BASE}/purchases`);
+    const resp = await fetchWithAuth(ROUTES.purchases());
     const rows = resp.ok ? await resp.json() : [];
     if (!rows.length){ box.innerHTML = '<p class="text-gray-400">Sin compras</p>'; return; }
     box.innerHTML = rows.map(p=>{
@@ -2963,12 +3311,81 @@ async function loadPurchases(){
           <div class="text-sm text-gray-400">Proveedor: ${p.supplier_name||''} ${p.supplier_cuit? '('+p.supplier_cuit+')':''}</div>
           <div class="text-sm text-gray-400">Estado: ${String(p.status||'').toUpperCase()}  Moneda: ${p.currency||'ARS'}  Total: $${Number(p.total_amount||0).toFixed(2)}</div>
           <div class="mt-2 space-y-1">${its}</div>
+          <div class="mt-2 flex justify-end">
+            <button
+              type="button"
+              class="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-xs purchase-delete"
+              data-purchase-id="${p.id}"
+            >Eliminar compra</button>
+          </div>
         </div>`;
     }).join('');
   } catch (e) {
     console.error('loadPurchases error', e);
   }
 }
+
+document.getElementById('purchasesList')?.addEventListener('click', async (e) => {
+  const header = e.target && e.target.closest ? e.target.closest('.text-blue-200') : null;
+  if (!header) return;
+  const txt = String(header.textContent || '');
+  const m = txt.match(/Compra\s*#(\d+)/i);
+  if (!m) return;
+  const id = m[1];
+  const ok = window.confirm('¿Marcar esta compra como CANCELED y eliminarla? (solo uso de prueba)');
+  if (!ok) return;
+  try {
+    // 1) Marcar como CANCELED (si no lo estaba)
+    await fetchWithAuth(ROUTES.purchase(id), {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'CANCELED' }),
+    });
+    // 2) Eliminar (soft delete en backend)
+    const respDel = await fetchWithAuth(ROUTES.purchase(id), { method: 'DELETE' });
+    if (!respDel || !respDel.ok) {
+      const tx = respDel ? await respDel.text().catch(() => '') : '';
+      console.error('delete purchase', respDel && respDel.status, tx);
+      showMessageBox('No se pudo eliminar la compra. Verifica permisos/estado.', 'error');
+      return;
+    }
+    showMessageBox('Compra de stock eliminada', 'success');
+    await loadPurchases();
+    await loadFinanceDashboard();
+  } catch (err) {
+    console.error('purchase delete error', err);
+    showMessageBox('Error al eliminar la compra', 'error');
+  }
+});
+
+document.getElementById('purchasesList')?.addEventListener('click', async (e) => {
+  const btn = e.target && e.target.closest ? e.target.closest('.purchase-delete') : null;
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const id = btn.getAttribute('data-purchase-id');
+  if (!id) return;
+  const ok = window.confirm('¿Marcar esta compra como CANCELED y eliminarla? (solo uso de prueba)');
+  if (!ok) return;
+  try {
+    await fetchWithAuth(ROUTES.purchase(id), {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'CANCELED' }),
+    });
+    const respDel = await fetchWithAuth(ROUTES.purchase(id), { method: 'DELETE' });
+    if (!respDel || !respDel.ok) {
+      const tx = respDel ? await respDel.text().catch(() => '') : '';
+      console.error('delete purchase (button)', respDel && respDel.status, tx);
+      showMessageBox('No se pudo eliminar la compra. Verifica permisos/estado.', 'error');
+      return;
+    }
+    showMessageBox('Compra de stock eliminada', 'success');
+    await loadPurchases();
+    await loadFinanceDashboard();
+  } catch (err) {
+    console.error('purchase delete (button) error', err);
+    showMessageBox('Error al eliminar la compra', 'error');
+  }
+});
 document.getElementById('addPurchaseItem')?.addEventListener('click', addPurchaseItemRow);
 
 document.getElementById('purchaseForm')?.addEventListener('submit', async (e)=>{
@@ -2997,7 +3414,7 @@ document.getElementById('purchaseForm')?.addEventListener('submit', async (e)=>{
     document.getElementById('purchaseItems').innerHTML = '';
     await addPurchaseItemRow();
     loadPurchases();
-    loadFinanceOverview();
+    loadFinanceDashboard();
   } catch(err){ console.error('purchase submit', err); showMessageBox('Error creando compra','error'); }
 });
 

@@ -2241,7 +2241,10 @@ document.getElementById('checkout-form')?.addEventListener('submit', async (e) =
   const emailOk = /.+@.+\..+/.test(email);
   if (!emailOk) { showMessageBox('Ingresa un email valido'); return; }
   if (phoneDigits.length < 6) { showMessageBox('Ingresa un telefono valido (6+ digitos)'); return; }
-  if (payment === 'mp') { showMessageBox('La opcion de Mercado Pago estara disponible proximamente. Elegi Efectivo por ahora.'); return; }
+  if (payment !== 'cash' && payment !== 'transfer') {
+    showMessageBox('Selecciona una forma de pago valida (efectivo o transferencia).');
+    return;
+  }
   try {
     const insufficient = [];
     for (const it of cart){
@@ -2255,10 +2258,12 @@ document.getElementById('checkout-form')?.addEventListener('submit', async (e) =
 
   const sellerSel = document.getElementById('checkout-seller');
   const sellerIdRaw = sellerSel ? sellerSel.value : '';
+  const paymentMethod = payment === 'transfer' ? 'TRANSFER' : 'CASH';
   const payload = {
     buyer: { name, lastname, dni, email, phone: phoneDigits },
     items: cart.map(it => ({ productId: Number(it.id), quantity: Number(it.qty) })),
-    sellerUserId: sellerIdRaw ? Number(sellerIdRaw) : null
+    sellerUserId: sellerIdRaw ? Number(sellerIdRaw) : null,
+    paymentMethod
   };
   try {
     const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };

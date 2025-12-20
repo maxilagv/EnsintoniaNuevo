@@ -596,15 +596,15 @@
                 <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Finanzas</h2>
                 <div class="grid md:grid-cols-3 gap-4 mb-6">
                     <div class="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <div class="text-sm text-gray-400">Ingresos (Bruto)</div>
+                        <div class="text-sm text-gray-400">Ingreso bruto</div>
                         <div id="financeRevenue" class="text-2xl font-extrabold text-green-300">$0</div>
                     </div>
                     <div class="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <div class="text-sm text-gray-400">Compras</div>
+                        <div class="text-sm text-gray-400">Gastos totales</div>
                         <div id="financePurchases" class="text-2xl font-extrabold text-yellow-300">$0</div>
                     </div>
                     <div class="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <div class="text-sm text-gray-400">Ganancia Bruta</div>
+                        <div class="text-sm text-gray-400">Ingreso neto</div>
                         <div id="financeGross" class="text-2xl font-extrabold text-blue-300">$0</div>
                     </div>
                 </div>
@@ -617,7 +617,12 @@
                         <label class="block text-sm text-gray-400 mb-1">Hasta</label>
                         <input id="financeTo" type="date" class="input-field">
                     </div>
-                    <div class="md:col-span-2 flex gap-3">
+                    <div class="md:col-span-2 flex flex-wrap gap-3">
+                        <div class="flex gap-2 flex-wrap">
+                            <button id="financeTodayBtn" class="action-button bg-slate-700 hover:bg-slate-800">Hoy</button>
+                            <button id="financeWeekBtn" class="action-button bg-slate-700 hover:bg-slate-800">Esta semana</button>
+                            <button id="financeMonthBtn" class="action-button bg-slate-700 hover:bg-slate-800">Este mes</button>
+                        </div>
                         <button id="financeRefreshBtn" class="action-button bg-sky-600 hover:bg-sky-700">Actualizar</button>
                         <span id="financeStatus" class="text-gray-400 self-center"></span>
                     </div>

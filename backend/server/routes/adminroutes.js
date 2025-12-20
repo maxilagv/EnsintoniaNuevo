@@ -22,4 +22,13 @@ router.get('/analytics/sales-by-seller', authMiddleware, requirePermission('admi
 router.get('/analytics-overview', authMiddleware, requirePermission('administracion.read'), admin.analyticsOverview);
 router.get('/admin/analytics/overview', authMiddleware, requirePermission('administracion.read'), admin.analyticsOverview);
 
+// Anal�tica financiera avanzada (ingreso bruto/neto + desglose de gastos)
+router.get('/analytics/finance', authMiddleware, requirePermission('administracion.read'), admin.analyticsFinance);
+
+// Gastos extraordinarios (ExtraExpenses)
+router.get('/extra-expenses', authMiddleware, requirePermission('administracion.read'), admin.listExtraExpenses);
+router.post('/extra-expenses', authMiddleware, requirePermission('administracion.configure'), admin.createExtraExpense);
+router.patch('/extra-expenses/:id', authMiddleware, requirePermission('administracion.configure'), admin.updateExtraExpense);
+router.delete('/extra-expenses/:id', authMiddleware, requirePermission('administracion.configure'), admin.deleteExtraExpense);
+
 module.exports = router;
