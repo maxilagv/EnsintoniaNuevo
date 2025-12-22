@@ -96,6 +96,7 @@ const ROUTES = {
   analyticsOverview: (qs = '') => `${API_BASE}/analytics/overview${qs ? ('?' + qs) : ''}`,
   financeAnalytics: (qs = '') => `${API_BASE}/analytics/finance${qs ? ('?' + qs) : ''}`,
   salesBySeller: (qs = '') => `${API_BASE}/analytics/sales-by-seller${qs ? ('?' + qs) : ''}`,
+  salesBySellerDetail: (id, qs = '') => `${API_BASE}/analytics/sales-by-seller/${encodeURIComponent(id)}/detail${qs ? ('?' + qs) : ''}`,
   extraExpenses: (qs = '') => `${API_BASE}/extra-expenses${qs ? ('?' + qs) : ''}`,
   extraExpense: (id) => `${API_BASE}/extra-expenses/${encodeURIComponent(id)}`,
   purchases: () => `${API_BASE}/purchases`,
@@ -112,6 +113,8 @@ const ROUTES = {
   userResetPwd: (id) => `${API_BASE}/users/${encodeURIComponent(id)}/reset-password`,
   userSessionsRevoke: (id) => `${API_BASE}/users/${encodeURIComponent(id)}/sessions/revoke`,
   userAudit: (id) => `${API_BASE}/users/${encodeURIComponent(id)}/audit`,
+  userCommission: (id) => `${API_BASE}/users/${encodeURIComponent(id)}/commission`,
+  usersCommissionBulk: () => `${API_BASE}/users/commission/bulk`,
   profiles: () => `${API_BASE}/profiles`,
   roles: () => `${API_BASE}/roles`,
   userAssignProfile: (id) => `${API_BASE}/users/${encodeURIComponent(id)}/profiles`,
@@ -1083,7 +1086,7 @@ const financeMonthBtn = document.getElementById('financeMonthBtn');
 /* ===========================
    Helpers
 =========================== */
-function currency(n){ try { return new Intl.NumberFormat('es-AR', { style:'currency', currency:'ARS' }).format(Number(n||0)); } catch { return `$${n}`; } }
+function currency(n){ try { return new Intl.NumberFormat('es-AR', { style:'currency', currency:'ARS', minimumFractionDigits:0, maximumFractionDigits:0 }).format(Number(n||0)); } catch { return `$${n}`; } }
 const ORDERS_KEY = 'ens_orders_v1';
 function loadLocalOrders(){ try { const raw = localStorage.getItem(ORDERS_KEY); const arr = JSON.parse(raw||'[]'); return Array.isArray(arr)?arr:[]; } catch { return []; } }
 function saveLocalOrders(list){ try { localStorage.setItem(ORDERS_KEY, JSON.stringify(list||[])); } catch {} }
@@ -1117,9 +1120,10 @@ function parseDateInputToRange(value, endOfDay) {
   const year = Number(m[1]);
   const month = Number(m[2]) - 1;
   const day = Number(m[3]);
+  // Normalizamos en UTC para alinear front y backend al filtrar por fecha.
   const d = endOfDay
-    ? new Date(year, month, day, 23, 59, 59, 999)
-    : new Date(year, month, day, 0, 0, 0, 0);
+    ? new Date(Date.UTC(year, month, day, 23, 59, 59, 999))
+    : new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
   return isNaN(d.getTime()) ? null : d;
 }
 
@@ -1163,10 +1167,23 @@ function ensureReportsSection(){
           <span id="reportsStatus" class="text-gray-400 self-center text-sm"></span>
         </div>
       </div>
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4 text-xs md:text-sm">
+        <div class="text-gray-400">
+          Edita la comision por vendedor o aplica un mismo porcentaje a varios seleccionados.
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-gray-300">% para seleccionados:</span>
+          <input id="reportsBulkCommission" type="number" step="0.01" min="0" class="input-field w-24 py-1 px-2 text-xs" placeholder="5">
+          <button id="reportsBulkApplyBtn" class="action-button bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1">Aplicar</button>
+        </div>
+      </div>
       <div class="overflow-x-auto rounded-xl border border-white/10 bg-white/5">
         <table class="min-w-full text-sm">
           <thead class="bg-white/10 text-gray-300">
             <tr>
+              <th class="px-2 py-2 text-center">
+                <input id="reportsSelectAll" type="checkbox" class="h-4 w-4 text-sky-500 bg-slate-800 border-slate-600 rounded">
+              </th>
               <th class="px-4 py-2 text-left">Vendedor</th>
               <th class="px-4 py-2 text-right">Cant. ventas</th>
               <th class="px-4 py-2 text-right">Productos vendidos</th>
@@ -1177,7 +1194,7 @@ function ensureReportsSection(){
           </thead>
           <tbody id="reportsTableBody" class="divide-y divide-white/10">
             <tr>
-              <td colspan="6" class="px-4 py-3 text-center text-gray-400">
+              <td colspan="7" class="px-4 py-3 text-center text-gray-400">
                 No hay datos para el rango seleccionado.
               </td>
             </tr>
@@ -1204,6 +1221,36 @@ function ensureReportsSection(){
     reportsRefreshBtn.__bound = true;
   }
 
+  const bulkBtn = document.getElementById('reportsBulkApplyBtn');
+  if (bulkBtn && !bulkBtn.__bound) {
+    bulkBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await applyBulkCommissionToSelected();
+    });
+    bulkBtn.__bound = true;
+  }
+
+  const selectAll = document.getElementById('reportsSelectAll');
+  if (selectAll && !selectAll.__bound) {
+    selectAll.addEventListener('change', () => {
+      const checked = !!selectAll.checked;
+      if (!reportsTableBody) return;
+      reportsTableBody.querySelectorAll('.reports-row-checkbox').forEach(cb => {
+        if (cb instanceof HTMLInputElement) cb.checked = checked;
+      });
+    });
+    selectAll.__bound = true;
+  }
+
+  if (reportsTableBody && !reportsTableBody.__boundCommission) {
+    reportsTableBody.addEventListener('change', onReportsTableChange);
+    reportsTableBody.__boundCommission = true;
+  }
+  if (reportsTableBody && !reportsTableBody.__boundClick) {
+    reportsTableBody.addEventListener('click', onReportsTableClick);
+    reportsTableBody.__boundClick = true;
+  }
+
   __reportsSectionReady = true;
 }
 
@@ -1213,42 +1260,104 @@ async function loadSalesReportsOverview(){
   try {
     if (reportsStatusEl) reportsStatusEl.textContent = 'Cargando...';
     const { from, to } = computeReportsRange();
-    const commissionPct = Number(reportsCommissionEl?.value || 0) || 0;
+    const baseCommissionPct = Number(reportsCommissionEl?.value || 0) || 0;
     const rows = await fetchSalesBySeller(from, to);
     reportsTableBody.innerHTML = '';
     if (!rows.length){
       const tr = document.createElement('tr');
       const td = document.createElement('td');
-      td.colSpan = 6;
+      td.colSpan = 7;
       td.className = 'px-4 py-3 text-center text-gray-400';
       td.textContent = 'No hay datos para el rango seleccionado.';
       tr.appendChild(td);
       reportsTableBody.appendChild(tr);
       return;
     }
+    const maxTotal = rows.reduce((m, r) => {
+      const t = Number(r.totalAmount || 0);
+      return t > m ? t : m;
+    }, 0);
+
     rows.forEach(r => {
       const tr = document.createElement('tr');
+      tr.dataset.sellerId = String(r.sellerId || '');
       const displayName = (r.sellerUsername && String(r.sellerUsername).trim())
         || (r.sellerName && String(r.sellerName).trim())
         || (`#${r.sellerId}`);
       const ordersCount = Number(r.ordersCount || 0);
       const productsSold = Number(r.productsSold || 0);
       const totalAmount = Number(r.totalAmount || 0);
-      const commissionAmount = totalAmount * (commissionPct / 100);
-      const cells = [
-        displayName,
-        ordersCount.toString(),
-        productsSold.toString(),
-        currency(totalAmount),
-        `${commissionPct.toFixed(2)} %`,
-        currency(commissionAmount)
-      ];
-      cells.forEach((val, idx) => {
-        const td = document.createElement('td');
-        td.className = 'px-4 py-2' + (idx === 0 ? ' text-left' : ' text-right');
-        td.textContent = val;
-        tr.appendChild(td);
-      });
+      const customRate = (r.commissionRate != null && Number.isFinite(Number(r.commissionRate)))
+        ? Number(r.commissionRate) : null;
+      const effectiveRate = customRate != null ? customRate : (baseCommissionPct / 100);
+      const effectivePct = effectiveRate * 100;
+      const commissionAmount = totalAmount * effectiveRate;
+      const ratio = maxTotal > 0 ? (totalAmount / maxTotal) : 0;
+
+      if (ratio >= 0.8) {
+        tr.classList.add('bg-emerald-900/40');
+      } else if (ratio > 0 && ratio <= 0.3) {
+        tr.classList.add('bg-red-900/30');
+      }
+
+      // Selecci�n
+      const tdSel = document.createElement('td');
+      tdSel.className = 'px-2 py-2 text-center';
+      tdSel.innerHTML = '<input type="checkbox" class="reports-row-checkbox h-4 w-4 text-sky-500 bg-slate-800 border-slate-600 rounded">';
+      tr.appendChild(tdSel);
+
+      // Vendedor
+      const tdName = document.createElement('td');
+      tdName.className = 'px-4 py-2 text-left cursor-pointer hover:text-blue-200';
+      tdName.dataset.role = 'seller-detail';
+      tdName.textContent = displayName;
+      tr.appendChild(tdName);
+
+      // Cant. ventas
+      const tdOrders = document.createElement('td');
+      tdOrders.className = 'px-4 py-2 text-right';
+      tdOrders.textContent = ordersCount.toString();
+      tr.appendChild(tdOrders);
+
+      // Productos vendidos
+      const tdProducts = document.createElement('td');
+      tdProducts.className = 'px-4 py-2 text-right';
+      tdProducts.textContent = productsSold.toString();
+      tr.appendChild(tdProducts);
+
+      // Total vendido
+      const tdTotal = document.createElement('td');
+      tdTotal.className = 'px-4 py-2 text-right';
+      tdTotal.textContent = currency(totalAmount);
+      const spark = document.createElement('div');
+      spark.className = 'mt-1 h-1.5 w-full bg-slate-800 rounded-full overflow-hidden';
+      const sparkInner = document.createElement('div');
+      sparkInner.className = 'h-full bg-emerald-500';
+      sparkInner.style.width = `${Math.max(0, Math.min(1, ratio)) * 100}%`;
+      spark.appendChild(sparkInner);
+      tdTotal.appendChild(spark);
+      tr.appendChild(tdTotal);
+
+      // Comisi�n % (editable)
+      const tdComm = document.createElement('td');
+      tdComm.className = 'px-4 py-2 text-right';
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = '0.01';
+      input.min = '0';
+      input.value = effectivePct.toFixed(2);
+      input.dataset.prevValue = effectivePct.toFixed(2);
+      input.dataset.sellerId = String(r.sellerId || '');
+      input.className = 'reports-commission-input w-24 text-right bg-transparent border border-white/20 rounded px-1 py-0.5 text-xs';
+      tdComm.appendChild(input);
+      tr.appendChild(tdComm);
+
+      // Total recibido
+      const tdReceived = document.createElement('td');
+      tdReceived.className = 'px-4 py-2 text-right';
+      tdReceived.textContent = currency(commissionAmount);
+      tr.appendChild(tdReceived);
+
       reportsTableBody.appendChild(tr);
     });
   } catch (err) {
@@ -1257,7 +1366,7 @@ async function loadSalesReportsOverview(){
       reportsTableBody.innerHTML = '';
       const tr = document.createElement('tr');
       const td = document.createElement('td');
-      td.colSpan = 6;
+      td.colSpan = 7;
       td.className = 'px-4 py-3 text-center text-red-400';
       td.textContent = 'No se pudieron cargar los reportes.';
       tr.appendChild(td);
@@ -1273,24 +1382,218 @@ function computeReportsRange(){
   const baseStr = reportsDateEl?.value || '';
   const base = baseStr ? new Date(baseStr + 'T00:00:00') : new Date();
   if (isNaN(base.getTime())) return { from: null, to: null };
-  let from = new Date(base);
-  let to = new Date(base);
+
+  let from;
+  let to;
   if (period === 'day'){
-    // mismo d�a
+    // Todo el d�a de la fecha base (o de hoy si no hay fecha)
+    from = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 0, 0, 0, 0);
+    to = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999);
   } else if (period === 'week'){
+    // Semana completa (lunes-domingo) que contiene la fecha base
     const day = base.getDay() || 7; // lunes=1 ... domingo=7
-    from.setDate(base.getDate() - (day - 1));
-    to.setDate(from.getDate() + 6);
+    const monday = new Date(base.getFullYear(), base.getMonth(), base.getDate() - (day - 1), 0, 0, 0, 0);
+    const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6, 23, 59, 59, 999);
+    from = monday;
+    to = sunday;
   } else if (period === 'month'){
-    from = new Date(base.getFullYear(), base.getMonth(), 1);
-    to = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+    // Mes calendario completo de la fecha base
+    from = new Date(base.getFullYear(), base.getMonth(), 1, 0, 0, 0, 0);
+    to = new Date(base.getFullYear(), base.getMonth() + 1, 0, 23, 59, 59, 999);
   } else if (period === 'custom'){
-    // en custom usamos solo la fecha elegida como from, sin to
+    // Desde el inicio de la fecha elegida en adelante (sin l�mite superior)
+    from = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 0, 0, 0, 0);
+    to = null;
+  } else {
+    // Fallback: usar mes
+    from = new Date(base.getFullYear(), base.getMonth(), 1, 0, 0, 0, 0);
+    to = new Date(base.getFullYear(), base.getMonth() + 1, 0, 23, 59, 59, 999);
   }
+
   const fromIso = from.toISOString();
-  const toIso = period === 'custom' ? null : new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999).toISOString();
+  const toIso = to ? to.toISOString() : null;
   return { from: fromIso, to: toIso };
 }
+
+async function applyBulkCommissionToSelected(){
+  ensureReportsSection();
+  const bulkInput = document.getElementById('reportsBulkCommission');
+  if (!reportsTableBody || !bulkInput) return;
+  const pct = Number(bulkInput.value || 0);
+  if (!Number.isFinite(pct) || pct < 0) {
+    showMessageBox('Ingresá un porcentaje válido para aplicar en masa', 'warning');
+    return;
+  }
+  const ids = Array.from(reportsTableBody.querySelectorAll('tr'))
+    .map(tr => {
+      const cb = tr.querySelector('.reports-row-checkbox');
+      if (!cb || !(cb instanceof HTMLInputElement) || !cb.checked) return null;
+      const sid = tr.getAttribute('data-seller-id');
+      return sid || null;
+    })
+    .filter(Boolean);
+  if (!ids.length) {
+    showMessageBox('Seleccioná al menos un vendedor', 'warning');
+    return;
+  }
+  try {
+    const resp = await fetchWithAuth(ROUTES.usersCommissionBulk(), {
+      method: 'POST',
+      body: JSON.stringify({ userIds: ids, commissionPercent: pct }),
+    });
+    if (!resp.ok) {
+      let msg = 'No se pudieron actualizar las comisiones';
+      try {
+        const data = await resp.json();
+        if (data && data.error) msg = data.error;
+      } catch {}
+      showMessageBox(msg, 'error');
+      return;
+    }
+    showMessageBox('Comisión actualizada para los vendedores seleccionados', 'success');
+    await loadSalesReportsOverview();
+  } catch (err) {
+    console.error('applyBulkCommissionToSelected', err);
+    showMessageBox('Error al actualizar comisiones en masa', 'error');
+  }
+}
+
+async function onReportsTableChange(e){
+  const target = e.target;
+  if (!(target instanceof HTMLInputElement)) return;
+  if (!target.classList.contains('reports-commission-input')) return;
+  const tr = target.closest('tr');
+  const sellerId = tr ? tr.getAttribute('data-seller-id') : null;
+  if (!sellerId) return;
+  const pct = Number(target.value || 0);
+  const prev = Number(target.dataset.prevValue || 0);
+  if (!Number.isFinite(pct) || pct < 0) {
+    showMessageBox('Ingresá un porcentaje válido', 'warning');
+    target.value = prev.toFixed(2);
+    return;
+  }
+  try {
+    const resp = await fetchWithAuth(ROUTES.userCommission(sellerId), {
+      method: 'PATCH',
+      body: JSON.stringify({ commissionPercent: pct }),
+    });
+    if (!resp.ok) {
+      let msg = 'No se pudo actualizar la comisión';
+      try {
+        const data = await resp.json();
+        if (data && data.error) msg = data.error;
+      } catch {}
+      showMessageBox(msg, 'error');
+      target.value = prev.toFixed(2);
+      return;
+    }
+    target.dataset.prevValue = pct.toFixed(2);
+    showMessageBox('Comisión actualizada', 'success');
+    await loadSalesReportsOverview();
+  } catch (err) {
+    console.error('onReportsTableChange', err);
+    showMessageBox('Error al actualizar la comisión', 'error');
+    target.value = prev.toFixed(2);
+  }
+}
+
+async function onReportsTableClick(e){
+  const target = e.target;
+  if (!(target instanceof HTMLElement)) return;
+  // Ignorar clicks en inputs (checkbox / number) dentro de la tabla
+  if (target.closest('input')) return;
+  const cell = target.closest('td[data-role="seller-detail"]');
+  if (!cell) return;
+  const tr = cell.closest('tr');
+  if (!tr || !reportsTableBody || !reportsTableBody.contains(tr)) return;
+  const sellerId = tr.getAttribute('data-seller-id');
+  if (!sellerId) return;
+
+  const next = tr.nextElementSibling;
+  if (next && next.classList.contains('reports-detail-row')) {
+    next.remove();
+    tr.dataset.expanded = '0';
+    return;
+  }
+
+  const detailTr = document.createElement('tr');
+  detailTr.className = 'reports-detail-row bg-slate-900/60';
+  const td = document.createElement('td');
+  td.colSpan = 7;
+  td.className = 'px-6 py-3 text-xs text-gray-200';
+  td.textContent = 'Cargando detalle del vendedor...';
+  detailTr.appendChild(td);
+  tr.after(detailTr);
+  tr.dataset.expanded = '1';
+
+  try {
+    const { from, to } = computeReportsRange();
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    const qs = params.toString();
+    const resp = await fetchWithAuth(ROUTES.salesBySellerDetail(sellerId, qs));
+    if (!resp.ok) {
+      let msg = 'No se pudo cargar el detalle del vendedor';
+      try {
+        const data = await resp.json();
+        if (data && data.error) msg = data.error;
+      } catch {}
+      td.textContent = msg;
+      td.className = 'px-6 py-3 text-xs text-red-300';
+      return;
+    }
+    const data = await resp.json().catch(() => null);
+    if (!data) {
+      td.textContent = 'Sin datos de detalle para este vendedor.';
+      return;
+    }
+    const topProducts = Array.isArray(data.topProducts) ? data.topProducts : [];
+    const recentOrders = Array.isArray(data.recentOrders) ? data.recentOrders : [];
+
+    let html = '<div class="grid md:grid-cols-2 gap-4">';
+    html += '<div>';
+    html += '<div class="font-semibold text-sm text-blue-200 mb-2">Top productos (últimos 5)</div>';
+    if (!topProducts.length) {
+      html += '<div class="text-gray-400 text-xs">Sin productos en el rango seleccionado.</div>';
+    } else {
+      html += '<ul class="space-y-1 text-xs">';
+      topProducts.forEach(p => {
+        const name = (p.productName || '').toString();
+        const qty = Number(p.quantity || 0);
+        const total = Number(p.totalAmount || 0);
+        html += `<li class="flex justify-between gap-2"><span class="text-gray-200 truncate max-w-[60%]">${escapeHtml(name)}</span><span class="text-gray-400">x${qty} · ${currency(total)}</span></li>`;
+      });
+      html += '</ul>';
+    }
+    html += '</div>';
+
+    html += '<div>';
+    html += '<div class="font-semibold text-sm text-blue-200 mb-2">Órdenes recientes</div>';
+    if (!recentOrders.length) {
+      html += '<div class="text-gray-400 text-xs">Sin órdenes en el rango seleccionado.</div>';
+    } else {
+      html += '<ul class="space-y-1 text-xs">';
+      recentOrders.forEach(o => {
+        const num = o.orderNumber || (`#${o.orderId}`);
+        const when = o.orderDate ? new Date(o.orderDate).toLocaleString() : '';
+        const st = o.status || '';
+        const total = Number(o.totalAmount || 0);
+        html += `<li class="flex justify-between gap-2"><span class="text-gray-200 truncate max-w-[60%]">${escapeHtml(String(num))}</span><span class="text-gray-400 text-right">${escapeHtml(st)} · ${escapeHtml(when)} · ${currency(total)}</span></li>`;
+      });
+      html += '</ul>';
+    }
+    html += '</div>';
+    html += '</div>';
+
+    td.innerHTML = html;
+  } catch (err) {
+    console.error('onReportsTableClick', err);
+    td.textContent = 'Error al cargar el detalle del vendedor';
+    td.className = 'px-6 py-3 text-xs text-red-300';
+  }
+}
+
 function isOrderHidden(id){ try { return loadHiddenOrders().some(x => String(x) === String(id)); } catch { return false; } }
 function hideOrderId(id){ const arr = loadHiddenOrders(); if (!arr.some(x => String(x)===String(id))) { arr.push(String(id)); saveHiddenOrders(arr); } }
 
@@ -2552,11 +2855,17 @@ financeRefreshBtn?.addEventListener('click', (e) => {
 });
 
 function setFinanceRange(fromDate, toDate) {
+  const toLocalDateInputValue = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
   if (financeFromEl && fromDate) {
-    financeFromEl.value = fromDate.toISOString().slice(0, 10);
+    financeFromEl.value = toLocalDateInputValue(fromDate);
   }
   if (financeToEl && toDate) {
-    financeToEl.value = toDate.toISOString().slice(0, 10);
+    financeToEl.value = toLocalDateInputValue(toDate);
   }
   loadFinanceDashboard();
 }
@@ -3309,7 +3618,7 @@ async function loadPurchases(){
             <div class="text-sm text-gray-400">${new Date(p.purchase_date).toLocaleString()}</div>
           </div>
           <div class="text-sm text-gray-400">Proveedor: ${p.supplier_name||''} ${p.supplier_cuit? '('+p.supplier_cuit+')':''}</div>
-          <div class="text-sm text-gray-400">Estado: ${String(p.status||'').toUpperCase()}  Moneda: ${p.currency||'ARS'}  Total: $${Number(p.total_amount||0).toFixed(2)}</div>
+          <div class="text-sm text-gray-400">Estado: ${String(p.status||'').toUpperCase()}  Moneda: ${p.currency||'ARS'}  Total: ${currency(p.total_amount||0)}</div>
           <div class="mt-2 space-y-1">${its}</div>
           <div class="mt-2 flex justify-end">
             <button

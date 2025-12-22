@@ -849,141 +849,196 @@
                 border-left: 1px solid rgba(148, 163, 184, 0.55);
             }
         </style>
-        <!-- Catálogo: limpieza base y tarjetas refinadas -->
+        <!-- INICIO: Estilos visuales mejorados del catálogo -->
         <style>
-            /* Grilla de productos: transición suave y tarjetas estiradas */
-            .product-grid {
-                transition: opacity 0.26s ease, transform 0.26s ease;
-                align-items: stretch;
+            /* 8. ANIMACIONES GLOBALES */
+            @keyframes slideInUp {
+                from { opacity: 0; transform: translateY(30px) scale(0.98); }
+                to { opacity: 1; transform: translateY(0) scale(1); }
             }
-            .product-grid.transitioning {
-                opacity: 0;
-                transform: translateY(8px);
+            @keyframes pulse {
+                50% { transform: scale(1.05); box-shadow: 0 0 25px 0px rgba(124, 58, 237, 0.6); }
             }
-
-            /* Botones: hover consistente en todo el catálogo */
-            .btn {
-                position: relative;
-                transition:
-                    transform 0.18s ease-out,
-                    box-shadow 0.18s ease-out,
-                    background 0.18s ease-out;
-            }
-            .btn::after {
-                content: "";
-                position: absolute;
-                inset: -1px;
-                border-radius: inherit;
-                background: radial-gradient(circle at top, rgba(148, 163, 184, 0.35), transparent 55%);
-                opacity: 0;
-                pointer-events: none;
-                transition: opacity 0.22s ease-out;
-            }
-            .btn:hover {
-                transform: translateY(-1px) scale(1.02);
-                box-shadow: 0 14px 40px rgba(15, 23, 42, 0.55);
-            }
-            .btn:hover::after {
-                opacity: 1;
+            @keyframes ripple { to { transform: scale(4); opacity: 0; } }
+            @keyframes gradient-animation {
+                0% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+                100% { background-position: 0% 50%; }
             }
 
-            /* Tarjetas de catálogo: look más “e‑commerce pro” */
-            .product-card {
-                position: relative;
-                display: flex;
-                flex-direction: column;
-                background: radial-gradient(circle at top, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.94));
-                border-radius: 1rem;
-                border: 1px solid rgba(51, 65, 85, 0.7);
-                box-shadow: 0 18px 45px rgba(15, 23, 42, 0.85);
-                overflow: hidden;
-                color: var(--text-primary);
-                transform-origin: center;
-                transition:
-                    transform 0.22s cubic-bezier(.2, .9, .2, 1),
-                    box-shadow 0.22s ease,
-                    border-color 0.22s ease,
-                    background 0.22s ease;
+            /* 7. GRID SPACING MEJORADO */
+            #contenedor-productos, #categories-container {
+                gap: 1.5rem;
             }
-            .product-card:hover {
-                transform: translateY(-6px) scale(1.01);
-                box-shadow: 0 24px 65px rgba(15, 23, 42, 0.95);
-                border-color: #6ee7b7;
-                background: radial-gradient(circle at top, rgba(30, 64, 175, 0.85), rgba(15, 23, 42, 0.98));
-            }
-
-            .product-card[data-reveal] {
-                opacity: 0;
-                transform: translateY(10px) scale(0.995);
-            }
-            .product-card.reveal-show {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-                transition:
-                    opacity 0.42s ease,
-                    transform 0.42s cubic-bezier(.2, .9, .2, 1);
-            }
-
-            .media-frame {
-                position: relative;
-                overflow: hidden;
-                border-bottom: 1px solid rgba(15, 23, 42, 0.95);
-                background: radial-gradient(circle at top, rgba(15, 23, 42, 1), rgba(15, 23, 42, 0.9));
-            }
-            .media-frame img {
-                transition: transform 0.35s ease-out, opacity 0.35s ease-out;
-            }
-            .product-card:hover .media-frame img {
-                transform: scale(1.04);
-            }
-
-            .cat-badge {
-                position: absolute;
-                top: 0.6rem;
-                left: 0.7rem;
-                padding: 0.22rem 0.7rem;
-                font-size: 0.68rem;
-                font-weight: 600;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                border-radius: 999px;
-                background: linear-gradient(90deg, #6ee7b7, #60a5fa 40%, #7c3aed);
-                color: #ffffff;
-                box-shadow: 0 10px 28px rgba(15, 23, 42, 0.9);
-            }
-
-            .price-chip {
-                display: inline-flex;
-                align-items: center;
-                gap: 0.35rem;
-                padding: 0.4rem 0.8rem;
-                border-radius: 999px;
-                background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.22), transparent 60%);
-                border: 1px solid rgba(148, 163, 184, 0.7);
-                font-weight: 700;
-                font-size: 0.9rem;
-                color: var(--text-primary);
-                letter-spacing: 0.03em;
-            }
-            .price-chip i {
-                font-size: 0.7rem;
-            }
-
-            .product-card h3 {
-                font-size: 0.95rem;
-                line-height: 1.35;
-                font-weight: 600;
-            }
-            .product-card p {
-                font-size: 0.8rem;
-            }
-
-            @media (max-width: 640px) {
-                .product-card {
-                    border-radius: 0.9rem;
+            @media (min-width: 640px) {
+                #contenedor-productos, #categories-container {
+                    gap: 2rem;
                 }
             }
+            .product-card .p-4, .category-card .p-6 { padding: 0.75rem; }
+            @media (min-width: 640px) {
+                .product-card .p-4, .category-card .p-6 { padding: 1rem; }
+            }
+
+            /* 2. CARDS DE PRODUCTOS */
+            .product-card, .category-card {
+                background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.8));
+                border: 1px solid rgba(148, 163, 184, 0.25);
+                box-shadow: 0 12px 35px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+                border-radius: 1.25rem;
+                overflow: hidden;
+                position: relative;
+                display: flex; flex-direction: column;
+                transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }
+            .product-card::before { /* Efecto Shimmer */
+                content: ''; position: absolute; top: 0; left: -150%; width: 60%; height: 100%;
+                background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
+                transform: skewX(-25deg);
+                transition: left 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+                z-index: 1; pointer-events: none;
+            }
+            .product-card:hover,.category-card:hover {
+                transform: translateY(-8px) scale(1.02);
+                box-shadow:
+                    0 25px 50px -12px rgba(110, 231, 183, 0.25),
+                    0 10px 25px -10px rgba(96, 165, 250, 0.3),
+                    0 0 0 1px rgba(110, 231, 183, 0.4);
+                border-color: #6ee7b7;
+                /* Sin background - mantiene la imagen visible */
+            }
+            .product-card:hover::after,.category-card:hover::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: radial-gradient(
+                    circle at center,
+                    rgba(110, 231, 183, 0.03) 0%,
+                    transparent 70%
+                );
+                pointer-events: none;
+                z-index: 1;
+            }            .product-card:hover::before { left: 150%; }
+
+            /* 8. ANIMACION DE ENTRADA (reemplaza reveal) */
+            .product-card[data-reveal] {
+                opacity: 0;
+                animation: slideInUp 0.7s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+                animation-delay: var(--card-delay, 0s);
+            }
+            .product-card.reveal-show { opacity: 1; }
+
+            /* 3. IMÁGENES CON OVERLAY */
+            .media-frame { position: relative; overflow: hidden; border-bottom: 1px solid rgba(255,255,255,0.1); }
+            .media-frame::after { /* Overlay gradiente oscuro */
+                content: ''; position: absolute; inset: 0;
+                background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 70%);
+                opacity: 0; z-index: 1; pointer-events: none;
+                transition: opacity 0.6s cubic-bezier(0.165, 0.84, 0.44, 1);
+            }
+            .media-frame img {
+                width: 100%; height: 100%; object-fit: cover;
+                transition: transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1);
+            }
+            .product-card:hover .media-frame::after { opacity: 1; }
+            .product-card:hover .media-frame img { transform: scale(1.08); }
+
+            /* 4. BADGES Y PRECIOS */
+            .cat-badge {
+                position: absolute; top: 0.85rem; left: 0.85rem; z-index: 2;
+                padding: 0.3rem 0.8rem; border-radius: 999px;
+                font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: white;
+                background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+                box-shadow: 0 0 15px -2px rgba(124, 58, 237, 0.4);
+                background-color: rgba(96, 165, 250, 0.5);
+                backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                animation: pulse 3s infinite ease-in-out;
+            }
+            /* Custom rule for the category card hover logo */
+            .media-frame img[src="https://i.postimg.cc/sXRFDbfv/Gemini-Generated-Image-6b363b6b363b6b36.png"] {
+                width: 20px !important;
+                height: 20px !important;
+                top: 5px !important; /* Adjust position */
+                right: 5px !important; /* Adjust position */
+                z-index: 3; /* Ensure it's above other overlays */
+            }
+            .price-chip {
+                display: inline-flex; align-items: center; gap: 0.5rem;
+                padding: 0.5rem 1rem; border-radius: 999px; font-weight: 800; color: #e6f0ff;
+                font-size: 1.1rem;
+                border: 1px solid rgba(110, 231, 183, 0.7);
+                box-shadow: 0 0 12px -2px rgba(110, 231, 183, 0.5);
+                background: linear-gradient(145deg, rgba(110, 231, 183, 0.1), rgba(110, 231, 183, 0.05));
+                transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            }
+            .price-chip:hover { transform: scale(1.05); box-shadow: 0 0 20px 0px rgba(110, 231, 183, 0.7); }
+
+            /* 5. MODALES CON PROFUNDIDAD */
+            #pd-overlay, #checkout-overlay, #cart-overlay, #client-register-overlay, #client-login-overlay {
+                background: radial-gradient(circle at 50% 50%, rgba(10, 20, 35, 0.8) 0%, rgba(5, 10, 15, 0.95) 90%);
+                backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            }
+            #pd-overlay > div:nth-child(2),
+            .catalog-modal-panel, .relative.mx-auto.my-8 {
+                background: linear-gradient(145deg, rgba(25, 35, 55, 0.95), rgba(10, 15, 30, 0.98));
+                border: 1px solid rgba(148, 163, 184, 0.2);
+                box-shadow: 0 40px 80px -20px rgba(0,0,0,0.7), inset 0 1px 1px rgba(255,255,255,0.07), 0 0 30px rgba(96, 165, 250, 0.1);
+                border-radius: 1.5rem;
+            }
+
+            /* 6. BOTONES IMPACTANTES */
+            .btn-primary, .btn-checkout, #checkout-confirm, #client-register-form button[type="submit"], #client-login-form button[type="submit"], .btn[onclick="applyPriceFilter()"] {
+                position: relative; border: none; color: white; font-weight: 600;
+                border-radius: 999px; overflow: hidden;
+                background: linear-gradient(120deg, #3b82f6, #8b5cf6, #ec4899, #3b82f6);
+                background-size: 200% 200%;
+                animation: gradient-animation 4s ease infinite;
+                box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+                transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            }
+            .btn-primary:hover, .btn-checkout:hover, #checkout-confirm:hover, #client-register-form button[type="submit"]:hover, #client-login-form button[type="submit"]:hover, .btn[onclick="applyPriceFilter()"]:hover {
+                transform: translateY(-3px) scale(1.05);
+                box-shadow: 0 10px 25px rgba(139, 92, 246, 0.5);
+            }
+            .btn-primary::before, .btn-checkout::before, #checkout-confirm::before, #client-register-form button[type="submit"]::before, #client-login-form button[type="submit"]::before, .btn[onclick="applyPriceFilter()"]::before {
+                content: ''; position: absolute; top: 50%; left: 50%; width: 100%; height: 100%;
+                background-color: rgba(255,255,255,0.7); border-radius: 50%;
+                transform: translate(-50%, -50%) scale(0); pointer-events: none;
+            }
+            .btn-primary:active::before, .btn-checkout:active::before, #checkout-confirm:active::before, #client-register-form button[type="submit"]:active::before, #client-login-form button[type="submit"]:active::before, .btn[onclick="applyPriceFilter()"]:active::before {
+                animation: ripple 0.6s linear;
+            }
+
+            /* Header responsiveness fix */
+            @media (min-width: 768px) {
+                .logo-wrap {
+                    flex-shrink: 0; /* Prevent logo from shrinking */
+                }
+
+                #main-header nav, #main-header .lg\:flex {
+                    flex-shrink: 1; /* Allow nav and search to shrink */
+                    min-width: 0;
+                }
+            }
+
+            /* More aggressive adjustments for the tightest spot (tablet) */
+            @media (min-width: 768px) and (max-width: 1023px) {
+                .logo-big {
+                    width: 80px !important; /* Further reduce logo size */
+                }
+                .logo-wrap > div {
+                    display: none; /* Hide logo text on tablets */
+                }
+                #main-header nav {
+                    gap: 0.75rem !important; /* Tighter gap */
+                }
+                 #main-header nav a {
+                    font-size: 0.875rem; /* Slightly smaller font for nav links */
+                 }
+            }
         </style>
+        <!-- FIN: Estilos visuales mejorados del catálogo -->
     </head>
     <body class="font-inter text-[15px] lg:text-base antialiased">
         <div id="futuristic-loader">
@@ -1002,7 +1057,7 @@
                     <img class="logo-big" src="https://i.postimg.cc/YSDhn3jJ/Chat-GPT-Image-31-ago-2025-03-26-38-p-m.png" alt="Ensintonia logo" loading="lazy" decoding="async" />
                     <div>
                         <div class="neon-text-logo text-2xl leading-tight" id="logo-text">Ensintonia</div>
-                        <div class="text-sm muted -mt-1">Importadora directa de Electronica & Hogar</div>
+                        <div class="text-sm muted -mt-1">importadora directa</div>
                         <div class="mt-2 brand-underline" id="logo-underline"></div>
                     </div>
                 </a>
@@ -1035,7 +1090,7 @@
                     
                 </nav>
                 <!-- desktop simple search -->
-                <div class="hidden md:flex items-center gap-3 ml-4 bg-slate-900/70 border border-white/10 rounded-2xl px-3 py-1.5 shadow-lg">
+                <div class="hidden lg:flex items-center gap-3 ml-4 bg-slate-900/70 border border-white/10 rounded-2xl px-3 py-1.5 shadow-lg">
                     <i class="fa-solid fa-magnifying-glass text-slate-300 text-xs mr-1"></i>
                     <input
                         id="simple-search-input"

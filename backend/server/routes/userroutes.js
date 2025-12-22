@@ -19,5 +19,7 @@ router.post('/users/:id/profiles', auth, requirePermission('administracion.users
 router.post('/users/:id/roles', auth, requirePermission('administracion.users.write'), users.assignRole);
 router.post('/users/:id/roles/primary', auth, requirePermission('administracion.users.write'), users.assignPrimaryRole);
 router.post('/users/bulk-assign', auth, requirePermission('administracion.users.configure'), users.bulkAssignProfiles);
+router.patch('/users/:id/commission', auth, requirePermission('administracion.users.configure'), users.updateCommission);
+router.post('/users/commission/bulk', auth, requirePermission('administracion.users.configure'), users.bulkUpdateCommission);
 
 module.exports = router;

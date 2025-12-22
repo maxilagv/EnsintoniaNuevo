@@ -18,6 +18,7 @@ router.delete('/purchases/:id', authMiddleware, requirePermission('compras.delet
 // Analítica simple (ventas vs compras)
 router.get('/analytics/overview', authMiddleware, requirePermission('administracion.read'), admin.analyticsOverview);
 router.get('/analytics/sales-by-seller', authMiddleware, requirePermission('administracion.read'), admin.salesBySeller);
+router.get('/analytics/sales-by-seller/:sellerId/detail', authMiddleware, requirePermission('administracion.read'), admin.salesBySellerDetail);
 // Rutas alias para compatibilidad (evita 404 si el frontend usa otra variante)
 router.get('/analytics-overview', authMiddleware, requirePermission('administracion.read'), admin.analyticsOverview);
 router.get('/admin/analytics/overview', authMiddleware, requirePermission('administracion.read'), admin.analyticsOverview);

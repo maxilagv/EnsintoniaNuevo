@@ -56,6 +56,7 @@ async function salesBySeller(req, res) {
          o.seller_user_id AS seller_id,
          u.name AS seller_name,
          u.username AS seller_username,
+         u.commission_rate AS commission_rate,
          COUNT(DISTINCT o.id) AS orders_count,
          COALESCE(SUM(oi.quantity), 0) AS products_sold,
          COALESCE(SUM(o.total_amount), 0)::float AS total_amount
@@ -63,7 +64,7 @@ async function salesBySeller(req, res) {
        LEFT JOIN Users u ON u.id = o.seller_user_id
        LEFT JOIN OrderItems oi ON oi.order_id = o.id AND oi.deleted_at IS NULL
        WHERE ${where}
-       GROUP BY o.seller_user_id, u.name, u.username
+       GROUP BY o.seller_user_id, u.name, u.username, u.commission_rate
        ORDER BY total_amount DESC, seller_id ASC`,
       params
     );
@@ -72,6 +73,7 @@ async function salesBySeller(req, res) {
       sellerId: r.seller_id,
       sellerName: r.seller_name || null,
       sellerUsername: r.seller_username || null,
+      commissionRate: r.commission_rate != null ? Number(r.commission_rate) : null,
       ordersCount: Number(r.orders_count || 0),
       productsSold: Number(r.products_sold || 0),
       totalAmount: Number(r.total_amount || 0),
@@ -84,7 +86,91 @@ async function salesBySeller(req, res) {
   }
 }
 
-module.exports = { listContactMessages, deleteContactMessage, salesBySeller };
+async function salesBySellerDetail(req, res) {
+  try {
+    const sellerId = Number(req.params.sellerId);
+    if (!Number.isInteger(sellerId) || sellerId <= 0) {
+      return res.status(400).json({ error: 'sellerId inv�lido' });
+    }
+    const fromRaw = req.query?.from;
+    const toRaw = req.query?.to;
+    const from = fromRaw ? new Date(fromRaw) : null;
+    const to = toRaw ? new Date(toRaw) : null;
+
+    const baseParams = [sellerId];
+    let where = `o.deleted_at IS NULL AND o.seller_user_id = $1 AND o.status <> 'CANCELED'`;
+    if (from && !isNaN(from.getTime())) {
+      baseParams.push(from.toISOString());
+      where += ` AND o.order_date >= $${baseParams.length}`;
+    }
+    if (to && !isNaN(to.getTime())) {
+      baseParams.push(to.toISOString());
+      where += ` AND o.order_date <= $${baseParams.length}`;
+    }
+
+    const [sellerInfoRes, topProductsRes, recentOrdersRes] = await Promise.all([
+      query('SELECT id, name, username FROM Users WHERE id = $1 AND deleted_at IS NULL', [sellerId]),
+      query(
+        `SELECT
+           p.id AS product_id,
+           p.name AS product_name,
+           COALESCE(SUM(oi.quantity),0) AS quantity,
+           COALESCE(SUM(oi.quantity * oi.unit_price),0)::float AS total_amount
+         FROM Orders o
+         JOIN OrderItems oi ON oi.order_id = o.id AND oi.deleted_at IS NULL
+         JOIN Products p ON p.id = oi.product_id
+         WHERE ${where}
+         GROUP BY p.id, p.name
+         ORDER BY total_amount DESC, quantity DESC, product_id ASC
+         LIMIT 5`,
+        baseParams
+      ),
+      query(
+        `SELECT
+           o.id,
+           o.order_number,
+           o.order_date,
+           o.status,
+           COALESCE(o.total_amount,0)::float AS total_amount
+         FROM Orders o
+         WHERE ${where}
+         ORDER BY o.order_date DESC, o.id DESC
+         LIMIT 5`,
+        baseParams
+      ),
+    ]);
+
+    const sellerRow = sellerInfoRes.rows[0] || null;
+    const topProducts = topProductsRes.rows.map((r) => ({
+      productId: r.product_id,
+      productName: r.product_name || null,
+      quantity: Number(r.quantity || 0),
+      totalAmount: Number(r.total_amount || 0),
+    }));
+    const recentOrders = recentOrdersRes.rows.map((r) => ({
+      orderId: r.id,
+      orderNumber: r.order_number || null,
+      orderDate: r.order_date,
+      status: r.status || null,
+      totalAmount: Number(r.total_amount || 0),
+    }));
+
+    return res.json({
+      sellerId,
+      sellerName: sellerRow ? (sellerRow.name || null) : null,
+      sellerUsername: sellerRow ? (sellerRow.username || null) : null,
+      from: fromRaw || null,
+      to: toRaw || null,
+      topProducts,
+      recentOrders,
+    });
+  } catch (err) {
+    console.error('salesBySellerDetail error:', err.message);
+    return res.status(500).json({ error: 'No se pudo obtener el detalle del vendedor' });
+  }
+}
+
+module.exports = { listContactMessages, deleteContactMessage, salesBySeller, salesBySellerDetail };
 
 // --- Compras (ingreso de stock) ---
 async function createPurchase(req, res) {
@@ -337,7 +423,7 @@ module.exports.getPurchase = getPurchase;
 module.exports.updatePurchaseStatus = updatePurchaseStatus;
 module.exports.deletePurchase = deletePurchase;
 module.exports.analyticsOverview = analyticsOverview;
-module.exports.analyticsFinance = analyticsFinance;
+module.exports.analyticsFinance = analyticsFinanceDetailed;
 module.exports.listExtraExpenses = listExtraExpenses;
 module.exports.createExtraExpense = createExtraExpense;
 module.exports.updateExtraExpense = updateExtraExpense;
@@ -671,5 +757,124 @@ async function deleteExtraExpense(req, res) {
   } catch (err) {
     console.error('deleteExtraExpense error:', err.message);
     return res.status(500).json({ error: 'No se pudo eliminar el gasto extraordinario' });
+  }
+}
+
+// Versi?n detallada de anal?tica financiera que usa la comisi?n por vendedor
+// (Users.commission_rate) con respaldo en la tasa global SELLER_COMMISSION_RATE.
+async function analyticsFinanceDetailed(req, res) {
+  try {
+    const fromRaw = req.query?.from;
+    const toRaw = req.query?.to;
+    const from = fromRaw ? new Date(fromRaw) : null;
+    const to = toRaw ? new Date(toRaw) : null;
+
+    // Normaliza la comisi?n global de vendedores a un porcentaje (0-1)
+    let commissionRate = Number(process.env.SELLER_COMMISSION_RATE || '0.05');
+    if (!Number.isFinite(commissionRate) || commissionRate < 0) commissionRate = 0;
+    if (commissionRate > 1 && commissionRate <= 100) {
+      commissionRate = commissionRate / 100;
+    }
+
+    // Ingreso bruto (ventas) - excluye pedidos cancelados
+    const orderParams = [];
+    let ordersWhere = `o.deleted_at IS NULL AND o.status <> 'CANCELED'`;
+    if (from && !isNaN(from.getTime())) {
+      orderParams.push(from.toISOString());
+      ordersWhere += ` AND o.order_date >= $${orderParams.length}`;
+    }
+    if (to && !isNaN(to.getTime())) {
+      orderParams.push(to.toISOString());
+      ordersWhere += ` AND o.order_date <= $${orderParams.length}`;
+    }
+
+    // Gastos de stock (compras)
+    const purchaseParams = [];
+    let purchasesWhere = 'pu.deleted_at IS NULL';
+    if (from && !isNaN(from.getTime())) {
+      purchaseParams.push(from.toISOString());
+      purchasesWhere += ` AND pu.purchase_date >= $${purchaseParams.length}`;
+    }
+    if (to && !isNaN(to.getTime())) {
+      purchaseParams.push(to.toISOString());
+      purchasesWhere += ` AND pu.purchase_date <= $${purchaseParams.length}`;
+    }
+
+    // Gastos extraordinarios
+    const extraParams = [];
+    let extraWhere = 'ee.deleted_at IS NULL';
+    if (from && !isNaN(from.getTime())) {
+      extraParams.push(from.toISOString());
+      extraWhere += ` AND ee.expense_date >= $${extraParams.length}`;
+    }
+    if (to && !isNaN(to.getTime())) {
+      extraParams.push(to.toISOString());
+      extraWhere += ` AND ee.expense_date <= $${extraParams.length}`;
+    }
+
+    // Ventas atribuibles a vendedores (base para salarios / comisiones)
+    // Usa la comisi?n personalizada del usuario si existe, con fallback a la global.
+    const salaryParams = [commissionRate];
+    let salaryWhere = `o.deleted_at IS NULL AND o.seller_user_id IS NOT NULL AND o.status <> 'CANCELED'`;
+    if (from && !isNaN(from.getTime())) {
+      salaryParams.push(from.toISOString());
+      salaryWhere += ` AND o.order_date >= $${salaryParams.length}`;
+    }
+    if (to && !isNaN(to.getTime())) {
+      salaryParams.push(to.toISOString());
+      salaryWhere += ` AND o.order_date <= $${salaryParams.length}`;
+    }
+
+    const [ordersRes, purchasesRes, extraRes, salaryRes] = await Promise.all([
+      query(
+        `SELECT COALESCE(SUM(o.total_amount),0)::float AS gross_income
+           FROM Orders o
+          WHERE ${ordersWhere}`,
+        orderParams
+      ),
+      query(
+        `SELECT COALESCE(SUM(pu.total_amount),0)::float AS stock_expenses
+           FROM Purchases pu
+          WHERE ${purchasesWhere}`,
+        purchaseParams
+      ),
+      query(
+        `SELECT COALESCE(SUM(ee.amount),0)::float AS extra_expenses
+           FROM ExtraExpenses ee
+          WHERE ${extraWhere}`,
+        extraParams
+      ),
+      query(
+        `SELECT
+           COALESCE(SUM(o.total_amount),0)::float AS total_sales_for_sellers,
+           COALESCE(SUM(o.total_amount * COALESCE(u.commission_rate, $1)),0)::float AS salary_expenses
+         FROM Orders o
+         LEFT JOIN Users u ON u.id = o.seller_user_id
+        WHERE ${salaryWhere}`,
+        salaryParams
+      ),
+    ]);
+
+    const grossIncome = Number(ordersRes.rows?.[0]?.gross_income || 0);
+    const stockExpenses = Number(purchasesRes.rows?.[0]?.stock_expenses || 0);
+    const extraExpenses = Number(extraRes.rows?.[0]?.extra_expenses || 0);
+    const totalSalesForSellers = Number(salaryRes.rows?.[0]?.total_sales_for_sellers || 0);
+    const salaryExpenses = Number(salaryRes.rows?.[0]?.salary_expenses || 0);
+
+    const totalExpenses = stockExpenses + salaryExpenses + extraExpenses;
+    const netIncome = grossIncome - totalExpenses;
+
+    return res.json({
+      grossIncome,
+      stockExpenses,
+      salaryExpenses,
+      extraExpenses,
+      totalExpenses,
+      netIncome,
+      commissionRate,
+    });
+  } catch (err) {
+    console.error('analyticsFinanceDetailed error:', err.message);
+    return res.status(500).json({ error: 'No se pudieron obtener m?tricas de finanzas' });
   }
 }

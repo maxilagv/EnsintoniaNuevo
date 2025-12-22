@@ -311,6 +311,85 @@ async function deleteUser(req, res) {
   }
 }
 
+async function updateCommission(req, res) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'ID inválido' });
+  const body = req.body || {};
+  const hasPercent = Object.prototype.hasOwnProperty.call(body, 'commissionPercent');
+  const hasRate = Object.prototype.hasOwnProperty.call(body, 'commissionRate');
+  if (!hasPercent && !hasRate) {
+    return res.status(400).json({ error: 'commissionPercent o commissionRate requeridos' });
+  }
+  let rate = null;
+  if (hasPercent) {
+    const pct = Number(body.commissionPercent);
+    if (!Number.isFinite(pct)) return res.status(400).json({ error: 'commissionPercent inválido' });
+    if (pct < 0 || pct > 1000) return res.status(400).json({ error: 'commissionPercent fuera de rango' });
+    rate = pct / 100;
+  } else if (hasRate) {
+    const r = Number(body.commissionRate);
+    if (!Number.isFinite(r)) return res.status(400).json({ error: 'commissionRate inválido' });
+    if (r < 0 || r > 10) return res.status(400).json({ error: 'commissionRate fuera de rango' });
+    rate = r;
+  }
+  try {
+    const r = await query(
+      'UPDATE Users SET commission_rate = $1 WHERE id = $2 AND deleted_at IS NULL',
+      [rate, id]
+    );
+    if (!r.rowCount) return res.status(404).json({ error: 'Usuario no encontrado' });
+    await audit(req.user && req.user.email, 'USER_SET_COMMISSION', 'user', id, {
+      commissionRate: rate,
+    });
+    return res.json({ updated: true, commissionRate: rate });
+  } catch (e) {
+    return res.status(500).json({ error: 'No se pudo actualizar la comisión' });
+  }
+}
+
+async function bulkUpdateCommission(req, res) {
+  const body = req.body || {};
+  const userIds = Array.isArray(body.userIds) ? body.userIds : [];
+  const hasPercent = Object.prototype.hasOwnProperty.call(body, 'commissionPercent');
+  const hasRate = Object.prototype.hasOwnProperty.call(body, 'commissionRate');
+  if (!userIds.length || (!hasPercent && !hasRate)) {
+    return res.status(400).json({ error: 'userIds y comisión requeridos' });
+  }
+  let rate = null;
+  if (hasPercent) {
+    const pct = Number(body.commissionPercent);
+    if (!Number.isFinite(pct)) return res.status(400).json({ error: 'commissionPercent inválido' });
+    if (pct < 0 || pct > 1000) return res.status(400).json({ error: 'commissionPercent fuera de rango' });
+    rate = pct / 100;
+  } else if (hasRate) {
+    const r = Number(body.commissionRate);
+    if (!Number.isFinite(r)) return res.status(400).json({ error: 'commissionRate inválido' });
+    if (r < 0 || r > 10) return res.status(400).json({ error: 'commissionRate fuera de rango' });
+    rate = r;
+  }
+  try {
+    let count = 0;
+    await withTransaction(async (client) => {
+      for (const uid of userIds) {
+        const id = Number(uid);
+        if (!Number.isInteger(id) || id <= 0) continue;
+        const r = await client.query(
+          'UPDATE Users SET commission_rate = $1 WHERE id = $2 AND deleted_at IS NULL',
+          [rate, id]
+        );
+        if (r.rowCount) count++;
+      }
+    });
+    await audit(req.user && req.user.email, 'USER_BULK_SET_COMMISSION', 'user', null, {
+      count,
+      commissionRate: rate,
+    });
+    return res.json({ updated: count, commissionRate: rate });
+  } catch (e) {
+    return res.status(500).json({ error: 'No se pudieron actualizar comisiones en masa' });
+  }
+}
+
 module.exports = {
   createUser,
   listUsers,
@@ -324,5 +403,7 @@ module.exports = {
   assignRole,
   bulkAssignProfiles,
   assignPrimaryRole,
-  deleteUser
+  deleteUser,
+  updateCommission,
+  bulkUpdateCommission
 };

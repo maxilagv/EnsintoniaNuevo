@@ -1004,9 +1004,10 @@ function enhanceProductCardsForReveal() {
       }
     });
   }, { threshold: 0.15 });
-  cards.forEach(c => {
+  cards.forEach((c, index) => {
     if (!c.dataset.revealInit) {
       c.dataset.revealInit = '1';
+      c.style.setProperty('--card-delay', `${index * 0.05}s`);
       obs.observe(c);
     }
   });
@@ -1077,7 +1078,24 @@ const $pd = {
 };
 
 function currency(n) {
-  try { return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n); } catch { return n; }
+  try {
+    const num = Number(n);
+    if (isNaN(num)) return n;
+
+    if (num >= 1000000) {
+      const millions = num / 1000000;
+      // Format to up to 2 decimal places.
+      // Use Number() to drop trailing zeros from toFixed(2) result.
+      // E.g. 3.90 becomes 3.9, 3.00 becomes 3.
+      const formatted = Number(millions.toFixed(2));
+      return `$${formatted}M`;
+    }
+    
+    // For numbers less than 1 million, format without decimals, which is cleaner for large amounts.
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
+  } catch {
+    return n;
+  }
 }
 
 // --- Cart helpers ---
