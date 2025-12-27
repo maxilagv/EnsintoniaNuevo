@@ -14,6 +14,7 @@ router.post('/productos', authMiddleware, requirePermission('logistica.write'), 
 
 // Editar producto (requiere autenticación)
 router.put('/productos/:id', authMiddleware, requirePermission('logistica.write'), productController.updateProduct);
+router.patch('/productos/:id/descuento', authMiddleware, requirePermission('logistica.write'), productController.updateProductDiscount);
 // Actualizar stock con delta (solo stock)
 router.patch('/productos/:id/stock', authMiddleware, requirePermission('logistica.write'), productController.patchStock);
 

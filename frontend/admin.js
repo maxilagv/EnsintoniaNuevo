@@ -87,6 +87,7 @@ const ROUTES = {
   categoryPriceAdjust: (id) => `${API_BASE}/categorias/${encodeURIComponent(id)}/ajustar-precios`,
   products: () => `${API_BASE}/productos`,
   product: (id) => `${API_BASE}/productos/${encodeURIComponent(id)}`,
+  productDiscount: (id) => `${API_BASE}/productos/${encodeURIComponent(id)}/descuento`,
   stock: (id) => `${API_BASE}/productos/${encodeURIComponent(id)}/stock`, // PATCH {delta, reason}
   messages: () => `${API_BASE}/mensajes`,
   messagesFallback: () => `${API_BASE}/messages`, // fallback si backend usa ingl?s
@@ -260,6 +261,13 @@ const editedProductVideoUrlInput = document.getElementById('editedProductVideoUr
 const editedProductStatusSelect = document.getElementById('editedProductStatus');
 const editedProductSpecificationsTextarea = document.getElementById('editedProductSpecifications');
 const editedProductWarrantyInput = document.getElementById('editedProductWarranty');
+const editedProductDiscountPercentInput = document.getElementById('editedProductDiscountPercent');
+const editedProductDiscountDaysInput = document.getElementById('editedProductDiscountDays');
+const editedProductDiscountStartInput = document.getElementById('editedProductDiscountStart');
+const editedProductDiscountEndInput = document.getElementById('editedProductDiscountEnd');
+const editedProductDiscountSummary = document.getElementById('editedProductDiscountSummary');
+const applyProductDiscountButton = document.getElementById('applyProductDiscountButton');
+const clearProductDiscountButton = document.getElementById('clearProductDiscountButton');
 const saveProductChangesButton = document.getElementById('saveProductChangesButton');
 let deleteProductButton = document.getElementById('deleteProductButton');
 
@@ -2095,7 +2103,12 @@ async function loadProductsForEdit() {
         videoUrl: p.video_url || p.videoUrl || '',
         status: p.status || 'draft',
         specifications: p.specifications || p.especificaciones || p.specs || [],
-        warranty: p.warranty || p.garantia || ''
+        warranty: p.warranty || p.garantia || '',
+        discountPercent: p.discount_percent ?? p.discountPercent ?? null,
+        discountStart: p.discount_start || p.discountStart || null,
+        discountEnd: p.discount_end || p.discountEnd || null,
+        isOffer: typeof p.is_offer === 'boolean' ? p.is_offer : !!p.isOffer,
+        finalPrice: p.final_price ?? p.finalPrice ?? (p.price ?? p.precio ?? 0)
       }))
       .sort((a,b) => a.name.localeCompare(b.name,'es',{sensitivity:'base'}));
 
@@ -2150,6 +2163,11 @@ function populateProductEditForm(p) {
     assign(editedProductStatusSelect, 'draft');
     assign(editedProductSpecificationsTextarea, '');
     assign(editedProductWarrantyInput, '');
+    assign(editedProductDiscountPercentInput, '');
+    assign(editedProductDiscountDaysInput, '');
+    assign(editedProductDiscountStartInput, '');
+    assign(editedProductDiscountEndInput, '');
+    if (editedProductDiscountSummary) editedProductDiscountSummary.textContent = 'Sin descuento configurado.';
     return;
   }
   assign(editedProductNameInput, p.name);
@@ -2177,6 +2195,46 @@ function populateProductEditForm(p) {
     }
   }
   assign(editedProductWarrantyInput, p.warranty);
+  // Descuento / oferta
+  const percent = p.discountPercent != null ? Number(p.discountPercent) : NaN;
+  if (editedProductDiscountPercentInput) {
+    editedProductDiscountPercentInput.value = Number.isFinite(percent) ? String(percent) : '';
+  }
+  if (editedProductDiscountDaysInput) {
+    editedProductDiscountDaysInput.value = '';
+  }
+  const toLocalInputValue = (iso) => {
+    try {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      const pad = (n) => String(n).padStart(2, '0');
+      const year = d.getFullYear();
+      const month = pad(d.getMonth() + 1);
+      const day = pad(d.getDate());
+      const hours = pad(d.getHours());
+      const minutes = pad(d.getMinutes());
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    } catch { return ''; }
+  };
+  if (editedProductDiscountStartInput) {
+    editedProductDiscountStartInput.value = toLocalInputValue(p.discountStart);
+  }
+  if (editedProductDiscountEndInput) {
+    editedProductDiscountEndInput.value = toLocalInputValue(p.discountEnd);
+  }
+  if (editedProductDiscountSummary) {
+    if (Number.isFinite(percent) && percent > 0) {
+      const parts = [];
+      parts.push(`Descuento activo: ${percent}% OFF.`);
+      if (p.discountStart) parts.push(`Desde: ${new Date(p.discountStart).toLocaleString()}.`);
+      if (p.discountEnd) parts.push(`Hasta: ${new Date(p.discountEnd).toLocaleString()}.`);
+      if (!p.discountStart && !p.discountEnd) parts.push('Sin fecha de fin definida.');
+      editedProductDiscountSummary.textContent = parts.join(' ');
+    } else {
+      editedProductDiscountSummary.textContent = 'Sin descuento configurado.';
+    }
+  }
   // Preview de imagen
   try {
     const prev = document.getElementById('editedProductImageUrl__preview');
@@ -2231,6 +2289,82 @@ saveProductChangesButton?.addEventListener('click', async (e) => {
     console.error('update product error', err);
     showMessageBox('No se pudo actualizar el producto', 'error');
   }
+});
+
+// Aplicar / actualizar descuento de producto
+async function applyCurrentProductDiscount(mode = 'set') {
+  const id = selectProductToEdit?.value || '';
+  if (!id) {
+    showMessageBox('Elegí un producto primero', 'warning');
+    return;
+  }
+
+  if (mode === 'clear') {
+    const ok = window.confirm('Quitar descuento actual de este producto?');
+    if (!ok) return;
+  }
+
+  const percentRaw = editedProductDiscountPercentInput?.value ?? '';
+  const daysRaw = editedProductDiscountDaysInput?.value ?? '';
+  const startRaw = editedProductDiscountStartInput?.value ?? '';
+  const endRaw = editedProductDiscountEndInput?.value ?? '';
+
+  let percent = Number(percentRaw);
+  if (mode === 'clear') {
+    percent = 0;
+  }
+
+  if (mode !== 'clear') {
+    if (!Number.isFinite(percent) || percent <= 0) {
+      showMessageBox('Ingresa un porcentaje de descuento mayor a 0', 'warning');
+      return;
+    }
+    if (percent >= 100) {
+      showMessageBox('El descuento debe ser menor al 100%', 'warning');
+      return;
+    }
+  }
+
+  const payload = { discount_percent: percent };
+  const days = Number(daysRaw);
+  if (startRaw) payload.discount_start = startRaw;
+  if (endRaw) payload.discount_end = endRaw;
+  if (!endRaw && Number.isInteger(days) && days > 0) {
+    payload.duration_days = days;
+  }
+
+  try {
+    const resp = await fetchWithAuth(ROUTES.productDiscount(id), {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) {
+      let details = '';
+      try { details = await resp.text(); } catch {}
+      console.error('update discount failed', resp.status, details);
+      throw new Error(`HTTP ${resp.status}`);
+    }
+    const data = await resp.json().catch(() => ({}));
+    const msg = mode === 'clear' ? 'Descuento quitado' : 'Descuento actualizado';
+    showMessageBox(msg, 'success');
+    // Refrescar cache y formulario para ver los nuevos datos
+    await loadProductsForEdit();
+    const prod = productsCache.find(p => p.id === id);
+    populateProductEditForm(prod || null);
+  } catch (err) {
+    console.error('update discount error', err);
+    showMessageBox('No se pudo actualizar el descuento', 'error');
+  }
+}
+
+applyProductDiscountButton?.addEventListener('click', (e) => {
+  e.preventDefault();
+  applyCurrentProductDiscount('set');
+});
+
+clearProductDiscountButton?.addEventListener('click', (e) => {
+  e.preventDefault();
+  applyCurrentProductDiscount('clear');
 });
 
 createProductForm?.addEventListener('submit', async (e) => {

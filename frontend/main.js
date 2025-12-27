@@ -257,6 +257,7 @@ if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
 }
 
 let checkoutSellersLoaded = false;
+let checkoutLogisticsLoaded = false;
 
 async function loadCheckoutSellers() {
   if (checkoutSellersLoaded) return;
@@ -277,6 +278,48 @@ async function loadCheckoutSellers() {
     });
   } catch (err) {
     console.error('loadCheckoutSellers error', err);
+  }
+}
+
+async function loadCheckoutLogistics() {
+  if (checkoutLogisticsLoaded) return;
+  checkoutLogisticsLoaded = true;
+  try {
+    const resp = await fetch(`${API_BASE}/logistics`, { headers: { Accept: 'application/json' } });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json().catch(() => []);
+    const users = Array.isArray(data) ? data : [];
+    const sel = document.getElementById('checkout-seller');
+    if (!sel) return;
+    sel.innerHTML = '<option value=\"\">Selecciona tu fletero</option>';
+    users.forEach((u) => {
+      const opt = document.createElement('option');
+      opt.value = String(u.id);
+      opt.textContent = u.displayName || u.username || u.name || ('#' + u.id);
+      sel.appendChild(opt);
+    });
+  } catch (err) {
+    console.error('loadCheckoutLogistics error', err);
+  }
+}
+
+async function refreshCheckoutAssignee() {
+  const methodInput = document.querySelector('input[name="payment"]:checked');
+  const method = methodInput ? String(methodInput.value || '').toLowerCase() : 'cash';
+  const labelEl = document.querySelector('#checkout-overlay label[for="checkout-seller"]');
+  let helpEl = null;
+  if (labelEl && labelEl.parentElement) {
+    helpEl = labelEl.parentElement.querySelector('p.text-xs.text-futuristic-mute');
+  }
+
+  if (method === 'fletero') {
+    if (labelEl) labelEl.textContent = 'Asigna a tu fletero';
+    if (helpEl) helpEl.textContent = 'Selecciona el fletero (usuario de logística) que se encarga de la entrega.';
+    await loadCheckoutLogistics();
+  } else {
+    if (labelEl) labelEl.textContent = '¿Quién fue tu vendedor?';
+    if (helpEl) helpEl.textContent = 'Elige la persona que te asesoró o te derivó a comprar.';
+    await loadCheckoutSellers();
   }
 }
 
@@ -723,11 +766,15 @@ function mapProduct(row) {
     id: row.id,
     name: row.name || row.nombre || 'Producto',
     description: row.description || row.descripcion || '',
-    price: row.price ?? row.precio,
+    // Usar final_price del backend si existe, sino price base
+    price: row.final_price ?? row.finalPrice ?? row.price ?? row.precio,
+    basePrice: row.price ?? row.precio,
     imageUrl: row.image_url || row.imageUrl || row.imagen || null,
     categoryName: row.category_name || row.category || row.categoria || '',
     specifications: row.specifications || row.specs || row.especificaciones,
     stock: row.stock_quantity ?? row.stock,
+    isOffer: typeof row.is_offer === 'boolean' ? row.is_offer : !!row.isOffer,
+    discountPercent: row.discount_percent ?? row.discountPercent ?? null,
     createdAt: row.created_at || row.createdAt || null,
   };
 }
@@ -903,6 +950,16 @@ function computeFilteredList(){
       return val >= minV && val <= maxV;
     });
   }
+
+  // Filtro "solo ofertas" si está activo
+  if (window.__onlyOffers === true) {
+    list = list.filter(p => {
+      if (typeof p.isOffer === 'boolean') return p.isOffer;
+      const pct = p.discountPercent != null ? Number(p.discountPercent) : NaN;
+      return Number.isFinite(pct) && pct > 0;
+    });
+  }
+
   try { updateActiveFiltersUI(); } catch {}
   return list;
 }
@@ -931,12 +988,16 @@ function renderCatalog(list) {
   }
 
   showCatalogEmpty(false);
+  const frag = document.createDocumentFragment();
   list.forEach(p => {
     const id = p.id;
     const name = p.name || 'Producto';
     const description = p.description || '';
     const imageUrl = p.imageUrl || 'https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';
     const price = p.price;
+    const basePrice = p.basePrice;
+    const isOffer = p.isOffer;
+    const discountPercent = p.discountPercent != null ? Number(p.discountPercent) : NaN;
     const catLabel = p.categoryName || p.category || '';
 
     const mediaHtml = `
@@ -947,9 +1008,26 @@ function renderCatalog(list) {
              onerror="this.onerror=null;this.src='https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';">
       </div>`;
 
-    const priceHtml = price != null
-      ? `<div class="mt-3"><span class="price-chip"><i class="fa-solid fa-tag text-white/80 text-xs"></i>${currency(price)}</span></div>`
-      : '<p class="text-futuristic-mute italic mt-3 text-sm">Consultar</p>';
+    let priceHtml = '<p class="text-futuristic-mute italic mt-3 text-sm">Consultar</p>';
+    if (price != null) {
+      const hasDiscount = (typeof isOffer === 'boolean' && isOffer) ||
+        (Number.isFinite(discountPercent) && discountPercent > 0 && price !== basePrice);
+      if (hasDiscount && basePrice != null) {
+        priceHtml = `
+          <div class="mt-3 flex flex-col gap-1">
+            <span class="text-sm line-through text-futuristic-mute">${currency(basePrice)}</span>
+            <div class="flex items-baseline gap-2">
+              <span class="text-xs text-futuristic-mute">Precio con descuento</span>
+              <span class="price-chip"><i class="fa-solid fa-tag text-white/80 text-[11px]"></i>${currency(price)}</span>
+              ${Number.isFinite(discountPercent) && discountPercent > 0
+                ? `<span class="inline-flex items-center rounded-full bg-emerald-500/90 text-[11px] font-semibold px-2 py-0.5 text-white">-${discountPercent}%</span>`
+                : ''}
+            </div>
+          </div>`;
+      } else {
+        priceHtml = `<div class="mt-3"><span class="price-chip"><i class="fa-solid fa-tag text-white/80 text-xs"></i>${currency(price)}</span></div>`;
+      }
+    }
 
     const card = document.createElement('div');
     card.id = `product-${id}`;
@@ -957,15 +1035,16 @@ function renderCatalog(list) {
     card.dataset.reveal = '1';
     card.className = 'product-card group rounded-2xl flex flex-col cursor-pointer';
     card.innerHTML = `
-      ${mediaHtml}
-      <div class="p-4 sm:p-5 flex flex-col flex-grow">
-        <h3 class="text-[15px] leading-snug line-clamp-2 text-futuristic-ink">${name}</h3>
-        <p class="text-futuristic-mute text-xs mt-1 flex-grow line-clamp-3">${description}</p>
-        ${priceHtml}
-      </div>`;
-    container.appendChild(card);
+       ${mediaHtml}
+       <div class="p-4 sm:p-5 flex flex-col flex-grow">
+         <h3 class="text-[15px] leading-snug line-clamp-2 text-futuristic-ink">${name}</h3>
+         <p class="text-futuristic-mute text-xs mt-1 flex-grow line-clamp-3">${description}</p>
+         ${priceHtml}
+       </div>`;
+    frag.appendChild(card);
   });
 
+  container.appendChild(frag);
   enhanceProductCardsForReveal();
 }
 
@@ -1283,7 +1362,33 @@ function renderProductDetail(prod){
     const altName = prod.nombre || prod.title || prod.name || '';
     $pd.image.alt = altName ? `Imagen de ${altName}` : 'Imagen del producto';
   }
-  $pd.price.textContent = (prod.price ?? prod.precio) != null ? currency(prod.price ?? prod.precio) : 'Consultar';
+  // Mostrar precio con descuento si aplica, con precio original tachado y porcentaje
+  if ($pd.price) {
+    const basePrice = prod.basePrice != null ? prod.basePrice : (prod.precioBase ?? prod.precio ?? null);
+    const currentPrice = prod.price ?? prod.precio ?? basePrice;
+    const isOffer = typeof prod.isOffer === 'boolean' ? prod.isOffer : !!prod.is_offer;
+    const discountPercent = prod.discountPercent != null ? Number(prod.discountPercent) : (prod.discount_percent != null ? Number(prod.discount_percent) : NaN);
+    if (currentPrice == null) {
+      $pd.price.textContent = 'Consultar';
+    } else {
+      const hasDiscount = isOffer && basePrice != null && currentPrice !== basePrice && Number.isFinite(discountPercent) && discountPercent > 0;
+      if (hasDiscount) {
+        $pd.price.innerHTML = `
+          <div class="flex flex-col gap-1 text-base">
+            <div class="line-through text-futuristic-mute">${currency(basePrice)}</div>
+            <div class="flex items-baseline gap-3 flex-wrap">
+              <span class="text-sm text-futuristic-mute">Precio con descuento</span>
+              <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500 text-sm font-semibold text-white shadow-sm">
+                ${currency(currentPrice)}
+              </span>
+              <span class="inline-flex items-center rounded-full bg-emerald-500/90 text-xs font-semibold px-2 py-0.5 text-white">-${discountPercent}%</span>
+            </div>
+          </div>`;
+      } else {
+        $pd.price.textContent = currency(currentPrice);
+      }
+    }
+  }
   if ($pd.id) $pd.id.textContent = prod.id || '-';
   if ($pd.stock) $pd.stock.textContent = (prod.stock ?? '-');
   if ($pd.paneDesc) $pd.paneDesc.innerHTML = prod.descripcionLarga || prod.descripcion || prod.description || 'Sin descripción.';
@@ -1595,12 +1700,54 @@ function resetCatalogFilters() {
     applyTextSearch('');
   } catch {
     window.__filteredList = null;
+    delete window.__onlyOffers;
     applySortAndRender();
   }
 }
 
 window.clearPriceFilter = clearPriceFilter;
 window.resetCatalogFilters = resetCatalogFilters;
+
+// Toggle "solo ofertas" desde el botón de UI
+function toggleOffersFilter() {
+  const btn = document.getElementById('offers-toggle-btn');
+  const current = window.__onlyOffers === true;
+  window.__onlyOffers = !current;
+  if (btn) {
+    if (window.__onlyOffers) {
+      btn.classList.add('bg-emerald-500/20', 'border-emerald-300');
+    } else {
+      btn.classList.remove('bg-emerald-500/20', 'border-emerald-300');
+    }
+  }
+  try { updateActiveFiltersUI(); } catch {}
+  applySortAndRender();
+}
+
+if (typeof window !== 'undefined') {
+  window.toggleOffersFilter = toggleOffersFilter;
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('offers-toggle-btn');
+    if (btn && !btn.dataset.offersInit) {
+      btn.dataset.offersInit = '1';
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        toggleOffersFilter();
+      });
+    }
+    // Soportar ?view=offers para abrir directamente ofertas
+    try {
+      const url = new URL(window.location.href);
+      const view = (url.searchParams.get('view') || '').toLowerCase();
+      if (view === 'offers' || view === 'ofertas') {
+        window.__onlyOffers = true;
+        if (btn) {
+          btn.classList.add('bg-emerald-500/20', 'border-emerald-300');
+        }
+      }
+    } catch {}
+  });
+}
 
 function updateActiveFiltersUI() {
   const wrap = document.getElementById('active-filters');
@@ -1614,6 +1761,9 @@ function updateActiveFiltersUI() {
     if (hasMin) parts.push(`mín ${window.__priceMin}`);
     if (hasMax) parts.push(`máx ${window.__priceMax}`);
     chips.push({ key: 'price', label: `Precio ${parts.join(' / ')}` });
+  }
+  if (window.__onlyOffers === true) {
+    chips.push({ key: 'offers', label: 'Solo ofertas' });
   }
 
   if (!chips.length) {
@@ -1794,6 +1944,39 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+function ensureFleteroPaymentOption() {
+  try {
+    const cashInput = document.getElementById('checkout-payment-cash');
+    if (!cashInput) return;
+    const container = cashInput.closest('.space-y-3') || (cashInput.parentElement && cashInput.parentElement.parentElement);
+    if (!container) return;
+    if (document.getElementById('checkout-payment-fletero')) return;
+    const label = document.createElement('label');
+    label.className = 'flex items-center gap-3 cursor-pointer';
+    label.innerHTML = '<input type="radio" name="payment" value="fletero" id="checkout-payment-fletero" class="accent-brand-1" />' +
+      '<span class="flex items-center gap-2 text-futuristic-ink">Fletero</span>';
+    container.appendChild(label);
+  } catch (err) {
+    console.error('ensureFleteroPaymentOption error', err);
+  }
+}
+
+function bindCheckoutPaymentListeners() {
+  try {
+    const inputs = document.querySelectorAll('#checkout-overlay input[name=\"payment\"]');
+    if (!inputs || !inputs.length) return;
+    inputs.forEach((inp) => {
+      if (inp.dataset.paymentBound) return;
+      inp.dataset.paymentBound = '1';
+      inp.addEventListener('change', () => {
+        try { refreshCheckoutAssignee(); } catch {}
+      });
+    });
+  } catch (err) {
+    console.error('bindCheckoutPaymentListeners error', err);
+  }
+}
+
 // --- App init ---
 function initAppFromAPI() {
   if (window.__api_init_done) return;
@@ -1819,7 +2002,11 @@ function initAppFromAPI() {
     loadCategories();
     loadAllProducts();
   }
-  try { loadCheckoutSellers(); } catch {}
+  try {
+    ensureFleteroPaymentOption();
+    bindCheckoutPaymentListeners();
+    refreshCheckoutAssignee();
+  } catch {}
 }
 document.addEventListener('DOMContentLoaded', initAppFromAPI);
 // --- Mobile search wiring + text filter (catálogo) ---
@@ -2170,7 +2357,11 @@ function openCheckout(){
   if (tot) tot.textContent = currency(total);
   ov.classList.remove('hidden');
   document.body.style.overflow='hidden';
-  try { loadCheckoutSellers(); } catch {}
+  try {
+    ensureFleteroPaymentOption();
+    bindCheckoutPaymentListeners();
+    refreshCheckoutAssignee();
+  } catch {}
 }
 function closeCheckout(){ const ov = document.getElementById('checkout-overlay'); if (!ov) return; ov.classList.add('hidden'); document.body.style.overflow=''; }
 function closeAllOverlays(){
@@ -2259,8 +2450,8 @@ document.getElementById('checkout-form')?.addEventListener('submit', async (e) =
   const emailOk = /.+@.+\..+/.test(email);
   if (!emailOk) { showMessageBox('Ingresa un email valido'); return; }
   if (phoneDigits.length < 6) { showMessageBox('Ingresa un telefono valido (6+ digitos)'); return; }
-  if (payment !== 'cash' && payment !== 'transfer') {
-    showMessageBox('Selecciona una forma de pago valida (efectivo o transferencia).');
+  if (payment !== 'cash' && payment !== 'transfer' && payment !== 'fletero') {
+    showMessageBox('Selecciona una forma de pago valida (efectivo, transferencia o fletero).');
     return;
   }
   try {
@@ -2276,7 +2467,9 @@ document.getElementById('checkout-form')?.addEventListener('submit', async (e) =
 
   const sellerSel = document.getElementById('checkout-seller');
   const sellerIdRaw = sellerSel ? sellerSel.value : '';
-  const paymentMethod = payment === 'transfer' ? 'TRANSFER' : 'CASH';
+  let paymentMethod = 'CASH';
+  if (payment === 'transfer') paymentMethod = 'TRANSFER';
+  else if (payment === 'fletero') paymentMethod = 'FLETERO';
   const payload = {
     buyer: { name, lastname, dni, email, phone: phoneDigits },
     items: cart.map(it => ({ productId: Number(it.id), quantity: Number(it.qty) })),

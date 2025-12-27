@@ -426,7 +426,43 @@
                             <option value="archived">Archivado</option>
                         </select>
                     </div>
-                    <button id="saveProductChangesButton" class="action-button w-full">Guardar Cambios de Producto</button>
+                    <!-- Bloque de descuento / oferta -->
+                    <div class="border-t border-white/10 pt-4 mt-4">
+                        <h3 class="text-xl font-semibold mb-2 text-blue-200">Descuento / oferta</h3>
+                        <p class="text-sm text-gray-400 mb-3">
+                            Aplica un porcentaje de descuento temporal al producto. Puedes programar la duraci¢n o establecer fechas de inicio y fin.
+                        </p>
+                        <div class="grid md:grid-cols-3 gap-4 mb-3">
+                            <div>
+                                <label for="editedProductDiscountPercent" class="block text-sm font-medium mb-1">Porcentaje (% OFF)</label>
+                                <input type="number" id="editedProductDiscountPercent" class="input-field" min="0" max="99" step="0.01" placeholder="Ej: 20">
+                            </div>
+                            <div>
+                                <label for="editedProductDiscountDays" class="block text-sm font-medium mb-1">Duraci¢n (d¡as)</label>
+                                <input type="number" id="editedProductDiscountDays" class="input-field" min="1" placeholder="Ej: 10">
+                            </div>
+                            <div class="space-y-2 text-sm text-gray-300">
+                                <div id="editedProductDiscountSummary" class="text-xs text-gray-400">
+                                    Sin descuento configurado.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4 mb-3">
+                            <div>
+                                <label for="editedProductDiscountStart" class="block text-sm font-medium mb-1">Inicio (opcional)</label>
+                                <input type="datetime-local" id="editedProductDiscountStart" class="input-field">
+                            </div>
+                            <div>
+                                <label for="editedProductDiscountEnd" class="block text-sm font-medium mb-1">Fin (opcional)</label>
+                                <input type="datetime-local" id="editedProductDiscountEnd" class="input-field">
+                            </div>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <button type="button" id="applyProductDiscountButton" class="action-button flex-1">Aplicar / actualizar descuento</button>
+                            <button type="button" id="clearProductDiscountButton" class="action-button bg-gray-600 hover:bg-gray-700 flex-1">Quitar descuento</button>
+                        </div>
+                    </div>
+                    <button id="saveProductChangesButton" class="action-button w-full mt-6">Guardar Cambios de Producto</button>
                 </div>
             </div>
 

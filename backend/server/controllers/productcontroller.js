@@ -15,11 +15,32 @@ async function getProducts(req, res) {
               c.name AS category_name,
               p.stock_quantity,
               p.specifications,
+              p.discount_percent::float AS discount_percent,
+              p.discount_start,
+              p.discount_end,
+              (
+                CASE
+                  WHEN p.discount_percent IS NOT NULL
+                   AND (p.discount_start IS NULL OR p.discount_start <= NOW())
+                   AND (p.discount_end   IS NULL OR p.discount_end   >= NOW())
+                  THEN TRUE
+                  ELSE FALSE
+                END
+              ) AS is_offer,
+              (
+                CASE
+                  WHEN p.discount_percent IS NOT NULL
+                   AND (p.discount_start IS NULL OR p.discount_start <= NOW())
+                   AND (p.discount_end   IS NULL OR p.discount_end   >= NOW())
+                  THEN ROUND(p.price * (1 - (p.discount_percent / 100.0)), 2)
+                  ELSE p.price
+                END
+              )::float AS final_price,
               p.created_at,
               p.updated_at,
               p.deleted_at
-         FROM products p
-         JOIN categories c ON c.id = p.category_id
+         FROM Products p
+         JOIN Categories c ON c.id = p.category_id
         WHERE p.deleted_at IS NULL AND c.deleted_at IS NULL
         ORDER BY p.id DESC
         LIMIT 100`
@@ -53,11 +74,32 @@ async function getProductById(req, res) {
               c.name AS category_name,
               p.stock_quantity,
               p.specifications,
+              p.discount_percent::float AS discount_percent,
+              p.discount_start,
+              p.discount_end,
+              (
+                CASE
+                  WHEN p.discount_percent IS NOT NULL
+                   AND (p.discount_start IS NULL OR p.discount_start <= NOW())
+                   AND (p.discount_end   IS NULL OR p.discount_end   >= NOW())
+                  THEN TRUE
+                  ELSE FALSE
+                END
+              ) AS is_offer,
+              (
+                CASE
+                  WHEN p.discount_percent IS NOT NULL
+                   AND (p.discount_start IS NULL OR p.discount_start <= NOW())
+                   AND (p.discount_end   IS NULL OR p.discount_end   >= NOW())
+                  THEN ROUND(p.price * (1 - (p.discount_percent / 100.0)), 2)
+                  ELSE p.price
+                END
+              )::float AS final_price,
               p.created_at,
               p.updated_at,
               p.deleted_at
-         FROM products p
-         JOIN categories c ON c.id = p.category_id
+         FROM Products p
+         JOIN Categories c ON c.id = p.category_id
         WHERE p.id = $1 AND p.deleted_at IS NULL AND c.deleted_at IS NULL
         LIMIT 1`,
       [idNum]
@@ -99,6 +141,22 @@ const validateProduct = [
     .isString().withMessage('specifications must be a string')
 ];
 
+// Validation específica para descuentos (ofertas)
+const validateDiscount = [
+  check('discount_percent')
+    .optional({ nullable: true })
+    .isFloat({ gt: 0, lt: 100 }).withMessage('discount_percent must be between 0 and 100'),
+  check('discount_start')
+    .optional({ nullable: true })
+    .isISO8601().withMessage('discount_start must be a valid ISO8601 date'),
+  check('discount_end')
+    .optional({ nullable: true })
+    .isISO8601().withMessage('discount_end must be a valid ISO8601 date'),
+  check('duration_days')
+    .optional({ nullable: true })
+    .isInt({ gt: 0, lt: 366 }).withMessage('duration_days must be a positive integer (max 365)'),
+];
+
 async function createProduct(req, res) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -131,6 +189,117 @@ async function createProduct(req, res) {
     if (code === 400) return res.status(400).json({ error: err.message });
     console.error('Error creating product:', err);
     res.status(500).json({ error: 'Failed to create product' });
+  }
+}
+
+async function updateProductDiscount(req, res) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { id } = req.params || {};
+  const idNum = Number(id);
+  if (!Number.isInteger(idNum) || idNum <= 0) {
+    return res.status(400).json({ error: 'Invalid product ID' });
+  }
+
+  const body = req.body || {};
+  const hasPercentRaw = body.discount_percent;
+  const hasPercent = hasPercentRaw !== undefined && hasPercentRaw !== null && String(hasPercentRaw) !== '';
+  const percentNum = hasPercent ? Number(hasPercentRaw) : null;
+
+  // Si no hay porcentaje válido, interpretamos que se quita la oferta
+  if (!hasPercent || !Number.isFinite(percentNum) || percentNum <= 0) {
+    try {
+      const result = await query(
+        `UPDATE Products
+            SET discount_percent = NULL,
+                discount_start   = NULL,
+                discount_end     = NULL,
+                updated_at       = CURRENT_TIMESTAMP
+          WHERE id = $1 AND deleted_at IS NULL`,
+        [idNum]
+      );
+
+      if (result.rowCount === 0) {
+        const check = await query('SELECT id FROM Products WHERE id = $1', [idNum]);
+        if (!check.rowCount) return res.status(404).json({ error: 'Product not found' });
+      }
+
+      return res.json({ message: 'Discount removed' });
+    } catch (err) {
+      console.error('Error removing product discount:', err);
+      return res.status(500).json({ error: 'Failed to update product discount' });
+    }
+  }
+
+  const percent = percentNum;
+  let discountStart = null;
+  let discountEnd = null;
+
+  const now = new Date();
+  const startRaw = body.discount_start;
+  const endRaw = body.discount_end;
+  const durationRaw = body.duration_days;
+
+  if (startRaw) {
+    const d = new Date(startRaw);
+    if (Number.isNaN(d.getTime())) {
+      return res.status(400).json({ error: 'Invalid discount_start' });
+    }
+    discountStart = d;
+  } else {
+    // Si no se especifica inicio, asumimos "desde ahora"
+    discountStart = now;
+  }
+
+  if (endRaw) {
+    const d = new Date(endRaw);
+    if (Number.isNaN(d.getTime())) {
+      return res.status(400).json({ error: 'Invalid discount_end' });
+    }
+    discountEnd = d;
+  } else if (durationRaw !== undefined && durationRaw !== null && String(durationRaw) !== '') {
+    const days = Number(durationRaw);
+    if (!Number.isInteger(days) || days <= 0) {
+      return res.status(400).json({ error: 'Invalid duration_days' });
+    }
+    discountEnd = new Date(discountStart.getTime() + days * 24 * 60 * 60 * 1000);
+  } else {
+    // Sin fecha fin ni duración => oferta abierta
+    discountEnd = null;
+  }
+
+  if (discountEnd && discountEnd <= discountStart) {
+    return res.status(400).json({ error: 'discount_end must be after discount_start' });
+  }
+
+  try {
+    const result = await query(
+      `UPDATE Products
+          SET discount_percent = $1,
+              discount_start   = $2,
+              discount_end     = $3,
+              updated_at       = CURRENT_TIMESTAMP
+        WHERE id = $4 AND deleted_at IS NULL`,
+      [percent, discountStart, discountEnd, idNum]
+    );
+
+    if (result.rowCount === 0) {
+      const check = await query('SELECT id FROM Products WHERE id = $1', [idNum]);
+      if (!check.rowCount) return res.status(404).json({ error: 'Product not found' });
+    }
+
+    return res.json({
+      message: 'Discount updated',
+      discount_percent: percent,
+      discount_start: discountStart,
+      discount_end: discountEnd,
+    });
+  } catch (err) {
+    console.error('Error updating product discount:', err);
+    return res.status(500).json({ error: 'Failed to update product discount' });
   }
 }
 
@@ -235,6 +404,7 @@ module.exports = {
   getProductById,
   createProduct: [...validateProduct, createProduct],
   updateProduct: [...validateProduct, updateProduct],
+  updateProductDiscount: [...validateDiscount, updateProductDiscount],
   deleteProduct,
   patchStock: [
     async function patchStock(req, res){

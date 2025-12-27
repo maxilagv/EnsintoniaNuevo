@@ -84,9 +84,25 @@ async function createOrderUnified(req, res) {
       // 1) Cargar productos y bloquear filas
       const ids = items.map((i) => i.productId);
       const { rows: products } = await client.query(
-        `SELECT id, name, price::float AS price, stock_quantity
-           FROM Products
-          WHERE id = ANY($1::int[]) FOR UPDATE`,
+        `SELECT
+           id,
+           name,
+           price::float AS base_price,
+           stock_quantity,
+           discount_percent::float AS discount_percent,
+           discount_start,
+           discount_end,
+           (
+             CASE
+               WHEN discount_percent IS NOT NULL
+                AND (discount_start IS NULL OR discount_start <= NOW())
+                AND (discount_end   IS NULL OR discount_end   >= NOW())
+               THEN ROUND(price * (1 - (discount_percent / 100.0)), 2)
+               ELSE price
+             END
+           )::float AS effective_price
+         FROM Products
+        WHERE id = ANY($1::int[]) FOR UPDATE`,
         [ids]
       );
       const byId = new Map(products.map((p) => [p.id, p]));
@@ -97,7 +113,8 @@ async function createOrderUnified(req, res) {
         const p = byId.get(item.productId);
         if (!p) { const e = new Error(`Producto ${item.productId} inexistente`); e.statusCode = 404; throw e; }
         if (p.stock_quantity < item.quantity) { const e = new Error(`Stock insuficiente para producto ${p.name}`); e.statusCode = 409; throw e; }
-        total += p.price * item.quantity;
+        const unitPrice = Number.isFinite(Number(p.effective_price)) ? Number(p.effective_price) : Number(p.base_price);
+        total += unitPrice * item.quantity;
       }
 
       // 2.1) Resolver vendedor dentro de la transacción (opcionalmente valida existencia)
@@ -182,8 +199,10 @@ async function createOrderUnified(req, res) {
       const paymentRaw = typeof paymentMethodRaw === 'string' ? paymentMethodRaw.toUpperCase() : null;
       let paymentCode = 'CASH';
       if (paymentRaw === 'TRANSFER') paymentCode = 'TRANSFER';
+      if (paymentRaw === 'FLETERO') paymentCode = 'FLETERO';
       let paymentMethodDb = 'EFECTIVO';
       if (paymentCode === 'TRANSFER') paymentMethodDb = 'TRANSFERENCIA';
+      if (paymentCode === 'FLETERO') paymentMethodDb = 'FLETERO';
 
       // 6) Crear orden con todos los campos
       const insOrder = await client.query(
@@ -221,10 +240,11 @@ async function createOrderUnified(req, res) {
       // 7) Insertar items + movimientos
       for (const item of items) {
         const p = byId.get(item.productId);
+        const unitPrice = Number.isFinite(Number(p.effective_price)) ? Number(p.effective_price) : Number(p.base_price);
         await client.query(
           `INSERT INTO OrderItems(order_id, product_id, quantity, unit_price)
            VALUES ($1, $2, $3, $4)`,
-          [orderId, item.productId, item.quantity, p.price]
+          [orderId, item.productId, item.quantity, unitPrice]
         );
         try {
           await client.query(

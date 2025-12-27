@@ -11,6 +11,7 @@ const { query } = require('../db/pg');
 // Checkout público: requiere usuario autenticado vinculado a cliente
 router.post('/checkout', apiLimiter, auth, order.validateCheckout, order.createOrderV2);
 router.get('/sellers', apiLimiter, sellers.listSellersPublic);
+router.get('/logistics', apiLimiter, sellers.listLogisticsPublic);
 
 // Registro público de clientes (desde catálogo)
 router.post('/clients/register', apiLimiter, clientsPublic.createClientPublicWithUser);
