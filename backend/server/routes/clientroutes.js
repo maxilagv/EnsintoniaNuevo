@@ -12,6 +12,8 @@ router.get('/clients', auth, requirePermission('clientes.read'), clients.listCli
 router.get('/clients/:id', auth, requirePermission('clientes.read'), clients.getClient);
 router.patch('/clients/:id/status', auth, requirePermission('clientes.write'), clients.toggleClientStatus);
 router.get('/clients/:id/orders', auth, requirePermission('clientes.read'), clients.getClientOrdersSummary);
+router.get('/clients/:id/account', auth, requirePermission('clientes.read'), clients.getClientAccountSummary);
+router.post('/clients/:id/account/payments', auth, requirePermission('clientes.write'), clients.registerClientAccountPayment);
 router.put('/clients/:id', auth, requirePermission('clientes.write'), clients.updateClient);
 router.delete('/clients/:id', auth, requirePermission('clientes.delete'), clients.deleteClient);
 

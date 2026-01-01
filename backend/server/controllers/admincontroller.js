@@ -424,7 +424,8 @@ module.exports.updatePurchaseStatus = updatePurchaseStatus;
 module.exports.deletePurchase = deletePurchase;
 module.exports.analyticsOverview = analyticsOverview;
 module.exports.analyticsFinance = analyticsFinanceDetailed;
-module.exports.listExtraExpenses = listExtraExpenses;
+module.exports.analyticsReceivables = analyticsReceivables;
+  module.exports.listExtraExpenses = listExtraExpenses;
 module.exports.createExtraExpense = createExtraExpense;
 module.exports.updateExtraExpense = updateExtraExpense;
 module.exports.deleteExtraExpense = deleteExtraExpense;
@@ -876,5 +877,94 @@ async function analyticsFinanceDetailed(req, res) {
   } catch (err) {
     console.error('analyticsFinanceDetailed error:', err.message);
     return res.status(500).json({ error: 'No se pudieron obtener m?tricas de finanzas' });
+  }
+}
+
+// --- Anal?tica de cuenta corriente (cuentas por cobrar de clientes) ---
+async function analyticsReceivables(req, res) {
+  try {
+    const fromRaw = req.query?.from;
+    const toRaw = req.query?.to;
+    const from = fromRaw ? new Date(fromRaw) : null;
+    const to = toRaw ? new Date(toRaw) : null;
+
+    const params = [];
+    let where = `o.deleted_at IS NULL
+                 AND o.payment_condition = 'CTA_CTE'
+                 AND o.balance > 0`;
+    if (from && !isNaN(from.getTime())) {
+      params.push(from.toISOString());
+      where += ` AND o.order_date >= $${params.length}`;
+    }
+    if (to && !isNaN(to.getTime())) {
+      params.push(to.toISOString());
+      where += ` AND o.order_date <= $${params.length}`;
+    }
+
+    const [summaryRes, byClientRes] = await Promise.all([
+      query(
+        `SELECT
+           COALESCE(SUM(o.balance),0)::float AS total_open,
+           COALESCE(SUM(CASE
+                          WHEN o.due_date IS NOT NULL
+                           AND o.due_date < CURRENT_DATE
+                          THEN o.balance
+                          ELSE 0
+                        END),0)::float AS total_overdue,
+           COUNT(*) AS open_orders
+         FROM Orders o
+        WHERE ${where}`,
+        params
+      ),
+      query(
+        `SELECT
+           c.id AS client_id,
+           c.code AS client_code,
+           c.name AS client_name,
+           COALESCE(c.credit_limit,0)::float AS credit_limit,
+           COALESCE(SUM(o.balance),0)::float AS balance,
+           COALESCE(SUM(CASE
+                          WHEN o.due_date IS NOT NULL
+                           AND o.due_date < CURRENT_DATE
+                          THEN o.balance
+                          ELSE 0
+                        END),0)::float AS overdue_balance,
+           MAX(o.due_date) AS last_due_date
+         FROM Orders o
+         JOIN Clients c ON c.id = o.client_id
+        WHERE ${where}
+        GROUP BY c.id, c.code, c.name, c.credit_limit
+        ORDER BY balance DESC, client_id ASC
+        LIMIT 50`,
+        params
+      ),
+    ]);
+
+    const totalOpen = Number(summaryRes.rows?.[0]?.total_open || 0);
+    const totalOverdue = Number(summaryRes.rows?.[0]?.total_overdue || 0);
+    const openOrders = Number(summaryRes.rows?.[0]?.open_orders || 0);
+
+    const topClients = byClientRes.rows.map((r) => ({
+      clientId: r.client_id,
+      code: r.client_code,
+      name: r.client_name,
+      creditLimit:
+        r.credit_limit != null ? Number(r.credit_limit) : null,
+      balance: Number(r.balance || 0),
+      overdueBalance: Number(r.overdue_balance || 0),
+      lastDueDate: r.last_due_date,
+    }));
+
+    return res.json({
+      totalOpen,
+      totalOverdue,
+      openOrders,
+      topClients,
+    });
+  } catch (err) {
+    console.error('analyticsReceivables error:', err.message);
+    return res
+      .status(500)
+      .json({ error: 'No se pudieron obtener m?tricas de cuenta corriente' });
   }
 }

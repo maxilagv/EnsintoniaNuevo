@@ -96,6 +96,7 @@ const ROUTES = {
   migrate: () => `${API_BASE}/migraciones/run`,   // POST (opcional)
   analyticsOverview: (qs = '') => `${API_BASE}/analytics/overview${qs ? ('?' + qs) : ''}`,
   financeAnalytics: (qs = '') => `${API_BASE}/analytics/finance${qs ? ('?' + qs) : ''}`,
+  receivablesAnalytics: (qs = '') => `${API_BASE}/analytics/receivables${qs ? ('?' + qs) : ''}`,
   salesBySeller: (qs = '') => `${API_BASE}/analytics/sales-by-seller${qs ? ('?' + qs) : ''}`,
   salesBySellerDetail: (id, qs = '') => `${API_BASE}/analytics/sales-by-seller/${encodeURIComponent(id)}/detail${qs ? ('?' + qs) : ''}`,
   extraExpenses: (qs = '') => `${API_BASE}/extra-expenses${qs ? ('?' + qs) : ''}`,
@@ -318,6 +319,9 @@ if (inventorySearchInput) {
 // Finanzas
 const financeRevenueEl = document.getElementById('financeRevenue');
 const financePurchasesEl = document.getElementById('financePurchases');
+const financeReceivablesTotalEl = document.getElementById('financeReceivablesTotal');
+const financeReceivablesOverdueEl = document.getElementById('financeReceivablesOverdue');
+const financeReceivablesClientsEl = document.getElementById('financeReceivablesClients');
 // Clientes
 const customersSearchInput = document.getElementById('customersSearch');
 const customersTaxIdInput = document.getElementById('customersTaxId');
@@ -2955,6 +2959,90 @@ async function loadFinanceDashboard(){
       await loadExtraExpensesList(from, to);
     } catch (errList) {
       console.warn('loadExtraExpensesList error', errList);
+    }
+    // Cargar lista de gastos extraordinarios (mejor esfuerzo)
+    try {
+      await loadExtraExpensesList(from, to);
+    } catch (errList) {
+      console.warn('loadExtraExpensesList error', errList);
+    }
+
+    // Analítica de cuenta corriente (receivables)
+    try {
+      const respRec = await fetchWithAuth(ROUTES.receivablesAnalytics(qs));
+      if (respRec && respRec.ok) {
+        const dataRec = await respRec.json().catch(() => ({}));
+        const totalOpen = Number(dataRec?.totalOpen || 0);
+        const totalOverdue = Number(dataRec?.totalOverdue || 0);
+        const topClients = Array.isArray(dataRec?.topClients) ? dataRec.topClients : [];
+
+        if (financeReceivablesTotalEl) financeReceivablesTotalEl.textContent = currency(totalOpen);
+        if (financeReceivablesOverdueEl) financeReceivablesOverdueEl.textContent = currency(totalOverdue);
+        if (financeReceivablesClientsEl) financeReceivablesClientsEl.textContent = String(topClients.length || 0);
+
+        const container = document.getElementById('financeReceivablesTableContainer');
+        if (container) {
+          if (!topClients.length) {
+            container.innerHTML = '<p class="text-sm text-gray-400 text-center">Sin saldos en cuenta corriente para el periodo seleccionado.</p>';
+          } else {
+            const rowsHtml = topClients.map((c) => {
+              const balance = Number(c.balance || 0);
+              const overdue = Number(c.overdueBalance || 0);
+              const creditLimit = c.creditLimit != null ? Number(c.creditLimit) : null;
+              const pctUsed = creditLimit && creditLimit > 0 ? Math.min(100, Math.round((balance / creditLimit) * 100)) : null;
+              return `
+                <tr class="divide-x divide-white/5 hover:bg-white/5 transition">
+                  <td class="px-2 py-1 text-xs text-gray-200">
+                    <div class="font-semibold">${c.name || ''}</div>
+                    <div class="text-[11px] text-gray-400">${c.code || ''}</div>
+                  </td>
+                  <td class="px-2 py-1 text-xs text-right text-emerald-200">${currency(balance)}</td>
+                  <td class="px-2 py-1 text-xs text-right ${overdue > 0 ? 'text-red-300' : 'text-gray-400'}">${currency(overdue)}</td>
+                  <td class="px-2 py-1 text-xs text-right text-gray-300">
+                    ${creditLimit && creditLimit > 0
+                      ? `<div>${currency(creditLimit)}</div>
+                         <div class="w-full bg-slate-800/80 rounded-full h-1.5 mt-1 overflow-hidden">
+                           <div class="h-1.5 bg-emerald-400" style="width:${pctUsed}%"></div>
+                         </div>`
+                      : '<span class="text-[11px] text-gray-500">Sin límite</span>'}
+                  </td>
+                  <td class="px-2 py-1 text-xs text-right">
+                    <button
+                      type="button"
+                      class="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold finance-view-account"
+                      data-client-id="${c.clientId}"
+                    >
+                      Ver cuenta
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+
+            container.innerHTML = `
+              <h3 class="text-lg font-semibold text-white mb-2">Clientes con cuenta corriente</h3>
+              <div class="rounded-xl border border-white/10 bg-white/5 max-h-64 overflow-auto">
+                <table class="min-w-full text-xs">
+                  <thead class="bg-white/5 text-gray-300">
+                    <tr>
+                      <th class="px-2 py-1 text-left">Cliente</th>
+                      <th class="px-2 py-1 text-right">Saldo</th>
+                      <th class="px-2 py-1 text-right">Vencido</th>
+                      <th class="px-2 py-1 text-right">Límite</th>
+                      <th class="px-2 py-1 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-white/5">
+                    ${rowsHtml}
+                  </tbody>
+                </table>
+              </div>
+            `;
+          }
+        }
+      }
+    } catch (errRec) {
+      console.warn('loadFinanceDashboard receivables error', errRec);
     }
   } catch (err) {
     console.error('loadFinanceDashboard error', err);

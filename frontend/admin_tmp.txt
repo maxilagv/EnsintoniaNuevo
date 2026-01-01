@@ -1,0 +1,8 @@
+                        <span id="financeStatus" class="text-gray-400 self-center"></span>
+                    </div>
+                </div>
+                <div id="financeChartPlaceholder" class="text-center text-gray-400">
+                    Próximamente: gráfico de ingresos vs compras.
+                </div>
+            </div>
+

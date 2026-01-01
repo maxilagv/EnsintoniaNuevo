@@ -25,6 +25,7 @@ router.get('/admin/analytics/overview', authMiddleware, requirePermission('admin
 
 // Anal�tica financiera avanzada (ingreso bruto/neto + desglose de gastos)
 router.get('/analytics/finance', authMiddleware, requirePermission('administracion.read'), admin.analyticsFinance);
+router.get('/analytics/receivables', authMiddleware, requirePermission('administracion.read'), admin.analyticsReceivables);
 
 // Gastos extraordinarios (ExtraExpenses)
 router.get('/extra-expenses', authMiddleware, requirePermission('administracion.read'), admin.listExtraExpenses);

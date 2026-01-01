@@ -472,38 +472,51 @@ async function getClientOrdersSummary(req, res) {
     }
     const client = clientRows[0];
 
-    const { rows } = await query(
-      `SELECT
-         o.id,
-         o.order_number,
-         o.order_date,
-         o.status,
-         o.total_amount::float AS total_amount,
-         COALESCE(o.buyer_name, '') AS buyer_name,
-         COALESCE(o.buyer_lastname, '') AS buyer_lastname,
-         o.buyer_dni,
-         o.buyer_email,
-         o.buyer_phone,
-         ARRAY_AGG(
-           json_build_object(
-             'product_id', oi.product_id,
-             'product_name', p.name,
-             'quantity', oi.quantity,
-             'unit_price', oi.unit_price::float
-           )
-         ) AS items
-       FROM Orders o
-       JOIN OrderItems oi ON oi.order_id = o.id
-       JOIN Products p ON p.id = oi.product_id
-       WHERE o.deleted_at IS NULL
-         AND (o.buyer_code = $1 OR o.buyer_dni = $2)
-       GROUP BY
-         o.id, o.order_number, o.order_date, o.status,
-         o.total_amount, o.buyer_name, o.buyer_lastname,
-         o.buyer_dni, o.buyer_email, o.buyer_phone
-       ORDER BY o.order_date DESC, o.id DESC`,
-      [client.code || null, client.tax_id || null]
-    );
+      const { rows } = await query(
+        `SELECT
+           o.id,
+           o.order_number,
+           o.order_date,
+           o.status,
+           o.total_amount::float AS total_amount,
+           o.payment_condition,
+           o.due_date,
+           o.paid_amount::float AS paid_amount,
+           o.balance::float AS balance,
+           CASE
+             WHEN o.payment_condition = 'CTA_CTE'
+              AND o.due_date IS NOT NULL
+              AND CURRENT_DATE > o.due_date
+             THEN (CURRENT_DATE - o.due_date)
+             ELSE 0
+           END AS days_overdue,
+           COALESCE(o.buyer_name, '') AS buyer_name,
+           COALESCE(o.buyer_lastname, '') AS buyer_lastname,
+           o.buyer_dni,
+           o.buyer_email,
+           o.buyer_phone,
+           ARRAY_AGG(
+             json_build_object(
+               'product_id', oi.product_id,
+               'product_name', p.name,
+               'quantity', oi.quantity,
+               'unit_price', oi.unit_price::float
+             )
+           ) AS items
+         FROM Orders o
+         JOIN OrderItems oi ON oi.order_id = o.id
+         JOIN Products p ON p.id = oi.product_id
+         WHERE o.deleted_at IS NULL
+           AND (o.buyer_code = $1 OR o.buyer_dni = $2)
+         GROUP BY
+           o.id, o.order_number, o.order_date, o.status,
+           o.total_amount, o.payment_condition, o.due_date,
+           o.paid_amount, o.balance,
+           o.buyer_name, o.buyer_lastname,
+           o.buyer_dni, o.buyer_email, o.buyer_phone
+         ORDER BY o.order_date DESC, o.id DESC`,
+        [client.code || null, client.tax_id || null]
+      );
 
     return res.json({
       client: {
@@ -517,7 +530,282 @@ async function getClientOrdersSummary(req, res) {
     });
   } catch (e) {
     console.error('[clients] orders summary error:', e.message);
-    return res.status(500).json({ error: 'No se pudo obtener el historial de compras' });
+      return res.status(500).json({ error: 'No se pudo obtener el historial de compras' });
+    }
+  }
+
+async function getClientAccountSummary(req, res) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inv€đlido' });
+  }
+
+  try {
+    const { rows: clientRows } = await query(
+      'SELECT id, code, name, tax_id, credit_limit FROM Clients WHERE id = $1 AND deleted_at IS NULL',
+      [id]
+    );
+    if (!clientRows.length) {
+      return res.status(404).json({ error: 'Cliente no encontrado' });
+    }
+    const client = clientRows[0];
+
+    const { rows: openOrders } = await query(
+      `SELECT
+         o.id,
+         o.order_number,
+         o.order_date,
+         o.status,
+         o.total_amount::float AS total_amount,
+         o.payment_condition,
+         o.due_date,
+         o.paid_amount::float AS paid_amount,
+         o.balance::float AS balance,
+         CASE
+           WHEN o.payment_condition = 'CTA_CTE'
+            AND o.due_date IS NOT NULL
+            AND CURRENT_DATE > o.due_date
+           THEN (CURRENT_DATE - o.due_date)
+           ELSE 0
+         END AS days_overdue
+       FROM Orders o
+       WHERE o.deleted_at IS NULL
+         AND o.client_id = $1
+         AND o.payment_condition = 'CTA_CTE'
+         AND o.balance > 0
+       ORDER BY o.due_date NULLS LAST, o.order_date DESC, o.id DESC`,
+      [id]
+    );
+
+    const { rows: movements } = await query(
+      `SELECT
+         m.id,
+         m.order_id,
+         m.movement_date,
+         m.movement_type,
+         m.amount::float AS amount,
+         m.description,
+         m.created_by
+       FROM ClientAccountMovements m
+       WHERE m.deleted_at IS NULL
+         AND m.client_id = $1
+       ORDER BY m.movement_date DESC, m.id DESC
+       LIMIT 200`,
+      [id]
+    );
+
+    const totalOpen = openOrders.reduce(
+      (s, o) => s + (Number.isFinite(Number(o.balance)) ? Number(o.balance) : 0),
+      0
+    );
+    const totalOverdue = openOrders.reduce(
+      (s, o) =>
+        s +
+        (o.days_overdue > 0 && Number.isFinite(Number(o.balance))
+          ? Number(o.balance)
+          : 0),
+      0
+    );
+
+    return res.json({
+      client: {
+        id: client.id,
+        code: client.code,
+        name: client.name,
+        tax_id: client.tax_id,
+        creditLimit:
+          client.credit_limit != null ? Number(client.credit_limit) : null,
+      },
+      summary: {
+        totalOpen,
+        totalOverdue,
+        openOrdersCount: openOrders.length,
+      },
+      openOrders,
+      movements,
+    });
+  } catch (e) {
+    console.error('[clients] account summary error:', e.message);
+    return res
+      .status(500)
+      .json({ error: 'No se pudo obtener la cuenta corriente del cliente' });
+  }
+}
+
+async function registerClientAccountPayment(req, res) {
+  const clientId = Number(req.params.id);
+  if (!Number.isInteger(clientId) || clientId <= 0) {
+    return res.status(400).json({ error: 'ID inv€đlido' });
+  }
+
+  const body = req.body || {};
+  const rawAmount = body.amount;
+  const amount = Number(rawAmount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return res.status(400).json({ error: 'amount inv€đlido' });
+  }
+
+  const rawOrderId = body.orderId != null ? body.orderId : body.order_id;
+  const orderId = rawOrderId != null ? Number(rawOrderId) : null;
+  if (!Number.isInteger(orderId) || orderId <= 0) {
+    return res
+      .status(400)
+      .json({ error: 'orderId es obligatorio y debe ser v€đlido' });
+  }
+
+  const description = normStr(body.description) || null;
+  const paymentMethodRaw =
+    body.paymentMethod || body.payment_method || 'CASH';
+  const dateRaw = body.date || body.paymentDate || body.payment_date;
+
+  let paymentDate = new Date();
+  if (dateRaw) {
+    const d = new Date(dateRaw);
+    if (isNaN(d.getTime())) {
+      return res.status(400).json({ error: 'fecha de pago inv€đlida' });
+    }
+    paymentDate = d;
+  }
+
+  let paymentMethodDb = 'EFECTIVO';
+  try {
+    const pm = String(paymentMethodRaw || 'CASH').toUpperCase();
+    if (pm === 'TRANSFER' || pm === 'TRANSFERENCIA') {
+      paymentMethodDb = 'TRANSFERENCIA';
+    } else if (pm === 'FLETERO') {
+      paymentMethodDb = 'FLETERO';
+    }
+  } catch {
+    paymentMethodDb = 'EFECTIVO';
+  }
+
+  let createdByUserId = null;
+  try {
+    const email =
+      req.user && req.user.email
+        ? String(req.user.email).trim().toLowerCase()
+        : null;
+    if (email) {
+      const { rows: urows } = await query(
+        'SELECT id FROM Users WHERE LOWER(email) = $1 AND deleted_at IS NULL LIMIT 1',
+        [email]
+      );
+      if (urows.length) {
+        createdByUserId = urows[0].id;
+      }
+    }
+  } catch {
+    createdByUserId = null;
+  }
+
+  try {
+    const result = await withTransaction(async (client) => {
+      const { rows: clientRows } = await client.query(
+        'SELECT id, code, name, tax_id FROM Clients WHERE id = $1 AND deleted_at IS NULL',
+        [clientId]
+      );
+      if (!clientRows.length) {
+        const err = new Error('Cliente no encontrado');
+        err.statusCode = 404;
+        throw err;
+      }
+
+      const { rows: orderRows } = await client.query(
+        `SELECT id, client_id, payment_condition,
+                total_amount::float AS total_amount,
+                paid_amount::float AS paid_amount,
+                balance::float AS balance
+           FROM Orders
+          WHERE id = $1
+            AND deleted_at IS NULL`,
+        [orderId]
+      );
+      if (!orderRows.length) {
+        const err = new Error('Orden no encontrada');
+        err.statusCode = 404;
+        throw err;
+      }
+      const order = orderRows[0];
+      if (order.client_id !== clientId) {
+        const err = new Error('La orden no pertenece a este cliente');
+        err.statusCode = 400;
+        throw err;
+      }
+      if (order.payment_condition !== 'CTA_CTE') {
+        const err = new Error(
+          'La orden no es de cuenta corriente (CTA_CTE)'
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const currentBalance = Number(order.balance || 0);
+      if (!Number.isFinite(currentBalance) || currentBalance <= 0) {
+        const err = new Error('La orden no tiene saldo pendiente');
+        err.statusCode = 400;
+        throw err;
+      }
+      if (amount > currentBalance + 0.0001) {
+        const err = new Error('El monto supera el saldo pendiente de la orden');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      await client.query(
+        `INSERT INTO Payments(order_id, payment_date, amount, payment_method, status)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [orderId, paymentDate.toISOString(), amount, paymentMethodDb, 'CONFIRMED']
+      );
+
+      await client.query(
+        `INSERT INTO ClientAccountMovements(client_id, order_id, movement_date, movement_type, amount, description, created_by)
+         VALUES ($1, $2, $3, 'CREDITO', $4, $5, $6)`,
+        [
+          clientId,
+          orderId,
+          paymentDate.toISOString(),
+          amount,
+          description || `Pago orden ${orderId}`,
+          createdByUserId,
+        ]
+      );
+
+      const { rows: updated } = await client.query(
+        `UPDATE Orders
+            SET paid_amount = paid_amount + $1,
+                balance = GREATEST(balance - $1, 0),
+                updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+          RETURNING paid_amount::float AS paid_amount,
+                    balance::float AS balance`,
+        [amount, orderId]
+      );
+      const updatedOrder = updated[0];
+
+      return {
+        orderId,
+        paidAmount: updatedOrder.paid_amount,
+        balance: updatedOrder.balance,
+      };
+    });
+
+    return res.json({
+      ok: true,
+      payment: {
+        orderId: result.orderId,
+        amount,
+        paidAmount: result.paidAmount,
+        balance: result.balance,
+      },
+    });
+  } catch (e) {
+    if (e && e.statusCode) {
+      return res.status(e.statusCode).json({ error: e.message });
+    }
+    console.error('[clients] register payment error:', e.message);
+    return res
+      .status(500)
+      .json({ error: 'No se pudo registrar el pago del cliente' });
   }
 }
 
@@ -688,6 +976,8 @@ module.exports = {
   getClient,
   toggleClientStatus,
   getClientOrdersSummary,
+  getClientAccountSummary,
+  registerClientAccountPayment,
   updateClient: [...validateUpdateClient, updateClientHandler],
   deleteClient,
 };

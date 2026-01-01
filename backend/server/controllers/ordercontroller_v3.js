@@ -25,6 +25,8 @@ async function createOrderUnified(req, res) {
 
   const { buyer = {}, items = [], sellerUserId: sellerUserIdRaw, seller_user_id: sellerUserIdRaw2 } = req.body || {};
   const paymentMethodRaw = req.body && req.body.paymentMethod;
+  const paymentConditionRaw = req.body && (req.body.paymentCondition || req.body.payment_condition);
+  const dueDateRaw = req.body && (req.body.dueDate || req.body.due_date);
 
   // El checkout requiere que el usuario est� autenticado y vinculado a un cliente
   const authUser = req.user || {};
@@ -195,47 +197,94 @@ async function createOrderUnified(req, res) {
         if (!ok) buyerCode = `C-${Date.now().toString(36).toUpperCase()}`;
       }
 
-      // 5.1) Normalizar forma de pago
-      const paymentRaw = typeof paymentMethodRaw === 'string' ? paymentMethodRaw.toUpperCase() : null;
-      let paymentCode = 'CASH';
-      if (paymentRaw === 'TRANSFER') paymentCode = 'TRANSFER';
-      if (paymentRaw === 'FLETERO') paymentCode = 'FLETERO';
-      let paymentMethodDb = 'EFECTIVO';
-      if (paymentCode === 'TRANSFER') paymentMethodDb = 'TRANSFERENCIA';
-      if (paymentCode === 'FLETERO') paymentMethodDb = 'FLETERO';
+        // 5.1) Normalizar forma y condici├│n de pago
+        const paymentRaw = typeof paymentMethodRaw === 'string' ? paymentMethodRaw.toUpperCase() : null;
+        let paymentCode = 'CASH';
+        if (paymentRaw === 'TRANSFER') paymentCode = 'TRANSFER';
+        if (paymentRaw === 'FLETERO') paymentCode = 'FLETERO';
+        if (paymentRaw === 'CTA_CTE' || paymentRaw === 'CTA-CTE' || paymentRaw === 'CUENTA_CORRIENTE') {
+          paymentCode = 'CTA_CTE';
+        }
+        let paymentMethodDb = 'EFECTIVO';
+        if (paymentCode === 'TRANSFER') paymentMethodDb = 'TRANSFERENCIA';
+        if (paymentCode === 'FLETERO') paymentMethodDb = 'FLETERO';
 
-      // 6) Crear orden con todos los campos
-      const insOrder = await client.query(
-        `INSERT INTO Orders(user_id, client_id, seller_user_id, order_date, status, total_amount,
-                            buyer_name, buyer_lastname, buyer_dni, buyer_email, buyer_phone)
-         VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4, $5, $6, $7, $8, $9, $10)
-         RETURNING id`,
-        [
-          userId,
-          clientId,
-          sellerUserId,
-          'PAID',
-          total,
-          buyerName,
-          buyerLastname || null,
-          buyerDni || null,
-          buyerEmail || null,
-          buyerPhone || null,
-        ]
-      );
-      const orderId = insOrder.rows[0].id;
-      if (buyerCode) await client.query('UPDATE Orders SET buyer_code = $1 WHERE id = $2', [buyerCode, orderId]);
+        let paymentCondition = 'CONTADO';
+        if (typeof paymentConditionRaw === 'string') {
+          const pc = paymentConditionRaw.toUpperCase();
+          if (pc === 'CTA_CTE' || pc === 'CTA-CTE' || pc === 'CUENTA_CORRIENTE') {
+            paymentCondition = 'CTA_CTE';
+          }
+        } else if (paymentCode === 'CTA_CTE') {
+          paymentCondition = 'CTA_CTE';
+        }
 
-      // 6.1) Registrar pago asociado a la orden
-      try {
-        await client.query(
-          `INSERT INTO Payments(order_id, amount, payment_method, status)
-           VALUES ($1, $2, $3, $4)`,
-          [orderId, total, paymentMethodDb, 'CONFIRMED']
+        let dueDateValue = null;
+        if (dueDateRaw) {
+          const d = new Date(dueDateRaw);
+          if (!isNaN(d.getTime())) {
+            dueDateValue = d;
+          }
+        }
+        if (paymentCondition === 'CTA_CTE' && !dueDateValue) {
+          const d = new Date();
+          d.setDate(d.getDate() + 30);
+          dueDateValue = d;
+        }
+
+        let paidAmount = 0;
+        let balance = 0;
+        if (paymentCondition === 'CONTADO') {
+          paidAmount = total;
+          balance = 0;
+        } else {
+          paidAmount = 0;
+          balance = total;
+        }
+
+        // 6) Crear orden con todos los campos
+        const insOrder = await client.query(
+          `INSERT INTO Orders(user_id, client_id, seller_user_id, order_date, status, total_amount,
+                              buyer_name, buyer_lastname, buyer_dni, buyer_email, buyer_phone,
+                              payment_condition, due_date, paid_amount, balance)
+           VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+           RETURNING id`,
+          [
+            userId,
+            clientId,
+            sellerUserId,
+            'PAID',
+            total,
+            buyerName,
+            buyerLastname || null,
+            buyerDni || null,
+            buyerEmail || null,
+            buyerPhone || null,
+            paymentCondition,
+            dueDateValue || null,
+            paidAmount,
+            balance,
+          ]
         );
-      } catch (err) {
-        console.error('Error registrando pago para la orden', orderId, err && err.message ? err.message : err);
-      }
+        const orderId = insOrder.rows[0].id;
+        if (buyerCode) await client.query('UPDATE Orders SET buyer_code = $1 WHERE id = $2', [buyerCode, orderId]);
+  
+        // 6.1) Registrar pago asociado a la orden (solo para CONTADO).
+        // Usa la conexión global para no afectar la transacción principal si falla.
+        if (paymentCondition === 'CONTADO') {
+          try {
+            await query(
+              `INSERT INTO Payments(order_id, amount, payment_method, status)
+               VALUES ($1, $2, $3, $4)`,
+              [orderId, total, paymentMethodDb, 'CONFIRMED']
+            );
+          } catch (err) {
+            console.error('Error registrando pago para la orden (tabla Payments)', {
+              orderId,
+              error: err,
+            });
+          }
+        }
 
       // 7) Insertar items + movimientos
       for (const item of items) {
@@ -247,12 +296,19 @@ async function createOrderUnified(req, res) {
           [orderId, item.productId, item.quantity, unitPrice]
         );
         try {
-          await client.query(
+          // Registrar también en tabla de movimientos legacy, usando conexión global
+          await query(
             `INSERT INTO movimientos(tipo, producto_id, cantidad, precio_unitario, usuario, nota)
              VALUES ('venta', $1, $2, $3, $4, $5)`,
             [item.productId, item.quantity, p.price, (req.user && req.user.email) || null, `order:${orderId}`]
           );
-        } catch (_) {}
+        } catch (err) {
+          console.error('Error insertando en movimientos (venta)', {
+            orderId,
+            productId: item.productId,
+            error: err,
+          });
+        }
       }
 
       // 8) Asignar número de orden
@@ -260,12 +316,37 @@ async function createOrderUnified(req, res) {
       const orderNumber = `ORD-${ymd}-${orderId}`;
       await client.query('UPDATE Orders SET order_number = $1 WHERE id = $2', [orderNumber, orderId]);
 
+      // 9) Si es cuenta corriente, registrar movimiento de DEBITO en la cuenta del cliente.
+      // Se hace fuera de la transacción principal para no abortar el checkout si la tabla no existe.
+      if (paymentCondition === 'CTA_CTE') {
+        try {
+          await query(
+            `INSERT INTO ClientAccountMovements(client_id, order_id, movement_date, movement_type, amount, description, created_by)
+             VALUES ($1, $2, CURRENT_TIMESTAMP, 'DEBITO', $3, $4, $5)`,
+            [
+              clientId,
+              orderId,
+              total,
+              `Orden ${orderNumber} a cuenta corriente`,
+              userId || null,
+            ]
+          );
+        } catch (err) {
+          console.error(
+            'Error registrando movimiento de cuenta corriente para la orden',
+            orderId,
+            err && err.message ? err.message : err
+          );
+        }
+      }
+
       return { orderId, orderNumber, buyerCode };
     });
 
     res.status(201).json(result);
   } catch (err) {
-    console.error('Checkout unificado error:', err.message);
+    // Log detallado para entender errores de BD / transacción
+    console.error('Checkout unificado error (objeto completo):', err);
     if (err && err.statusCode) {
       return res.status(err.statusCode).json({ error: err.message });
     }

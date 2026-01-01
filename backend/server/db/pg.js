@@ -54,6 +54,8 @@ async function withTransaction(fn) {
     await client.query('COMMIT');
     return result;
   } catch (err) {
+    // Log centralizado de errores en transacciones (incluye errores de SQL)
+    console.error('withTransaction error:', err);
     await client.query('ROLLBACK');
     throw err;
   } finally {
