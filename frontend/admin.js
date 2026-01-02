@@ -108,6 +108,10 @@ const ROUTES = {
   clients: (qs = '') => `${API_BASE}/clients${qs ? ('?' + qs) : ''}`,
   client: (id) => `${API_BASE}/clients/${encodeURIComponent(id)}`,
   clientUser: (id) => `${API_BASE}/clients/${encodeURIComponent(id)}/user`,
+  clientAccount: (id, qs = '') => `${API_BASE}/clients/${encodeURIComponent(id)}/account${qs ? ('?' + qs) : ''}`,
+  clientAccountPayments: (id) => `${API_BASE}/clients/${encodeURIComponent(id)}/account/payments`,
+  clientAccount: (id, qs = '') => `${API_BASE}/clients/${encodeURIComponent(id)}/account${qs ? ('?' + qs) : ''}`,
+  clientAccountPayments: (id) => `${API_BASE}/clients/${encodeURIComponent(id)}/account/payments`,
   // ABM Usuarios
   users: (qs = '') => `${API_BASE}/users${qs ? ('?' + qs) : ''}`,
   user: (id) => `${API_BASE}/users/${encodeURIComponent(id)}`,
@@ -3076,6 +3080,20 @@ financeRefreshBtn?.addEventListener('click', (e) => {
   loadFinanceDashboard();
 });
 
+// Delegación de clicks en la tabla de cuenta corriente (Finanzas)
+document.getElementById('financeReceivablesTableContainer')?.addEventListener('click', (e) => {
+  const btn = e.target && e.target.closest ? e.target.closest('.finance-view-account') : null;
+  if (!btn) return;
+  e.preventDefault();
+  const clientIdRaw = btn.getAttribute('data-client-id') || '';
+  const clientId = Number(clientIdRaw);
+  if (!Number.isInteger(clientId) || clientId <= 0) {
+    showMessageBox('Cliente inválido para ver cuenta corriente', 'error');
+    return;
+  }
+  openClientAccountModal(clientId);
+});
+
 function setFinanceRange(fromDate, toDate) {
   const toLocalDateInputValue = (d) => {
     const year = d.getFullYear();
@@ -3108,12 +3126,291 @@ financeWeekBtn?.addEventListener('click', (e) => {
   setFinanceRange(from, today);
 });
 
-financeMonthBtn?.addEventListener('click', (e) => {
-  e.preventDefault();
-  const today = new Date();
-  const from = new Date(today.getFullYear(), today.getMonth(), 1);
-  setFinanceRange(from, today);
-});
+  financeMonthBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const today = new Date();
+    const from = new Date(today.getFullYear(), today.getMonth(), 1);
+    setFinanceRange(from, today);
+  });
+
+  async function openClientAccountModal(clientId) {
+    try {
+      const resp = await fetchWithAuth(ROUTES.clientAccount(clientId));
+      if (!resp || !resp.ok) {
+        const tx = await resp.text().catch(() => '');
+        console.error('client account fetch', resp && resp.status, tx);
+        showMessageBox('No se pudo obtener la cuenta corriente del cliente', 'error');
+        return;
+      }
+      const data = await resp.json().catch(() => ({}));
+      renderClientAccountModal(data);
+    } catch (err) {
+      console.error('openClientAccountModal error', err);
+      showMessageBox('Error al cargar la cuenta corriente del cliente', 'error');
+    }
+  }
+
+  function renderClientAccountModal(data) {
+    const client = data && data.client ? data.client : {};
+    const summary = data && data.summary ? data.summary : {};
+    const openOrders = Array.isArray(data && data.openOrders) ? data.openOrders : [];
+    const movements = Array.isArray(data && data.movements) ? data.movements : [];
+
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4';
+
+    const content = document.createElement('div');
+    content.className = 'bg-slate-900 border border-slate-700 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl';
+
+    const title = `${client.name || ''}${client.code ? ' (' + client.code + ')' : ''}`.trim() || 'Cliente';
+    const totalOpen = Number(summary.totalOpen || 0);
+    const totalOverdue = Number(summary.totalOverdue || 0);
+    const openOrdersCount = Number(summary.openOrdersCount || 0);
+    const creditLimit = client.creditLimit != null ? Number(client.creditLimit) : null;
+
+    const openOrdersRows = openOrders.map((o) => {
+      const saldo = Number(o.balance || 0);
+      const total = Number(o.total_amount || 0);
+      const daysOverdue = Number(o.days_overdue || 0);
+      const status = String(o.status || '').toUpperCase();
+      const due = o.due_date ? new Date(o.due_date).toLocaleDateString() : '-';
+      const date = o.order_date ? new Date(o.order_date).toLocaleDateString() : '-';
+      return `
+        <tr class="divide-x divide-slate-700 hover:bg-slate-800/60">
+          <td class="px-2 py-1 text-xs text-gray-200 font-mono">${o.order_number || o.id}</td>
+          <td class="px-2 py-1 text-xs text-gray-300">${date}</td>
+          <td class="px-2 py-1 text-xs ${daysOverdue > 0 ? 'text-red-300' : 'text-gray-300'}">${due}</td>
+          <td class="px-2 py-1 text-xs text-right text-gray-200">${currency(total)}</td>
+          <td class="px-2 py-1 text-xs text-right text-emerald-200">${currency(saldo)}</td>
+          <td class="px-2 py-1 text-xs text-right ${daysOverdue > 0 ? 'text-red-300' : 'text-gray-400'}">${daysOverdue || ''}</td>
+          <td class="px-2 py-1 text-[10px] text-right text-gray-400">${status}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const movementsRows = movements.map((m) => {
+      const date = m.expenseDate || m.movement_date || m.movementDate;
+      const d = date ? new Date(date).toLocaleString() : '-';
+      const type = String(m.movement_type || m.movementType || '').toUpperCase();
+      const amount = Number(m.amount || 0);
+      const desc = m.description || '';
+      const orderId = m.order_id || m.orderId;
+      return `
+        <tr class="divide-x divide-slate-700">
+          <td class="px-2 py-1 text-[11px] text-gray-300">${d}</td>
+          <td class="px-2 py-1 text-[11px] ${type === 'DEBITO' ? 'text-red-300' : (type === 'CREDITO' ? 'text-emerald-300' : 'text-gray-300')}">${type || '-'}</td>
+          <td class="px-2 py-1 text-[11px] text-right ${type === 'DEBITO' ? 'text-red-300' : 'text-emerald-300'}">${currency(amount)}</td>
+          <td class="px-2 py-1 text-[11px] text-gray-400">${escapeHtml(desc)}</td>
+          <td class="px-2 py-1 text-[11px] text-gray-400 text-right">${orderId || ''}</td>
+        </tr>
+      `;
+    }).join('') || `
+      <tr>
+        <td colspan="5" class="px-2 py-2 text-center text-xs text-gray-500">Sin movimientos registrados.</td>
+      </tr>
+    `;
+
+    const openOrdersTable = openOrders.length
+      ? `
+      <div class="mb-4">
+        <h3 class="text-sm font-semibold text-gray-100 mb-2">Órdenes abiertas (CTA CTE)</h3>
+        <div class="rounded-lg border border-slate-700 bg-slate-900/60 max-h-56 overflow-auto">
+          <table class="min-w-full text-xs">
+            <thead class="bg-slate-800/80 text-gray-300">
+              <tr>
+                <th class="px-2 py-1 text-left">Orden</th>
+                <th class="px-2 py-1 text-left">Fecha</th>
+                <th class="px-2 py-1 text-left">Vencimiento</th>
+                <th class="px-2 py-1 text-right">Total</th>
+                <th class="px-2 py-1 text-right">Saldo</th>
+                <th class="px-2 py-1 text-right">Días atraso</th>
+                <th class="px-2 py-1 text-right">Estado</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700">
+              ${openOrdersRows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `
+      : `<p class="text-xs text-gray-400 mb-4">No hay órdenes abiertas en cuenta corriente para este cliente.</p>`;
+
+    const creditInfo = creditLimit && creditLimit > 0
+      ? `<div class="text-xs text-gray-300">Límite de crédito: <span class="font-semibold text-emerald-200">${currency(creditLimit)}</span></div>`
+      : `<div class="text-xs text-gray-500">Sin límite de crédito configurado.</div>`;
+
+    content.innerHTML = `
+      <div class="p-4 border-b border-slate-700 flex items-center justify-between sticky top-0 bg-slate-900/95 z-10">
+        <div>
+          <h2 class="text-lg font-semibold text-white">Cuenta corriente - ${escapeHtml(title)}</h2>
+          <div class="text-xs text-gray-400">${escapeHtml(client.tax_id || '')}</div>
+        </div>
+        <button class="px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-xs font-semibold" data-cc-close>
+          Cerrar
+        </button>
+      </div>
+      <div class="p-4 space-y-4">
+        <div class="grid md:grid-cols-4 gap-3">
+          <div class="rounded-lg border border-emerald-500/60 bg-emerald-900/20 p-3">
+            <div class="text-[11px] text-emerald-200 uppercase tracking-wide">Saldo total</div>
+            <div class="text-xl font-bold text-emerald-300">${currency(totalOpen)}</div>
+          </div>
+          <div class="rounded-lg border border-red-500/60 bg-red-900/10 p-3">
+            <div class="text-[11px] text-red-200 uppercase tracking-wide">Saldo vencido</div>
+            <div class="text-lg font-semibold text-red-300">${currency(totalOverdue)}</div>
+          </div>
+          <div class="rounded-lg border border-slate-600 bg-slate-900/60 p-3">
+            <div class="text-[11px] text-gray-300 uppercase tracking-wide">Órdenes abiertas</div>
+            <div class="text-lg font-semibold text-gray-100">${openOrdersCount}</div>
+          </div>
+          <div class="rounded-lg border border-slate-600 bg-slate-900/60 p-3">
+            ${creditInfo}
+          </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <div>
+            ${openOrdersTable}
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-gray-100 mb-2">Registrar pago</h3>
+            <form id="clientAccountPaymentForm" class="space-y-2">
+              <input type="hidden" id="ccPaymentClientId" value="${client.id || ''}">
+              <div>
+                <label class="block text-xs text-gray-300 mb-1">Orden</label>
+                <select id="ccPaymentOrderId" class="input-field text-xs py-2">
+                  ${openOrders.length
+                    ? openOrders.map(o => `<option value="${o.id}">${o.order_number || o.id} - Saldo ${currency(o.balance || 0)}</option>`).join('')
+                    : '<option value="">Sin órdenes abiertas</option>'}
+                </select>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-xs text-gray-300 mb-1">Monto</label>
+                  <input id="ccPaymentAmount" type="number" step="0.01" min="0" class="input-field text-xs py-2" placeholder="0.00">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-300 mb-1">Fecha</label>
+                  <input id="ccPaymentDate" type="date" class="input-field text-xs py-2">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-300 mb-1">Medio de pago</label>
+                <select id="ccPaymentMethod" class="input-field text-xs py-2">
+                  <option value="CASH">Efectivo</option>
+                  <option value="TRANSFER">Transferencia</option>
+                  <option value="FLETERO">Fletero</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-300 mb-1">Descripción</label>
+                <input id="ccPaymentDescription" type="text" class="input-field text-xs py-2" placeholder="Opcional">
+              </div>
+              <div class="flex justify-end gap-2 pt-2">
+                <button type="submit" class="action-button bg-emerald-600 hover:bg-emerald-700 text-xs">
+                  Registrar pago
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-sm font-semibold text-gray-100 mb-2">Movimientos de cuenta</h3>
+          <div class="rounded-lg border border-slate-700 bg-slate-900/60 max-h-56 overflow-auto">
+            <table class="min-w-full text-[11px]">
+              <thead class="bg-slate-800/80 text-gray-300">
+                <tr>
+                  <th class="px-2 py-1 text-left">Fecha</th>
+                  <th class="px-2 py-1 text-left">Tipo</th>
+                  <th class="px-2 py-1 text-right">Monto</th>
+                  <th class="px-2 py-1 text-left">Descripción</th>
+                  <th class="px-2 py-1 text-right">Orden</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-700">
+                ${movementsRows}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+
+    const close = () => {
+      try { overlay.remove(); } catch {}
+    };
+    content.querySelector('[data-cc-close]')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      close();
+    });
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close();
+    });
+
+    const form = content.querySelector('#clientAccountPaymentForm');
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          const clientIdVal = Number(content.querySelector('#ccPaymentClientId')?.value || 0);
+          const orderIdVal = Number(content.querySelector('#ccPaymentOrderId')?.value || 0);
+          const amountRaw = content.querySelector('#ccPaymentAmount')?.value || '';
+          const amount = Number(amountRaw);
+          const dateVal = content.querySelector('#ccPaymentDate')?.value || '';
+          const methodVal = content.querySelector('#ccPaymentMethod')?.value || 'CASH';
+          const descVal = content.querySelector('#ccPaymentDescription')?.value || '';
+
+          if (!Number.isInteger(clientIdVal) || clientIdVal <= 0) {
+            showMessageBox('Cliente inválido para registrar pago', 'error');
+            return;
+          }
+          if (!Number.isInteger(orderIdVal) || orderIdVal <= 0) {
+            showMessageBox('Selecciona una orden válida para aplicar el pago', 'warning');
+            return;
+          }
+          if (!Number.isFinite(amount) || amount <= 0) {
+            showMessageBox('Ingresa un monto válido', 'warning');
+            return;
+          }
+
+          const payload = {
+            orderId: orderIdVal,
+            amount,
+            paymentMethod: methodVal,
+          };
+          if (dateVal) payload.date = dateVal;
+          if (descVal) payload.description = descVal;
+
+          const respPay = await fetchWithAuth(ROUTES.clientAccountPayments(clientIdVal), {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          if (!respPay || !respPay.ok) {
+            let msg = 'No se pudo registrar el pago';
+            try {
+              const errData = await respPay.json();
+              if (errData && errData.error) msg = errData.error;
+            } catch {}
+            showMessageBox(msg, 'error');
+            return;
+          }
+
+          showMessageBox('Pago registrado correctamente', 'success');
+          try { await openClientAccountModal(clientIdVal); } catch {}
+          try { await loadFinanceDashboard(); } catch {}
+          close();
+        } catch (err) {
+          console.error('clientAccountPayment submit error', err);
+          showMessageBox('Error al registrar el pago', 'error');
+        }
+      });
+    }
+  }
 
 function ensureFinanceExpensesUi(){
   const section = document.getElementById('finance');
@@ -3372,6 +3669,48 @@ document.getElementById('ordersList')?.addEventListener('click', (e) => {
     const id = deleteBtn.getAttribute('data-order-id');
     if (!id) return;
     deleteOrderFromPanelServer(id);
+    return;
+  }
+  const accountBtn = e.target.closest?.('.order-account');
+  if (accountBtn) {
+    const clientIdRaw = accountBtn.getAttribute('data-client-id') || '';
+    const clientId = Number(clientIdRaw);
+    if (!Number.isInteger(clientId) || clientId <= 0) {
+      showMessageBox('Cliente inválido para ver cuenta corriente', 'error');
+      return;
+    }
+    try { openClientAccountModal(clientId); } catch (err) { console.error('order-account click error', err); }
+  }
+});
+
+document.getElementById('ordersList')?.addEventListener('change', async (e) => {
+  const target = e.target;
+  if (!target || !(target instanceof HTMLSelectElement)) return;
+  if (!target.matches('.order-payment-condition')) return;
+  const orderId = target.getAttribute('data-order-id') || '';
+  const value = target.value || '';
+  if (!orderId || !value) return;
+  const normalized = value === 'CTA_CTE' ? 'CTA_CTE' : 'CONTADO';
+  try {
+    const resp = await fetchWithAuth(`${API_BASE}/pedidos/${encodeURIComponent(orderId)}/payment`, {
+      method: 'PATCH',
+      body: JSON.stringify({ paymentCondition: normalized }),
+    });
+    if (!resp || !resp.ok) {
+      let msg = 'No se pudo actualizar la condición de pago';
+      try {
+        const data = await resp.json();
+        if (data && data.error) msg = data.error;
+      } catch {}
+      showMessageBox(msg, 'error');
+      return;
+    }
+    showMessageBox('Condición de pago actualizada', 'success');
+    try { await loadOrdersAdminServer2(); } catch {}
+    try { await loadFinanceDashboard(); } catch {}
+  } catch (err) {
+    console.error('order-payment-condition change error', err);
+    showMessageBox('Error al actualizar la condición de pago', 'error');
   }
 });
 
@@ -3578,6 +3917,15 @@ function renderOrdersList(orders){
 }
 
 function renderOrderCard2(order){
+  const paymentConditionRaw = (order.paymentCondition || '').toString().toUpperCase();
+  const isCuentaCorriente = paymentConditionRaw === 'CTA_CTE';
+  const balance = Number(order.balance != null ? order.balance : 0) || 0;
+  const paidAmount = Number(order.paidAmount != null ? order.paidAmount : 0) || 0;
+  const dueDateText = order.dueDate ? new Date(order.dueDate).toLocaleDateString() : '';
+  const hasBalance = isCuentaCorriente && balance > 0.0001;
+  const today = new Date();
+  const isOverdue = hasBalance && order.dueDate && !isNaN(new Date(order.dueDate).getTime()) && new Date(order.dueDate) < today;
+
   const itemsHtml = (order.items || []).map((it) => {
     const qty = Number(it.qty != null ? it.qty : it.quantity || 0);
     const unit = Number(it.unit_price != null ? it.unit_price : it.price || 0);
@@ -3593,17 +3941,37 @@ function renderOrderCard2(order){
   const pdfHref = `${API_BASE}/pedidos/${encodeURIComponent(order.id)}/pdf`;
   const delivered = String(order.status || 'pending') === 'delivered';
   const canDeliver = hasPerm('ventas.write');
+  const canChangeCondition = hasPerm('ventas.write');
+  const paymentConditionLabel = isCuentaCorriente ? 'Cuenta Corriente' : 'Contado';
+  const statusBadge = String(order.status || '').toUpperCase();
+  const ccInfo = isCuentaCorriente
+    ? `<div class="mt-1 text-xs ${isOverdue ? 'text-red-300' : 'text-emerald-200'}">
+         ${hasBalance ? `Saldo pendiente: ${currency(balance)}` : 'Sin saldo pendiente'}
+         ${dueDateText ? `<span class="ml-2 text-[11px] text-gray-300">Vence: ${dueDateText}${isOverdue ? ' (vencido)' : ''}</span>` : ''}
+       </div>`
+    : '';
+  const canViewAccount = isCuentaCorriente && Number.isInteger(order.clientId) && order.clientId > 0;
   return `
       <div class="rounded-xl border border-white/10 bg-white/5 p-4 shadow">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-gray-400">N de pedido</div>
             <div class="font-semibold text-blue-200">${order.orderNumber || order.id}</div>
+            <div class="mt-1 text-xs inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-white/15 bg-white/5 text-gray-100">
+              <span class="opacity-70">Condición:</span>
+              <span class="${isCuentaCorriente ? 'text-emerald-300' : 'text-gray-200'}">${paymentConditionLabel}</span>
+            </div>
           </div>
           <div class="text-right">
             <div class="text-sm text-gray-400">Total</div>
             <div class="font-semibold">${currency(order.total || 0)}</div>
-            <div class="mt-1 text-xs text-gray-400">Estado: <span class="inline-block rounded px-2 py-0.5 border border-white/10">${String(order.status || '').toUpperCase()}</span></div>
+            <div class="mt-1 text-xs text-gray-400">Estado: <span class="inline-block rounded px-2 py-0.5 border border-white/10">${statusBadge}</span></div>
+            ${isCuentaCorriente && (hasBalance || paidAmount)
+              ? `<div class="mt-1 text-[11px] text-gray-300">
+                   <span>Pagado: ${currency(paidAmount)}</span>
+                 </div>`
+              : ''}
+            ${ccInfo}
           </div>
         </div>
         <div class="mt-3 grid md:grid-cols-2 gap-3">
@@ -3625,6 +3993,18 @@ function renderOrderCard2(order){
           <div class="flex items-center gap-3">
             <a class="px-3 py-2 rounded-lg border border-white/20 text-white/90 hover:bg-white/10" href="${pdfHref}" target="_blank" rel="noopener">Ver CR</a>
             <div class="text-sm text-gray-400">Entregado?</div>
+            ${canViewAccount
+              ? `<button type="button" class="order-account px-3 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-xs text-white font-semibold" data-client-id="${order.clientId}">
+                   Cuenta corriente
+                 </button>`
+              : ''}
+            ${canChangeCondition
+              ? `<select class="order-payment-condition text-xs bg-slate-800 border border-white/20 rounded px-2 py-1 text-gray-100"
+                          data-order-id="${order.id}">
+                   <option value="CONTADO" ${!isCuentaCorriente ? 'selected' : ''}>Contado</option>
+                   <option value="CTA_CTE" ${isCuentaCorriente ? 'selected' : ''}>Cuenta corriente</option>
+                 </select>`
+              : ''}
           </div>
           ${canDeliver ? `<button class="mark-delivered px-3 py-2 rounded-lg ${delivered ? 'bg-green-700 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold" data-order-id="${order.id}" ${delivered ? 'disabled' : ''}>${delivered ? 'Entregado' : 'Marcar como entregado'}</button>` : ''}
         </div>
@@ -3662,6 +4042,11 @@ async function loadOrdersAdminServer2(){
         total,
         status: String(r.status || 'PENDING').toLowerCase(),
         createdAt,
+        paymentCondition: r.payment_condition || r.paymentCondition || null,
+        dueDate: r.due_date || r.dueDate || null,
+        paidAmount: (r.paid_amount != null ? Number(r.paid_amount) : (r.paidAmount != null ? Number(r.paidAmount) : 0)) || 0,
+        balance: (r.balance != null ? Number(r.balance) : 0) || 0,
+        clientId: r.client_id != null ? Number(r.client_id) : (r.clientId != null ? Number(r.clientId) : null),
         buyer: {
           nombre: r.buyer_name || '',
           apellido: r.buyer_lastname || '',
