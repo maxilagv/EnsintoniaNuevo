@@ -793,7 +793,14 @@ async function loadManualOrderClients(){
   const prev = manualOrderClientSelect.value;
   try {
     const resp = await fetchWithAuth(ROUTES.clients('size=100'));
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    if (!resp.ok) {
+      let msg = `HTTP ${resp.status}`;
+      try {
+        const data = await resp.json();
+        if (data && data.error) msg = data.error;
+      } catch {}
+      throw new Error(msg);
+    }
     const rows = await resp.json();
     const clients = Array.isArray(rows) ? rows : [];
     manualOrderClientSelect.innerHTML = '<option value="">-- Seleccionar cliente --</option>';
@@ -813,6 +820,7 @@ async function loadManualOrderClients(){
     }
   } catch (err) {
     console.error('loadManualOrderClients', err);
+    showMessageBox('No se pudieron cargar los clientes para venta manual', 'error');
   }
 }
 

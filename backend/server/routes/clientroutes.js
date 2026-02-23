@@ -8,10 +8,10 @@ const clientUsers = require('../controllers/clientusercontroller');
 
 // ABM Clientes
 router.post('/clients', auth, requireAnyPermission(['clientes.write', 'ventas.write']), clients.createClient);
-router.get('/clients', auth, requireAnyPermission(['clientes.read', 'ventas.read']), clients.listClients);
-router.get('/clients/:id', auth, requireAnyPermission(['clientes.read', 'ventas.read']), clients.getClient);
+router.get('/clients', auth, requireAnyPermission(['clientes.read', 'ventas.read', 'ventas.write']), clients.listClients);
+router.get('/clients/:id', auth, requireAnyPermission(['clientes.read', 'ventas.read', 'ventas.write']), clients.getClient);
 router.patch('/clients/:id/status', auth, requirePermission('clientes.write'), clients.toggleClientStatus);
-router.get('/clients/:id/orders', auth, requireAnyPermission(['clientes.read', 'ventas.read']), clients.getClientOrdersSummary);
+router.get('/clients/:id/orders', auth, requireAnyPermission(['clientes.read', 'ventas.read', 'ventas.write']), clients.getClientOrdersSummary);
 router.get('/clients/:id/account', auth, requirePermission('clientes.read'), clients.getClientAccountSummary);
 router.post('/clients/:id/account/payments', auth, requirePermission('clientes.write'), clients.registerClientAccountPayment);
 router.put('/clients/:id', auth, requirePermission('clientes.write'), clients.updateClient);
