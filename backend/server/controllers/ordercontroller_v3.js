@@ -354,6 +354,324 @@ async function createOrderUnified(req, res) {
   }
 }
 
+async function createManualOrder(req, res) {
+  const body = req.body || {};
+  const buyer = body.buyer && typeof body.buyer === 'object' ? body.buyer : {};
+  const itemsInput = Array.isArray(body.items) ? body.items : [];
+  const paymentMethodRaw = body.paymentMethod || body.payment_method;
+  const paymentConditionRaw = body.paymentCondition || body.payment_condition;
+  const dueDateRaw = body.dueDate || body.due_date;
+  const sellerUserIdRaw = body.sellerUserId != null ? body.sellerUserId : body.seller_user_id;
+  const clientIdRaw = body.clientId != null ? body.clientId : body.client_id;
+
+  const emailToken = req.user && req.user.email ? String(req.user.email).trim().toLowerCase() : null;
+  if (!emailToken) return res.status(401).json({ error: 'No autenticado' });
+
+  const clientId = Number(clientIdRaw);
+  if (!Number.isInteger(clientId) || clientId <= 0) {
+    return res.status(400).json({ error: 'clientId inválido' });
+  }
+
+  if (!itemsInput.length) {
+    return res.status(400).json({ error: 'Debe enviar items' });
+  }
+
+  const groupedItems = new Map();
+  for (const rawItem of itemsInput) {
+    const productId = Number(rawItem && (rawItem.productId != null ? rawItem.productId : rawItem.product_id));
+    const quantity = Number(rawItem && rawItem.quantity);
+    if (!Number.isInteger(productId) || productId <= 0) {
+      return res.status(400).json({ error: 'productId inválido' });
+    }
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      return res.status(400).json({ error: 'quantity inválido' });
+    }
+    groupedItems.set(productId, (groupedItems.get(productId) || 0) + quantity);
+  }
+  const items = Array.from(groupedItems.entries()).map(([productId, quantity]) => ({ productId, quantity }));
+
+  let operatorUserId = null;
+  try {
+    const { rows: users } = await query(
+      `SELECT id
+         FROM Users
+        WHERE LOWER(email) = $1
+          AND deleted_at IS NULL
+        LIMIT 1`,
+      [emailToken]
+    );
+    if (!users.length) {
+      return res.status(403).json({ error: 'Usuario no registrado en el sistema' });
+    }
+    operatorUserId = users[0].id;
+  } catch (err) {
+    console.error('Error buscando usuario autenticado para venta manual:', err.message);
+    return res.status(500).json({ error: 'No se pudo validar el usuario' });
+  }
+
+  let clientInfo = null;
+  try {
+    const { rows: clients } = await query(
+      `SELECT id, code, name, fantasy_name, tax_id, email, phone, status
+         FROM Clients
+        WHERE id = $1
+          AND deleted_at IS NULL
+        LIMIT 1`,
+      [clientId]
+    );
+    if (!clients.length) {
+      return res.status(404).json({ error: 'Cliente no encontrado o eliminado' });
+    }
+    clientInfo = clients[0];
+    const status = String(clientInfo.status || '').toUpperCase();
+    if (status !== 'ACTIVE') {
+      return res.status(400).json({ error: 'El cliente debe estar activo para registrar la venta' });
+    }
+  } catch (err) {
+    console.error('Error validando cliente para venta manual:', err.message);
+    return res.status(500).json({ error: 'No se pudo validar el cliente' });
+  }
+
+  let sellerUserId = operatorUserId;
+  if (sellerUserIdRaw != null && String(sellerUserIdRaw).trim() !== '') {
+    const sid = Number(sellerUserIdRaw);
+    if (!Number.isInteger(sid) || sid <= 0) {
+      return res.status(400).json({ error: 'sellerUserId inválido' });
+    }
+    try {
+      const { rows: sellerRows } = await query(
+        `SELECT id, status, deleted_at
+           FROM Users
+          WHERE id = $1
+          LIMIT 1`,
+        [sid]
+      );
+      if (!sellerRows.length || sellerRows[0].deleted_at) {
+        return res.status(400).json({ error: 'Vendedor no encontrado' });
+      }
+      if (String(sellerRows[0].status || '').toUpperCase() !== 'ACTIVE') {
+        return res.status(400).json({ error: 'El vendedor no está activo' });
+      }
+      sellerUserId = sellerRows[0].id;
+    } catch (err) {
+      console.error('Error validando sellerUserId para venta manual:', err.message);
+      return res.status(500).json({ error: 'No se pudo validar el vendedor' });
+    }
+  }
+
+  try {
+    const result = await withTransaction(async (client) => {
+      const ids = items.map((i) => i.productId);
+      const { rows: products } = await client.query(
+        `SELECT
+           id,
+           name,
+           price::float AS base_price,
+           stock_quantity,
+           discount_percent::float AS discount_percent,
+           discount_start,
+           discount_end,
+           (
+             CASE
+               WHEN discount_percent IS NOT NULL
+                AND (discount_start IS NULL OR discount_start <= NOW())
+                AND (discount_end   IS NULL OR discount_end   >= NOW())
+               THEN ROUND(price * (1 - (discount_percent / 100.0)), 2)
+               ELSE price
+             END
+           )::float AS effective_price
+         FROM Products
+        WHERE id = ANY($1::int[])
+        FOR UPDATE`,
+        [ids]
+      );
+
+      const byId = new Map(products.map((p) => [p.id, p]));
+      let total = 0;
+      for (const item of items) {
+        const p = byId.get(item.productId);
+        if (!p) {
+          const e = new Error(`Producto ${item.productId} inexistente`);
+          e.statusCode = 404;
+          throw e;
+        }
+        if (Number(p.stock_quantity || 0) < item.quantity) {
+          const e = new Error(`Stock insuficiente para producto ${p.name}`);
+          e.statusCode = 409;
+          throw e;
+        }
+        const unitPrice = Number.isFinite(Number(p.effective_price)) ? Number(p.effective_price) : Number(p.base_price);
+        total += unitPrice * item.quantity;
+      }
+
+      for (const item of items) {
+        const qty = Number(item.quantity || 0);
+        if (!qty) continue;
+        await client.query(
+          'SELECT adjust_product_stock($1, $2, $3, $4, $5, $6)',
+          [
+            item.productId,
+            -qty,
+            'salida',
+            'venta manual panel',
+            operatorUserId,
+            req.ip || null,
+          ]
+        );
+      }
+
+      const buyerName = String(buyer.name || clientInfo.name || 'Cliente').trim();
+      const buyerLastname = String(buyer.lastname || clientInfo.fantasy_name || '').trim() || null;
+      const buyerDni = String(buyer.dni || clientInfo.tax_id || '').replace(/\D+/g, '').trim() || null;
+      const buyerEmail = String(buyer.email || clientInfo.email || '').trim().toLowerCase() || null;
+      const buyerPhone = String(buyer.phone || clientInfo.phone || '').trim() || null;
+      const buyerCode = String(buyer.code || clientInfo.code || '').trim().toUpperCase() || null;
+
+      const paymentRaw = typeof paymentMethodRaw === 'string' ? paymentMethodRaw.toUpperCase() : null;
+      let paymentCode = 'CASH';
+      if (paymentRaw === 'TRANSFER') paymentCode = 'TRANSFER';
+      if (paymentRaw === 'FLETERO') paymentCode = 'FLETERO';
+      if (paymentRaw === 'CTA_CTE' || paymentRaw === 'CTA-CTE' || paymentRaw === 'CUENTA_CORRIENTE') {
+        paymentCode = 'CTA_CTE';
+      }
+
+      let paymentMethodDb = 'EFECTIVO';
+      if (paymentCode === 'TRANSFER') paymentMethodDb = 'TRANSFERENCIA';
+      if (paymentCode === 'FLETERO') paymentMethodDb = 'FLETERO';
+
+      let paymentCondition = 'CONTADO';
+      if (typeof paymentConditionRaw === 'string') {
+        const pc = paymentConditionRaw.toUpperCase();
+        if (pc === 'CTA_CTE' || pc === 'CTA-CTE' || pc === 'CUENTA_CORRIENTE') {
+          paymentCondition = 'CTA_CTE';
+        }
+      } else if (paymentCode === 'CTA_CTE') {
+        paymentCondition = 'CTA_CTE';
+      }
+
+      let dueDateValue = null;
+      if (dueDateRaw) {
+        const d = new Date(dueDateRaw);
+        if (!isNaN(d.getTime())) dueDateValue = d;
+      }
+      if (paymentCondition === 'CTA_CTE' && !dueDateValue) {
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        dueDateValue = d;
+      }
+      if (paymentCondition !== 'CTA_CTE') {
+        dueDateValue = null;
+      }
+
+      let paidAmount = 0;
+      let balance = 0;
+      if (paymentCondition === 'CONTADO') {
+        paidAmount = total;
+        balance = 0;
+      } else {
+        paidAmount = 0;
+        balance = total;
+      }
+
+      const insOrder = await client.query(
+        `INSERT INTO Orders(user_id, client_id, seller_user_id, order_date, status, total_amount,
+                            buyer_name, buyer_lastname, buyer_dni, buyer_email, buyer_phone, buyer_code,
+                            payment_condition, due_date, paid_amount, balance)
+         VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+         RETURNING id`,
+        [
+          operatorUserId,
+          clientId,
+          sellerUserId,
+          'PAID',
+          total,
+          buyerName,
+          buyerLastname,
+          buyerDni,
+          buyerEmail,
+          buyerPhone,
+          buyerCode,
+          paymentCondition,
+          dueDateValue,
+          paidAmount,
+          balance,
+        ]
+      );
+      const orderId = insOrder.rows[0].id;
+
+      if (paymentCondition === 'CONTADO') {
+        try {
+          await query(
+            `INSERT INTO Payments(order_id, amount, payment_method, status)
+             VALUES ($1, $2, $3, $4)`,
+            [orderId, total, paymentMethodDb, 'CONFIRMED']
+          );
+        } catch (err) {
+          console.error('Error registrando pago para la venta manual', {
+            orderId,
+            error: err,
+          });
+        }
+      }
+
+      for (const item of items) {
+        const p = byId.get(item.productId);
+        const unitPrice = Number.isFinite(Number(p.effective_price)) ? Number(p.effective_price) : Number(p.base_price);
+        await client.query(
+          `INSERT INTO OrderItems(order_id, product_id, quantity, unit_price)
+           VALUES ($1, $2, $3, $4)`,
+          [orderId, item.productId, item.quantity, unitPrice]
+        );
+        try {
+          await query(
+            `INSERT INTO movimientos(tipo, producto_id, cantidad, precio_unitario, usuario, nota)
+             VALUES ('venta', $1, $2, $3, $4, $5)`,
+            [item.productId, item.quantity, unitPrice, emailToken, `order:${orderId}`]
+          );
+        } catch (err) {
+          console.error('Error insertando movimiento legacy en venta manual', {
+            orderId,
+            productId: item.productId,
+            error: err,
+          });
+        }
+      }
+
+      const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const orderNumber = `ORD-${ymd}-${orderId}`;
+      await client.query('UPDATE Orders SET order_number = $1 WHERE id = $2', [orderNumber, orderId]);
+
+      if (paymentCondition === 'CTA_CTE') {
+        try {
+          await query(
+            `INSERT INTO ClientAccountMovements(client_id, order_id, movement_date, movement_type, amount, description, created_by)
+             VALUES ($1, $2, CURRENT_TIMESTAMP, 'DEBITO', $3, $4, $5)`,
+            [
+              clientId,
+              orderId,
+              total,
+              `Orden ${orderNumber} a cuenta corriente`,
+              operatorUserId,
+            ]
+          );
+        } catch (err) {
+          console.error('Error registrando movimiento de cuenta corriente (manual)', orderId, err && err.message ? err.message : err);
+        }
+      }
+
+      return { orderId, orderNumber, buyerCode };
+    });
+
+    return res.status(201).json({ ...result, manual: true });
+  } catch (err) {
+    console.error('Venta manual error:', err);
+    if (err && err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    return res.status(500).json({ error: 'No se pudo crear la orden manual' });
+  }
+}
+
 async function listOrdersV2(req, res) {
   try {
     const emailRaw = req.user && req.user.email;
@@ -816,6 +1134,7 @@ module.exports = {
   // Checkout
   createOrder: createOrderUnified,
   createOrderV2: createOrderUnified,
+  createManualOrder,
   // Listado y PDF
   listOrdersV2,
   orderPdf,

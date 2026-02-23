@@ -104,6 +104,7 @@ const ROUTES = {
   purchases: () => `${API_BASE}/purchases`,
   purchase: (id) => `${API_BASE}/purchases/${encodeURIComponent(id)}`,
   purchaseStatus: (id) => `${API_BASE}/purchases/${encodeURIComponent(id)}`,
+  manualOrder: () => `${API_BASE}/pedidos/manual`,
   // Clientes
   clients: (qs = '') => `${API_BASE}/clients${qs ? ('?' + qs) : ''}`,
   client: (id) => `${API_BASE}/clients/${encodeURIComponent(id)}`,
@@ -207,6 +208,8 @@ function showSection(sectionId) {
   } else if (sectionId === 'messages') {
     loadContactMessages();
   } else if (sectionId === 'orders') {
+    try { initManualOrderUiOnce(); } catch {}
+    try { loadManualOrderDependencies(); } catch {}
     loadOrdersAdminServer2();
   } else if (sectionId === 'supplierPurchases') {
     loadPurchases();
@@ -334,6 +337,12 @@ const customersTaxIdInput = document.getElementById('customersTaxId');
   const customersTableBody = document.getElementById('customersTableBody');
   const customersDetailBox = document.getElementById('customersDetail');
   const customersDetailContent = document.getElementById('customersDetailContent');
+  const createCustomerForm = document.getElementById('createCustomerForm');
+  const manualOrderForm = document.getElementById('manualOrderForm');
+  const manualOrderItemsWrap = document.getElementById('manualOrderItems');
+  const manualOrderClientSelect = document.getElementById('manualOrderClientId');
+  let manualOrderProductsCache = [];
+  let manualOrderUiBound = false;
   // Reportes de ventas por vendedor (se inicializa lazy desde JS)
   let reportsPeriodEl = document.getElementById('reportsPeriod');
   let reportsDateEl = document.getElementById('reportsDate');
@@ -393,6 +402,7 @@ function initCustomersUiOnce(){
   if (customersTableBody) {
     customersTableBody.addEventListener('click', onCustomersTableClick);
   }
+  createCustomerForm?.addEventListener('submit', onCreateCustomerSubmit);
 }
 
 function readCustomersFilters(){
@@ -408,6 +418,62 @@ function readCustomersFilters(){
   return params.toString();
 }
 
+async function onCreateCustomerSubmit(e){
+  e.preventDefault();
+  try {
+    const name = String(document.getElementById('customerNameCreate')?.value || '').trim();
+    const fantasyName = String(document.getElementById('customerFantasyCreate')?.value || '').trim();
+    const clientType = String(document.getElementById('customerTypeCreate')?.value || 'FISICA').toUpperCase();
+    const taxId = String(document.getElementById('customerTaxIdCreate')?.value || '').replace(/\D+/g, '');
+    const ivaCondition = String(document.getElementById('customerIvaCreate')?.value || '').trim();
+    const email = String(document.getElementById('customerEmailCreate')?.value || '').trim();
+    const phone = String(document.getElementById('customerPhoneCreate')?.value || '').trim();
+
+    if (!name || !taxId || !ivaCondition || !email || !phone) {
+      showMessageBox('Completa los campos obligatorios para crear el cliente', 'warning');
+      return;
+    }
+
+    const payload = {
+      name,
+      fantasyName: fantasyName || null,
+      clientType: clientType === 'JURIDICA' ? 'JURIDICA' : 'FISICA',
+      taxId,
+      ivaCondition,
+      email,
+      phone,
+    };
+
+    const resp = await fetchWithAuth(ROUTES.clients(), {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      let msg = 'No se pudo crear el cliente';
+      try {
+        const dataErr = await resp.json();
+        if (dataErr && dataErr.error) msg = dataErr.error;
+      } catch {}
+      showMessageBox(msg, 'error');
+      return;
+    }
+
+    const data = await resp.json().catch(() => ({}));
+    showMessageBox(`Cliente creado correctamente${data && data.code ? ` (${data.code})` : ''}`, 'success');
+    createCustomerForm?.reset();
+    try {
+      const typeSel = document.getElementById('customerTypeCreate');
+      if (typeSel) typeSel.value = 'FISICA';
+    } catch {}
+    await loadCustomersAdmin();
+    await loadManualOrderClients();
+  } catch (err) {
+    console.error('onCreateCustomerSubmit', err);
+    showMessageBox('No se pudo crear el cliente', 'error');
+  }
+}
+
 async function loadCustomersAdmin(){
   if (!customersTableBody) return;
   try {
@@ -416,6 +482,7 @@ async function loadCustomersAdmin(){
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const rows = await resp.json();
     customersTableBody.innerHTML = '';
+    const canToggleStatus = hasPerm('clientes.write');
     (rows || []).forEach(c => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -432,9 +499,11 @@ async function loadCustomersAdmin(){
         <td class="px-3 py-2 text-center">
           <div class="flex flex-wrap gap-2 justify-center">
             <button class="action-button bg-sky-600 hover:bg-sky-700 text-xs" data-act="detail" data-id="${c.id}">Ver detalle</button>
-            <button class="action-button ${c.status==='ACTIVE'?'bg-red-600 hover:bg-red-700':'bg-green-600 hover:bg-green-700'} text-xs" data-act="toggle" data-id="${c.id}">
-              ${c.status==='ACTIVE' ? 'Desactivar' : 'Activar'}
-            </button>
+            ${canToggleStatus
+              ? `<button class="action-button ${c.status==='ACTIVE'?'bg-red-600 hover:bg-red-700':'bg-green-600 hover:bg-green-700'} text-xs" data-act="toggle" data-id="${c.id}">
+                   ${c.status==='ACTIVE' ? 'Desactivar' : 'Activar'}
+                 </button>`
+              : ''}
             <button class="action-button bg-indigo-600 hover:bg-indigo-700 text-xs" data-act="orders" data-id="${c.id}">Historial</button>
           </div>
         </td>`;
@@ -719,6 +788,213 @@ async function loadCustomerOrders(id){
   }
 }
 
+async function loadManualOrderClients(){
+  if (!manualOrderClientSelect) return;
+  const prev = manualOrderClientSelect.value;
+  try {
+    const resp = await fetchWithAuth(ROUTES.clients('size=100'));
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const rows = await resp.json();
+    const clients = Array.isArray(rows) ? rows : [];
+    manualOrderClientSelect.innerHTML = '<option value="">-- Seleccionar cliente --</option>';
+    clients.forEach((c) => {
+      const id = Number(c.id || 0);
+      if (!Number.isInteger(id) || id <= 0) return;
+      const code = c.code ? String(c.code) : '-';
+      const name = c.name ? String(c.name) : 'Cliente';
+      const tax = c.tax_id ? ` (${c.tax_id})` : '';
+      const opt = document.createElement('option');
+      opt.value = String(id);
+      opt.textContent = `${code} - ${name}${tax}`;
+      manualOrderClientSelect.appendChild(opt);
+    });
+    if (prev && [...manualOrderClientSelect.options].some((o) => o.value === prev)) {
+      manualOrderClientSelect.value = prev;
+    }
+  } catch (err) {
+    console.error('loadManualOrderClients', err);
+  }
+}
+
+function buildManualOrderProductOptions(selectedValue = ''){
+  const first = '<option value="">-- Producto --</option>';
+  const rest = (Array.isArray(manualOrderProductsCache) ? manualOrderProductsCache : []).map((p) => {
+    const selected = String(selectedValue) === String(p.id) ? ' selected' : '';
+    return `<option value="${p.id}"${selected}>${escapeHtml(p.name)} (${currency(p.price)})</option>`;
+  }).join('');
+  return first + rest;
+}
+
+function addManualOrderItemRow(productId = '', quantity = 1){
+  if (!manualOrderItemsWrap) return;
+  const row = document.createElement('div');
+  row.className = 'manual-order-item grid grid-cols-12 gap-2 items-center';
+  row.innerHTML = `
+    <select class="input-field col-span-7" data-manual-order-product required>
+      ${buildManualOrderProductOptions(productId)}
+    </select>
+    <input type="number" min="1" value="${Number.isFinite(Number(quantity)) && Number(quantity) > 0 ? Number(quantity) : 1}" class="input-field col-span-3" data-manual-order-qty required>
+    <button type="button" class="col-span-2 px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-semibold" data-manual-order-remove>Quitar</button>
+  `;
+  manualOrderItemsWrap.appendChild(row);
+}
+
+async function loadManualOrderProducts(){
+  try {
+    const resp = await fetchWithAuth(ROUTES.products());
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const rows = await resp.json();
+    manualOrderProductsCache = (Array.isArray(rows) ? rows : [])
+      .map((p) => ({
+        id: Number(p.id || 0),
+        name: String(p.name || ''),
+        price: Number(p.price || 0) || 0,
+      }))
+      .filter((p) => Number.isInteger(p.id) && p.id > 0 && p.name)
+      .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+
+    if (!manualOrderItemsWrap) return;
+    const selects = manualOrderItemsWrap.querySelectorAll('select[data-manual-order-product]');
+    selects.forEach((sel) => {
+      const prev = sel.value;
+      sel.innerHTML = buildManualOrderProductOptions(prev);
+    });
+  } catch (err) {
+    console.error('loadManualOrderProducts', err);
+  }
+}
+
+function collectManualOrderItems(){
+  const rows = [...(manualOrderItemsWrap?.querySelectorAll('.manual-order-item') || [])];
+  const grouped = new Map();
+  for (const row of rows) {
+    const productId = Number(row.querySelector('[data-manual-order-product]')?.value || 0);
+    const qty = Number(row.querySelector('[data-manual-order-qty]')?.value || 0);
+    if (!Number.isInteger(productId) || productId <= 0) continue;
+    if (!Number.isInteger(qty) || qty <= 0) continue;
+    grouped.set(productId, (grouped.get(productId) || 0) + qty);
+  }
+  return Array.from(grouped.entries()).map(([productId, quantity]) => ({ productId, quantity }));
+}
+
+function onManualPaymentConditionChange(){
+  const cond = String(document.getElementById('manualOrderPaymentCondition')?.value || 'CONTADO').toUpperCase();
+  const due = document.getElementById('manualOrderDueDate');
+  if (!due) return;
+  const isCtaCte = cond === 'CTA_CTE';
+  due.required = isCtaCte;
+  if (!isCtaCte) due.value = '';
+}
+
+async function onManualOrderSubmit(e){
+  e.preventDefault();
+  try {
+    const clientId = Number(manualOrderClientSelect?.value || 0);
+    if (!Number.isInteger(clientId) || clientId <= 0) {
+      showMessageBox('Selecciona un cliente para la venta manual', 'warning');
+      return;
+    }
+
+    const items = collectManualOrderItems();
+    if (!items.length) {
+      showMessageBox('Agrega al menos un item válido', 'warning');
+      return;
+    }
+
+    const paymentCondition = String(document.getElementById('manualOrderPaymentCondition')?.value || 'CONTADO').toUpperCase();
+    const paymentMethod = String(document.getElementById('manualOrderPaymentMethod')?.value || 'CASH').toUpperCase();
+    const dueDate = String(document.getElementById('manualOrderDueDate')?.value || '').trim();
+    const sellerUserIdRaw = String(document.getElementById('manualOrderSellerUserId')?.value || '').trim();
+
+    const buyerName = String(document.getElementById('manualOrderBuyerName')?.value || '').trim();
+    const buyerLastname = String(document.getElementById('manualOrderBuyerLastname')?.value || '').trim();
+    const buyerEmail = String(document.getElementById('manualOrderBuyerEmail')?.value || '').trim();
+    const buyerPhone = String(document.getElementById('manualOrderBuyerPhone')?.value || '').trim();
+
+    const payload = {
+      clientId,
+      items,
+      paymentCondition: paymentCondition === 'CTA_CTE' ? 'CTA_CTE' : 'CONTADO',
+      paymentMethod,
+    };
+    if (paymentCondition === 'CTA_CTE' && dueDate) payload.dueDate = dueDate;
+    if (sellerUserIdRaw) {
+      const sellerUserId = Number(sellerUserIdRaw);
+      if (!Number.isInteger(sellerUserId) || sellerUserId <= 0) {
+        showMessageBox('Vendedor ID inválido', 'warning');
+        return;
+      }
+      payload.sellerUserId = sellerUserId;
+    }
+
+    const buyer = {};
+    if (buyerName) buyer.name = buyerName;
+    if (buyerLastname) buyer.lastname = buyerLastname;
+    if (buyerEmail) buyer.email = buyerEmail;
+    if (buyerPhone) buyer.phone = buyerPhone;
+    if (Object.keys(buyer).length) payload.buyer = buyer;
+
+    const resp = await fetchWithAuth(ROUTES.manualOrder(), {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      let msg = 'No se pudo registrar la venta manual';
+      try {
+        const dataErr = await resp.json();
+        if (dataErr && dataErr.error) msg = dataErr.error;
+      } catch {}
+      showMessageBox(msg, 'error');
+      return;
+    }
+
+    const data = await resp.json().catch(() => ({}));
+    showMessageBox(`Venta manual registrada${data && data.orderNumber ? ` (${data.orderNumber})` : ''}`, 'success');
+    manualOrderForm?.reset();
+    onManualPaymentConditionChange();
+    if (manualOrderItemsWrap) {
+      manualOrderItemsWrap.innerHTML = '';
+      addManualOrderItemRow();
+    }
+    await loadOrdersAdminServer2();
+    try { await loadFinanceDashboard(); } catch {}
+  } catch (err) {
+    console.error('onManualOrderSubmit', err);
+    showMessageBox('No se pudo registrar la venta manual', 'error');
+  }
+}
+
+function initManualOrderUiOnce(){
+  if (manualOrderUiBound) return;
+  manualOrderUiBound = true;
+  document.getElementById('manualOrderAddItem')?.addEventListener('click', () => addManualOrderItemRow());
+  manualOrderItemsWrap?.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest('[data-manual-order-remove]') : null;
+    if (!btn) return;
+    const row = btn.closest('.manual-order-item');
+    if (!row) return;
+    row.remove();
+    if (!manualOrderItemsWrap.querySelector('.manual-order-item')) {
+      addManualOrderItemRow();
+    }
+  });
+  document.getElementById('manualOrderPaymentCondition')?.addEventListener('change', onManualPaymentConditionChange);
+  manualOrderForm?.addEventListener('submit', onManualOrderSubmit);
+}
+
+async function loadManualOrderDependencies(){
+  if (!manualOrderForm) return;
+  await Promise.all([
+    loadManualOrderProducts(),
+    loadManualOrderClients(),
+  ]);
+  if (manualOrderItemsWrap && !manualOrderItemsWrap.querySelector('.manual-order-item')) {
+    addManualOrderItemRow();
+  }
+  onManualPaymentConditionChange();
+}
+
 async function loadProfilesAndRoles(){
   try {
     const rResp = await fetchWithAuth(ROUTES.roles());
@@ -776,7 +1052,7 @@ async function initPermissionsGates(){
     }
   } catch {}
 
-  // Map secciones -> permiso m�nimo de visibilidad
+  // Map secciones -> permiso minimo de visibilidad
   const gates = [
     { section: 'createCategory', perm: 'logistica.read' },
     { section: 'editCategory', perm: 'logistica.read' },
@@ -785,8 +1061,7 @@ async function initPermissionsGates(){
     { section: 'manageStock', perm: 'logistica.read' },
     { section: 'orders', perm: 'ventas.read' },
     { section: 'supplierPurchases', perm: 'compras.read' },
-    // Clientes: por ahora se controla con administracion.read hasta que definamos permisos clientes.*
-    { section: 'customers', perm: 'administracion.read' },
+    { section: 'customers', perm: 'clientes.read' },
     { section: 'finance', perm: 'administracion.read' },
     { section: 'users', perm: 'administracion.users.read' }
   ];
@@ -803,6 +1078,23 @@ async function initPermissionsGates(){
   if (repBtn) repBtn.classList.toggle('hidden', !canSeeReports);
   const repSec = document.getElementById('reports');
   if (repSec && !canSeeReports) repSec.classList.add('hidden');
+
+  // Regla especial: clientes visible para permisos de clientes o ventas.
+  const canSeeCustomers = hasPerm('clientes.read') || hasPerm('ventas.read') || hasPerm('administracion.read');
+  const custBtn = document.querySelector('.nav-button[data-section="customers"]');
+  if (custBtn) custBtn.classList.toggle('hidden', !canSeeCustomers);
+  const custSec = document.getElementById('customers');
+  if (custSec && !canSeeCustomers) custSec.classList.add('hidden');
+
+  // Alta rapida de clientes: habilitada para clientes.write o ventas.write.
+  const canCreateClients = hasPerm('clientes.write') || hasPerm('ventas.write');
+  const createCustomerPanel = document.getElementById('createCustomerPanel');
+  if (createCustomerPanel) createCustomerPanel.classList.toggle('hidden', !canCreateClients);
+
+  // Venta manual: solo para ventas.write.
+  const canCreateManualOrder = hasPerm('ventas.write');
+  const manualOrderPanel = document.getElementById('manualOrderPanel');
+  if (manualOrderPanel) manualOrderPanel.classList.toggle('hidden', !canCreateManualOrder);
 
   // Limitar acciones de edici�n si no hay logistica.write
   if (!hasPerm('logistica.write')){

@@ -308,7 +308,7 @@
                     </div>
                     <div>
                         <label for="productDescription" class="block text-lg font-medium mb-2">Descripcion:</label>
-                        <textarea id="productDescription" class="input-field" rows="3" placeholder="Descripción breve del producto"></textarea>
+                        <textarea id="productDescription" class="input-field" rows="3" maxlength="5000" placeholder="Descripción breve del producto"></textarea>
                     </div>
                     <!-- Nuevo: Especificaciones del producto (texto libre o lista clave: valor) -->
                     <div>
@@ -393,7 +393,7 @@
                     </div>
                     <div>
                         <label for="editedProductDescription" class="block text-lg font-medium mb-2">Descripcion:</label>
-                        <textarea id="editedProductDescription" class="input-field" rows="3" placeholder="Nueva descripción del producto"></textarea>
+                        <textarea id="editedProductDescription" class="input-field" rows="3" maxlength="5000" placeholder="Nueva descripción del producto"></textarea>
                     </div>
                     <!-- Nuevo: Especificaciones del producto en edición -->
                     <div>
@@ -553,6 +553,72 @@
             <div id="orders" class="section-content hidden">
                 <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Compras</h2>
                 <p class="text-center text-gray-400 mb-6">Listado de compras realizadas desde el catálogo.</p>
+                <div id="manualOrderPanel" class="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-900/10 p-4">
+                    <h3 class="text-lg font-semibold text-emerald-200 mb-3">Registrar venta manual</h3>
+                    <form id="manualOrderForm" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label for="manualOrderClientId" class="block text-sm text-gray-300 mb-1">Cliente</label>
+                                <select id="manualOrderClientId" class="input-field" required>
+                                    <option value="">-- Seleccionar cliente --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="manualOrderSellerUserId" class="block text-sm text-gray-300 mb-1">Vendedor ID (opcional)</label>
+                                <input id="manualOrderSellerUserId" type="number" min="1" class="input-field" placeholder="Si se omite, usa tu usuario">
+                            </div>
+                            <div>
+                                <label for="manualOrderPaymentCondition" class="block text-sm text-gray-300 mb-1">Condicion de pago</label>
+                                <select id="manualOrderPaymentCondition" class="input-field">
+                                    <option value="CONTADO">Contado</option>
+                                    <option value="CTA_CTE">Cuenta corriente</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label for="manualOrderPaymentMethod" class="block text-sm text-gray-300 mb-1">Forma de pago</label>
+                                <select id="manualOrderPaymentMethod" class="input-field">
+                                    <option value="CASH">Efectivo</option>
+                                    <option value="TRANSFER">Transferencia</option>
+                                    <option value="FLETERO">Fletero</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="manualOrderDueDate" class="block text-sm text-gray-300 mb-1">Vencimiento (solo CTA CTE)</label>
+                                <input id="manualOrderDueDate" type="date" class="input-field">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <div>
+                                <label for="manualOrderBuyerName" class="block text-sm text-gray-300 mb-1">Nombre comprador (opcional)</label>
+                                <input id="manualOrderBuyerName" type="text" class="input-field" placeholder="Se completa con datos de cliente">
+                            </div>
+                            <div>
+                                <label for="manualOrderBuyerLastname" class="block text-sm text-gray-300 mb-1">Apellido (opcional)</label>
+                                <input id="manualOrderBuyerLastname" type="text" class="input-field">
+                            </div>
+                            <div>
+                                <label for="manualOrderBuyerEmail" class="block text-sm text-gray-300 mb-1">Email (opcional)</label>
+                                <input id="manualOrderBuyerEmail" type="email" class="input-field">
+                            </div>
+                            <div>
+                                <label for="manualOrderBuyerPhone" class="block text-sm text-gray-300 mb-1">Telefono (opcional)</label>
+                                <input id="manualOrderBuyerPhone" type="text" class="input-field">
+                            </div>
+                        </div>
+                        <div class="rounded-xl border border-white/10 p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="text-sm text-gray-300">Items</h4>
+                                <button type="button" id="manualOrderAddItem" class="px-3 py-1 rounded border border-white/20 text-white/90 hover:bg-white/10">Agregar item</button>
+                            </div>
+                            <div id="manualOrderItems" class="space-y-2"></div>
+                        </div>
+                        <div class="text-right">
+                            <button type="submit" class="action-button bg-emerald-600 hover:bg-emerald-700">Registrar venta manual</button>
+                        </div>
+                    </form>
+                </div>
                 <div class="mb-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
                     <div class="flex flex-col md:flex-row gap-2 md:items-center md:w-2/3">
                         <input id="orders-search" type="text" placeholder="Buscar por nombre o número de pedido" class="w-full md:w-1/2 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -871,6 +937,49 @@
 
             <div id="customers" class="section-content hidden">
                 <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Clientes registrados</h2>
+                <div id="createCustomerPanel" class="rounded-xl border border-orange-500/30 bg-orange-900/10 p-4 mb-6">
+                    <h3 class="text-lg font-semibold text-orange-200 mb-3">Alta rapida de cliente</h3>
+                    <form id="createCustomerForm" class="space-y-3">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label for="customerNameCreate" class="block text-sm text-gray-300 mb-1">Nombre / Razon social</label>
+                                <input id="customerNameCreate" type="text" class="input-field" required>
+                            </div>
+                            <div>
+                                <label for="customerFantasyCreate" class="block text-sm text-gray-300 mb-1">Fantasia / Apellido</label>
+                                <input id="customerFantasyCreate" type="text" class="input-field">
+                            </div>
+                            <div>
+                                <label for="customerTypeCreate" class="block text-sm text-gray-300 mb-1">Tipo</label>
+                                <select id="customerTypeCreate" class="input-field">
+                                    <option value="FISICA">Persona fisica</option>
+                                    <option value="JURIDICA">Persona juridica</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <div>
+                                <label for="customerTaxIdCreate" class="block text-sm text-gray-300 mb-1">CUIT/CUIL/DNI</label>
+                                <input id="customerTaxIdCreate" type="text" class="input-field" required>
+                            </div>
+                            <div>
+                                <label for="customerIvaCreate" class="block text-sm text-gray-300 mb-1">Condicion IVA</label>
+                                <input id="customerIvaCreate" type="text" class="input-field" placeholder="Consumidor final / Monotributo" required>
+                            </div>
+                            <div>
+                                <label for="customerEmailCreate" class="block text-sm text-gray-300 mb-1">Email</label>
+                                <input id="customerEmailCreate" type="email" class="input-field" required>
+                            </div>
+                            <div>
+                                <label for="customerPhoneCreate" class="block text-sm text-gray-300 mb-1">Telefono</label>
+                                <input id="customerPhoneCreate" type="text" class="input-field" required>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <button type="submit" class="action-button bg-orange-600 hover:bg-orange-700">Crear cliente</button>
+                        </div>
+                    </form>
+                </div>
 
                 <!-- Filtros de búsqueda de clientes -->
                 <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">

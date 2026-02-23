@@ -86,4 +86,24 @@ function requirePermission(perms) {
   };
 }
 
-module.exports = { requirePermission, resolveEffectivePermissions, matchPermission, isEnvAdmin };
+function requireAnyPermission(perms) {
+  const required = Array.isArray(perms) ? perms : [String(perms || '')];
+  return async function (req, res, next) {
+    try {
+      const email = req.user && req.user.email;
+      if (!email) return res.status(401).json({ error: 'No autenticado' });
+      if (isEnvAdmin(email)) return next();
+
+      const userId = await resolveUserIdByEmail(email);
+      if (!userId) return res.status(403).json({ error: 'Usuario no registrado en el sistema' });
+      const granted = await resolveEffectivePermissions(userId);
+      const ok = required.some(p => matchPermission(p, granted));
+      if (!ok) return res.status(403).json({ error: 'Permisos insuficientes' });
+      return next();
+    } catch (e) {
+      return res.status(500).json({ error: 'Error verificando permisos' });
+    }
+  };
+}
+
+module.exports = { requirePermission, requireAnyPermission, resolveEffectivePermissions, matchPermission, isEnvAdmin };

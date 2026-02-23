@@ -1,0 +1,22 @@
+{
+  "name": "ensintonia-frontend",
+  "version": "1.0.0",
+  "description": "Frontend estatico de Ensintonia",
+  "main": "main.js",
+  "scripts": {
+    "tailwind:build": "npx tailwindcss -i ./tailwind.input.css -o ./tailwind.generated.css --minify",
+    "tailwind:watch": "npx tailwindcss -i ./tailwind.input.css -o ./tailwind.generated.css --watch"
+  },
+  "keywords": [
+    "tailwind",
+    "frontend"
+  ],
+  "author": "Ensintonia",
+  "license": "ISC",
+  "private": true,
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17"
+  }
+}

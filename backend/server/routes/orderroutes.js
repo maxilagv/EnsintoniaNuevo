@@ -7,6 +7,7 @@ const { requirePermission } = require('../middlewares/permission');
 
 // Admin endpoints (protected by RBAC)
 router.get('/pedidos', authMiddleware, requirePermission('ventas.read'), order.listOrdersV2);
+router.post('/pedidos/manual', authMiddleware, requirePermission('ventas.write'), order.createManualOrder);
 router.get('/pedidos/:id/pdf', authMiddleware, requirePermission('ventas.read'), order.orderPdf);
 router.get('/pedidos/:id/remito', authMiddleware, requirePermission('ventas.read'), order.orderRemitoPdf);
 router.patch('/pedidos/:id', authMiddleware, requirePermission('ventas.write'), order.updateOrderStatus);
