@@ -961,10 +961,18 @@ async function onManualOrderSubmit(e){
       submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
     }
 
-    const resp = await fetchWithAuth(ROUTES.manualOrder(), {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    let resp;
+    try {
+      resp = await fetchWithAuth(ROUTES.manualOrder(), {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!resp.ok) {
       let msg = 'No se pudo registrar la venta manual';
@@ -988,6 +996,10 @@ async function onManualOrderSubmit(e){
     try { await loadFinanceDashboard(); } catch {}
   } catch (err) {
     console.error('onManualOrderSubmit', err);
+    if (err && err.name === 'AbortError') {
+      showMessageBox('La solicitud tardó demasiado. Reintenta en unos segundos.', 'error');
+      return;
+    }
     showMessageBox('No se pudo registrar la venta manual', 'error');
   } finally {
     manualOrderSubmitting = false;

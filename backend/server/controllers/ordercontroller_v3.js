@@ -273,7 +273,7 @@ async function createOrderUnified(req, res) {
         // Usa la conexión global para no afectar la transacción principal si falla.
         if (paymentCondition === 'CONTADO') {
           try {
-            await query(
+            await client.query(
               `INSERT INTO Payments(order_id, amount, payment_method, status)
                VALUES ($1, $2, $3, $4)`,
               [orderId, total, paymentMethodDb, 'CONFIRMED']
@@ -297,7 +297,7 @@ async function createOrderUnified(req, res) {
         );
         try {
           // Registrar también en tabla de movimientos legacy, usando conexión global
-          await query(
+          await client.query(
             `INSERT INTO movimientos(tipo, producto_id, cantidad, precio_unitario, usuario, nota)
              VALUES ('venta', $1, $2, $3, $4, $5)`,
             [item.productId, item.quantity, p.price, (req.user && req.user.email) || null, `order:${orderId}`]
@@ -320,7 +320,7 @@ async function createOrderUnified(req, res) {
       // Se hace fuera de la transacción principal para no abortar el checkout si la tabla no existe.
       if (paymentCondition === 'CTA_CTE') {
         try {
-          await query(
+          await client.query(
             `INSERT INTO ClientAccountMovements(client_id, order_id, movement_date, movement_type, amount, description, created_by)
              VALUES ($1, $2, CURRENT_TIMESTAMP, 'DEBITO', $3, $4, $5)`,
             [
@@ -615,7 +615,7 @@ async function createManualOrder(req, res) {
 
       if (paymentCondition === 'CONTADO') {
         try {
-          await query(
+          await client.query(
             `INSERT INTO Payments(order_id, amount, payment_method, status)
              VALUES ($1, $2, $3, $4)`,
             [orderId, total, paymentMethodDb, 'CONFIRMED']
@@ -637,7 +637,7 @@ async function createManualOrder(req, res) {
           [orderId, item.productId, item.quantity, unitPrice]
         );
         try {
-          await query(
+          await client.query(
             `INSERT INTO movimientos(tipo, producto_id, cantidad, precio_unitario, usuario, nota)
              VALUES ('venta', $1, $2, $3, $4, $5)`,
             [item.productId, item.quantity, unitPrice, emailToken, `order:${orderId}`]
@@ -657,7 +657,7 @@ async function createManualOrder(req, res) {
 
       if (paymentCondition === 'CTA_CTE') {
         try {
-          await query(
+          await client.query(
             `INSERT INTO ClientAccountMovements(client_id, order_id, movement_date, movement_type, amount, description, created_by)
              VALUES ($1, $2, CURRENT_TIMESTAMP, 'DEBITO', $3, $4, $5)`,
             [
