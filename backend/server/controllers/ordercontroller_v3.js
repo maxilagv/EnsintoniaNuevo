@@ -390,20 +390,26 @@ async function createManualOrder(req, res) {
   }
   const items = Array.from(groupedItems.entries()).map(([productId, quantity]) => ({ productId, quantity }));
 
-  let operatorUserId = null;
+  let operatorUserId =
+    req.user && Number.isInteger(Number(req.user.userId)) && Number(req.user.userId) > 0
+      ? Number(req.user.userId)
+      : null;
   try {
-    const { rows: users } = await query(
-      `SELECT id
-         FROM Users
-        WHERE LOWER(email) = $1
-          AND deleted_at IS NULL
-        LIMIT 1`,
-      [emailToken]
-    );
-    if (!users.length) {
-      return res.status(403).json({ error: 'Usuario no registrado en el sistema' });
+    if (!operatorUserId) {
+      const { rows: users } = await query(
+        `SELECT id
+           FROM Users
+          WHERE LOWER(email) = $1
+            AND deleted_at IS NULL
+          LIMIT 1`,
+        [emailToken]
+      );
+      if (users.length) {
+        operatorUserId = users[0].id;
+      } else if (!isEnvAdmin || !isEnvAdmin(emailToken)) {
+        return res.status(403).json({ error: 'Usuario no registrado en el sistema' });
+      }
     }
-    operatorUserId = users[0].id;
   } catch (err) {
     console.error('Error buscando usuario autenticado para venta manual:', err.message);
     return res.status(500).json({ error: 'No se pudo validar el usuario' });
@@ -458,6 +464,14 @@ async function createManualOrder(req, res) {
       return res.status(500).json({ error: 'No se pudo validar el vendedor' });
     }
   }
+  if (!Number.isInteger(sellerUserId) || sellerUserId <= 0) {
+    return res.status(400).json({
+      error:
+        'No se pudo inferir el vendedor para esta venta. Indica "Vendedor ID" o inicia sesion con un usuario registrado.',
+    });
+  }
+  const actorUserId =
+    Number.isInteger(operatorUserId) && operatorUserId > 0 ? operatorUserId : sellerUserId;
 
   try {
     const result = await withTransaction(async (client) => {
@@ -514,7 +528,7 @@ async function createManualOrder(req, res) {
             -qty,
             'salida',
             'venta manual panel',
-            operatorUserId,
+            actorUserId,
             req.ip || null,
           ]
         );
@@ -580,7 +594,7 @@ async function createManualOrder(req, res) {
          VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
          RETURNING id`,
         [
-          operatorUserId,
+          actorUserId,
           clientId,
           sellerUserId,
           'PAID',
@@ -651,7 +665,7 @@ async function createManualOrder(req, res) {
               orderId,
               total,
               `Orden ${orderNumber} a cuenta corriente`,
-              operatorUserId,
+              actorUserId,
             ]
           );
         } catch (err) {

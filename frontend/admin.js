@@ -337,12 +337,13 @@ const customersTaxIdInput = document.getElementById('customersTaxId');
   const customersTableBody = document.getElementById('customersTableBody');
   const customersDetailBox = document.getElementById('customersDetail');
   const customersDetailContent = document.getElementById('customersDetailContent');
-  const createCustomerForm = document.getElementById('createCustomerForm');
-  const manualOrderForm = document.getElementById('manualOrderForm');
-  const manualOrderItemsWrap = document.getElementById('manualOrderItems');
-  const manualOrderClientSelect = document.getElementById('manualOrderClientId');
-  let manualOrderProductsCache = [];
-  let manualOrderUiBound = false;
+const createCustomerForm = document.getElementById('createCustomerForm');
+const manualOrderForm = document.getElementById('manualOrderForm');
+const manualOrderItemsWrap = document.getElementById('manualOrderItems');
+const manualOrderClientSelect = document.getElementById('manualOrderClientId');
+let manualOrderProductsCache = [];
+let manualOrderUiBound = false;
+let manualOrderSubmitting = false;
   // Reportes de ventas por vendedor (se inicializa lazy desde JS)
   let reportsPeriodEl = document.getElementById('reportsPeriod');
   let reportsDateEl = document.getElementById('reportsDate');
@@ -896,6 +897,9 @@ function onManualPaymentConditionChange(){
 
 async function onManualOrderSubmit(e){
   e.preventDefault();
+  if (manualOrderSubmitting) return;
+  const submitBtn = manualOrderForm?.querySelector('button[type="submit"]') || null;
+  const submitBtnText = submitBtn ? submitBtn.textContent : '';
   try {
     const clientId = Number(manualOrderClientSelect?.value || 0);
     if (!Number.isInteger(clientId) || clientId <= 0) {
@@ -938,9 +942,24 @@ async function onManualOrderSubmit(e){
     const buyer = {};
     if (buyerName) buyer.name = buyerName;
     if (buyerLastname) buyer.lastname = buyerLastname;
+    if (buyerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)) {
+      showMessageBox('El email del comprador no es válido', 'warning');
+      return;
+    }
     if (buyerEmail) buyer.email = buyerEmail;
     if (buyerPhone) buyer.phone = buyerPhone;
     if (Object.keys(buyer).length) payload.buyer = buyer;
+    if (paymentCondition === 'CTA_CTE' && !dueDate) {
+      showMessageBox('Para cuenta corriente debes indicar fecha de vencimiento', 'warning');
+      return;
+    }
+
+    manualOrderSubmitting = true;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Registrando...';
+      submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
+    }
 
     const resp = await fetchWithAuth(ROUTES.manualOrder(), {
       method: 'POST',
@@ -970,12 +989,20 @@ async function onManualOrderSubmit(e){
   } catch (err) {
     console.error('onManualOrderSubmit', err);
     showMessageBox('No se pudo registrar la venta manual', 'error');
+  } finally {
+    manualOrderSubmitting = false;
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = submitBtnText || 'Registrar venta manual';
+      submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+    }
   }
 }
 
 function initManualOrderUiOnce(){
   if (manualOrderUiBound) return;
   manualOrderUiBound = true;
+  manualOrderForm?.setAttribute('novalidate', 'novalidate');
   document.getElementById('manualOrderAddItem')?.addEventListener('click', () => addManualOrderItemRow());
   manualOrderItemsWrap?.addEventListener('click', (e) => {
     const btn = e.target && e.target.closest ? e.target.closest('[data-manual-order-remove]') : null;
