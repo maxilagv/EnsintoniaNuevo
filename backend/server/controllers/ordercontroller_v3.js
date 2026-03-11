@@ -1,9 +1,11 @@
-// Controladores de pedidos (Orders) — versión unificada
+// Controladores de pedidos (Orders) �?" versión unificada
 
 const { query, withTransaction } = require('../db/pg');
 const PDFDocument = require('pdfkit');
 const { body, validationResult } = require('express-validator');
-const { resolveEffectivePermissions, matchPermission, isEnvAdmin } = require('../middlewares/permission');
+const { resolveEffectivePermissions, matchPermission, isEnvAdmin, resolveRequestUser } = require('../middlewares/permission');
+const { findAssignableSalesUserById } = require('../utils/sales-users');
+const { canAssignSalesToOtherSeller } = require('../utils/sales-access');
 
 // Validaciones de checkout
 const validateCheckout = [
@@ -39,20 +41,16 @@ async function createOrderUnified(req, res) {
   let clientId = null;
   let sellerUserId = null;
   try {
-    const { rows: users } = await query(
-      `SELECT id, client_id
-         FROM Users
-        WHERE LOWER(email) = $1
-          AND deleted_at IS NULL
-        LIMIT 1`,
-      [emailToken]
-    );
-    if (!users.length) {
+    const resolved = await resolveRequestUser(req);
+    if (!resolved || !resolved.user) {
       return res.status(403).json({ error: 'Usuario no registrado en el sistema' });
     }
-    userId = users[0].id;
-    clientId = users[0].client_id;
+    userId = resolved.user.id;
+    clientId = resolved.user.client_id;
   } catch (err) {
+    if (err && err.code === 'AMBIGUOUS_AUTH_USER') {
+      return res.status(err.statusCode || 409).json({ error: err.message });
+    }
     console.error('Error buscando usuario para checkout:', err.message);
     return res.status(500).json({ error: 'No se pudo validar el usuario' });
   }
@@ -124,22 +122,13 @@ async function createOrderUnified(req, res) {
         const raw = sellerUserIdRaw != null ? sellerUserIdRaw : sellerUserIdRaw2;
         const sid = Number(raw);
         if (!Number.isInteger(sid) || sid <= 0) {
-          const e = new Error('Debe seleccionar un vendedor válido'); e.statusCode = 400; throw e;
+          const e = new Error('Debe seleccionar un vendedor v?lido'); e.statusCode = 400; throw e;
         }
-        const { rows: sellerRows } = await client.query(
-          `SELECT id, status, deleted_at
-             FROM Users
-            WHERE id = $1`,
-          [sid]
-        );
-        if (!sellerRows.length || sellerRows[0].deleted_at) {
-          const e = new Error('Vendedor no encontrado'); e.statusCode = 400; throw e;
+        const sellerInfo = await findAssignableSalesUserById(sid, client);
+        if (!sellerInfo) {
+          const e = new Error('Vendedor no encontrado o sin permisos de ventas'); e.statusCode = 400; throw e;
         }
-        const statusSeller = String(sellerRows[0].status || '').toUpperCase();
-        if (statusSeller !== 'ACTIVE') {
-          const e = new Error('El vendedor no está activo'); e.statusCode = 400; throw e;
-        }
-        sellerUserId = sellerRows[0].id;
+        sellerUserId = sellerInfo.id;
       } catch (e) {
         if (e && e.statusCode) throw e;
         console.error('Error resolviendo vendedor en checkout:', e && e.message ? e.message : e);
@@ -197,7 +186,7 @@ async function createOrderUnified(req, res) {
         if (!ok) buyerCode = `C-${Date.now().toString(36).toUpperCase()}`;
       }
 
-        // 5.1) Normalizar forma y condici├│n de pago
+        // 5.1) Normalizar forma y condici�"o�",n de pago
         const paymentRaw = typeof paymentMethodRaw === 'string' ? paymentMethodRaw.toUpperCase() : null;
         let paymentCode = 'CASH';
         if (paymentRaw === 'TRANSFER') paymentCode = 'TRANSFER';
@@ -396,21 +385,17 @@ async function createManualOrder(req, res) {
       : null;
   try {
     if (!operatorUserId) {
-      const { rows: users } = await query(
-        `SELECT id
-           FROM Users
-          WHERE LOWER(email) = $1
-            AND deleted_at IS NULL
-          LIMIT 1`,
-        [emailToken]
-      );
-      if (users.length) {
-        operatorUserId = users[0].id;
+      const resolved = await resolveRequestUser(req);
+      if (resolved && resolved.user) {
+        operatorUserId = resolved.user.id;
       } else if (!isEnvAdmin || !isEnvAdmin(emailToken)) {
         return res.status(403).json({ error: 'Usuario no registrado en el sistema' });
       }
     }
   } catch (err) {
+    if (err && err.code === 'AMBIGUOUS_AUTH_USER') {
+      return res.status(err.statusCode || 409).json({ error: err.message });
+    }
     console.error('Error buscando usuario autenticado para venta manual:', err.message);
     return res.status(500).json({ error: 'No se pudo validar el usuario' });
   }
@@ -438,36 +423,46 @@ async function createManualOrder(req, res) {
     return res.status(500).json({ error: 'No se pudo validar el cliente' });
   }
 
-  let sellerUserId = operatorUserId;
-  if (sellerUserIdRaw != null && String(sellerUserIdRaw).trim() !== '') {
-    const sid = Number(sellerUserIdRaw);
-    if (!Number.isInteger(sid) || sid <= 0) {
-      return res.status(400).json({ error: 'sellerUserId inválido' });
+  let canAssignOtherSeller = false;
+  try {
+    if (isEnvAdmin(emailToken)) {
+      canAssignOtherSeller = true;
+    } else if (Number.isInteger(operatorUserId) && operatorUserId > 0) {
+      const operatorPermissions = await resolveEffectivePermissions(operatorUserId);
+      canAssignOtherSeller = canAssignSalesToOtherSeller(operatorPermissions);
     }
-    try {
-      const { rows: sellerRows } = await query(
-        `SELECT id, status, deleted_at
-           FROM Users
-          WHERE id = $1
-          LIMIT 1`,
-        [sid]
-      );
-      if (!sellerRows.length || sellerRows[0].deleted_at) {
-        return res.status(400).json({ error: 'Vendedor no encontrado' });
+  } catch (err) {
+    console.error('Error resolviendo permisos del operador para venta manual:', err.message);
+    return res.status(500).json({ error: 'No se pudieron validar los permisos del vendedor' });
+  }
+
+  let sellerUserId = null;
+  try {
+    if (sellerUserIdRaw != null && String(sellerUserIdRaw).trim() !== '') {
+      const sid = Number(sellerUserIdRaw);
+      if (!Number.isInteger(sid) || sid <= 0) {
+        return res.status(400).json({ error: 'sellerUserId invalido' });
       }
-      if (String(sellerRows[0].status || '').toUpperCase() !== 'ACTIVE') {
-        return res.status(400).json({ error: 'El vendedor no está activo' });
+      if (!canAssignOtherSeller && sid !== operatorUserId) {
+        return res.status(403).json({ error: 'No puedes adjudicar la venta a otro vendedor' });
       }
-      sellerUserId = sellerRows[0].id;
-    } catch (err) {
-      console.error('Error validando sellerUserId para venta manual:', err.message);
-      return res.status(500).json({ error: 'No se pudo validar el vendedor' });
+      const sellerInfo = await findAssignableSalesUserById(sid);
+      if (!sellerInfo) {
+        return res.status(400).json({ error: 'Vendedor no encontrado o sin permisos de ventas' });
+      }
+      sellerUserId = sellerInfo.id;
+    } else if (Number.isInteger(operatorUserId) && operatorUserId > 0) {
+      const operatorSeller = await findAssignableSalesUserById(operatorUserId);
+      if (operatorSeller) sellerUserId = operatorSeller.id;
     }
+  } catch (err) {
+    console.error('Error validando sellerUserId para venta manual:', err.message);
+    return res.status(500).json({ error: 'No se pudo validar el vendedor' });
   }
   if (!Number.isInteger(sellerUserId) || sellerUserId <= 0) {
     return res.status(400).json({
       error:
-        'No se pudo inferir el vendedor para esta venta. Indica "Vendedor ID" o inicia sesion con un usuario registrado.',
+        'No se pudo inferir el vendedor para esta venta. Selecciona un vendedor o inicia sesion con un usuario habilitado para ventas.',
     });
   }
   const actorUserId =
@@ -700,14 +695,11 @@ async function listOrdersV2(req, res) {
       canSeeAll = true;
     } else {
       // Resolver user_id del usuario autenticado
-      const { rows: users } = await query(
-        'SELECT id FROM Users WHERE LOWER(email) = $1 AND deleted_at IS NULL LIMIT 1',
-        [email]
-      );
-      if (!users.length) {
+      const resolved = await resolveRequestUser(req);
+      if (!resolved || !resolved.user) {
         return res.status(403).json({ error: 'Usuario no registrado en el sistema' });
       }
-      currentUserId = users[0].id;
+      currentUserId = resolved.user.id;
 
       // Resolver permisos efectivos y decidir si es admin completo
       const perms = await resolveEffectivePermissions(currentUserId);
@@ -815,6 +807,9 @@ async function listOrdersV2(req, res) {
     const result = orders.map(o => ({ ...o, items: grouped.get(o.id) || [] }));
     return res.json(result);
   } catch (err) {
+    if (err && err.code === 'AMBIGUOUS_AUTH_USER') {
+      return res.status(err.statusCode || 409).json({ error: err.message });
+    }
     console.error('Error al listar pedidos V2:', err.message);
     return res.status(500).json({ error: 'No se pudo obtener pedidos' });
   }

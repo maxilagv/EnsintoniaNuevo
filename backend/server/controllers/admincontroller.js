@@ -180,28 +180,51 @@ async function createPurchase(req, res) {
   const usuario = (req.user && req.user.email) || null;
   const notes = body.notes || body.nota || null;
   const currency = (body.currency || 'ARS').toUpperCase();
-  const supplier = body.supplier || null; // { id? , name, cuit, contact_* }
+  const supplier = normalizeSupplierInput(body.supplier || {});
   const supplierIdRaw = Number(body.supplier_id || body.supplierId);
 
   try {
     const result = await withTransaction(async (client) => {
       // 1) Upsert supplier if needed
       let supplierId = Number.isInteger(supplierIdRaw) && supplierIdRaw > 0 ? supplierIdRaw : null;
-      if (!supplierId && supplier && (supplier.name || supplier.cuit)) {
-        const name = String(supplier.name || 'Proveedor').trim();
-        const cuit = supplier.cuit ? String(supplier.cuit).trim() : null;
-        const contact_name = supplier.contact_name || supplier.contactName || null;
-        const contact_phone = supplier.contact_phone || supplier.contactPhone || null;
-        const contact_email = supplier.contact_email || supplier.contactEmail || null;
-        if (cuit) {
-          const { rows } = await client.query('SELECT id FROM Suppliers WHERE cuit = $1 AND deleted_at IS NULL', [cuit]);
+      if (supplierId) {
+        const { rows: existingSupplier } = await client.query(
+          'SELECT id FROM Suppliers WHERE id = $1 AND deleted_at IS NULL LIMIT 1',
+          [supplierId]
+        );
+        if (!existingSupplier.length) {
+          const e = new Error('Proveedor inválido o eliminado');
+          e.status = 400;
+          throw e;
+        }
+      }
+      if (!supplierId && (supplier.name || supplier.cuit)) {
+        const supplierName = supplier.name || 'Proveedor';
+        if (supplier.cuit) {
+          const { rows } = await client.query(
+            'SELECT id FROM Suppliers WHERE cuit = $1 AND deleted_at IS NULL LIMIT 1',
+            [supplier.cuit]
+          );
+          if (rows.length) supplierId = rows[0].id;
+        }
+        if (!supplierId) {
+          const { rows } = await client.query(
+            'SELECT id FROM Suppliers WHERE LOWER(name) = LOWER($1) AND deleted_at IS NULL LIMIT 1',
+            [supplierName]
+          );
           if (rows.length) supplierId = rows[0].id;
         }
         if (!supplierId) {
           const ins = await client.query(
             `INSERT INTO Suppliers(name, cuit, contact_name, contact_phone, contact_email)
              VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-            [name, cuit, contact_name, contact_phone, contact_email]
+            [
+              supplierName,
+              supplier.cuit,
+              supplier.contact_name,
+              supplier.contact_phone,
+              supplier.contact_email,
+            ]
           );
           supplierId = ins.rows[0].id;
         }
@@ -968,3 +991,4 @@ async function analyticsReceivables(req, res) {
       .json({ error: 'No se pudieron obtener m?tricas de cuenta corriente' });
   }
 }
+const { normalizeSupplierInput } = require('../utils/suppliers');

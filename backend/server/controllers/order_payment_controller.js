@@ -1,4 +1,5 @@
 const { query, withTransaction } = require('../db/pg');
+const { resolveRequestUser } = require('../utils/auth-identity');
 
 async function updateOrderPaymentCondition(req, res) {
   const id = Number(req.params.id);
@@ -24,6 +25,13 @@ async function updateOrderPaymentCondition(req, res) {
   }
 
   const dueDateRaw = body.dueDate || body.due_date || null;
+  let actorUserId = null;
+  try {
+    const resolved = await resolveRequestUser(req);
+    actorUserId = resolved && resolved.user ? resolved.user.id : null;
+  } catch {
+    actorUserId = null;
+  }
 
   try {
     const result = await withTransaction(async (client) => {
@@ -102,12 +110,13 @@ async function updateOrderPaymentCondition(req, res) {
              description,
              created_by
            )
-           VALUES ($1, $2, 'DEBITO', $3, $4, NULL)`,
+           VALUES ($1, $2, 'DEBITO', $3, $4, $5)`,
           [
             order.client_id,
             id,
             total,
             'Alta de saldo en cuenta corriente desde administración',
+            actorUserId,
           ]
         );
 
@@ -234,4 +243,3 @@ async function updateOrderPaymentCondition(req, res) {
 module.exports = {
   updateOrderPaymentCondition,
 };
-

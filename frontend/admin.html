@@ -207,9 +207,10 @@
             <button class="nav-button" data-section="createProduct">Crear Producto</button>
             <button class="nav-button" data-section="editProduct">Editar Producto</button>
             <button class="nav-button" data-section="manageStock">Control de Stock</button>
-            <button class="nav-button bg-purple-600 hover:bg-purple-700 hover:shadow-purple-800/40" data-section="orders">Compras</button>
+            <button class="nav-button bg-purple-600 hover:bg-purple-700 hover:shadow-purple-800/40" data-section="orders">Ventas</button>
             <button class="nav-button bg-teal-600 hover:bg-teal-700 hover:shadow-teal-800/40" data-section="finance">Finanzas</button>
             <button class="nav-button" data-section="reports">Reportes de Ventas</button>
+            <button class="nav-button bg-cyan-600 hover:bg-cyan-700 hover:shadow-cyan-800/40" data-section="suppliers">Proveedores</button>
             <button class="nav-button" data-section="supplierPurchases">Compras de Stock</button>
             <button class="nav-button bg-orange-600 hover:bg-orange-700 hover:shadow-orange-800/40" data-section="customers">Clientes registrados</button>
             <button class="nav-button bg-indigo-600 hover:bg-indigo-700 hover:shadow-indigo-800/40" data-section="users">Gestion de Usuarios</button>
@@ -551,28 +552,96 @@
 
             <!-- Nueva Sección: Compras -->
             <div id="orders" class="section-content hidden">
-                <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Compras</h2>
-                <p class="text-center text-gray-400 mb-6">Listado de compras realizadas desde el catálogo.</p>
+                <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Ventas</h2>
+                <p class="text-center text-gray-400 mb-6">Gestion de ventas del catalogo y ventas manuales del panel.</p>
                 <div id="manualOrderPanel" class="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-900/10 p-4">
                     <h3 class="text-lg font-semibold text-emerald-200 mb-3">Registrar venta manual</h3>
                     <form id="manualOrderForm" class="space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div>
-                                <label for="manualOrderClientId" class="block text-sm text-gray-300 mb-1">Cliente</label>
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                            <div class="md:col-span-6 space-y-2">
+                                <div class="flex items-center justify-between gap-2">
+                                    <label for="manualOrderClientId" class="block text-sm text-gray-300">Cliente</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="button" id="manualOrderRefreshClients" class="px-3 py-1 rounded border border-white/20 text-white/90 hover:bg-white/10 text-xs">Actualizar</button>
+                                        <button type="button" id="manualOrderQuickClientToggle" class="px-3 py-1 rounded border border-orange-400/30 text-orange-100 hover:bg-orange-500/10 text-xs">Nuevo cliente</button>
+                                    </div>
+                                </div>
+                                <input id="manualOrderClientSearch" type="text" class="input-field" placeholder="Buscar por nombre, codigo o documento">
                                 <select id="manualOrderClientId" class="input-field" required>
-                                    <option value="">-- Seleccionar cliente --</option>
+                                    <option value="">-- Seleccionar cliente activo --</option>
                                 </select>
+                                <div id="manualOrderClientSummary" class="text-xs text-emerald-100/80 min-h-[1.25rem]">
+                                    Selecciona un cliente activo o crea uno nuevo desde esta misma venta.
+                                </div>
                             </div>
-                            <div>
-                                <label for="manualOrderSellerUserId" class="block text-sm text-gray-300 mb-1">Vendedor ID (opcional)</label>
-                                <input id="manualOrderSellerUserId" type="number" min="1" class="input-field" placeholder="Si se omite, usa tu usuario">
+                            <div id="manualOrderSellerPanel" class="md:col-span-3 space-y-2">
+                                <label for="manualOrderSellerUserId" class="block text-sm text-gray-300 mb-1">Vendedor</label>
+                                <select id="manualOrderSellerUserId" class="input-field">
+                                    <option value="">-- Usar mi usuario en esta venta --</option>
+                                </select>
+                                <button type="button" id="manualOrderRefreshSellers" class="px-3 py-1 rounded border border-white/20 text-white/90 hover:bg-white/10 text-xs">Actualizar vendedores</button>
+                                <div id="manualOrderSellerSummary" class="text-xs text-sky-100/80 min-h-[1.25rem]">
+                                    Si no eliges un vendedor, el sistema intentara usar el usuario logueado.
+                                </div>
                             </div>
-                            <div>
+                            <div class="md:col-span-3">
                                 <label for="manualOrderPaymentCondition" class="block text-sm text-gray-300 mb-1">Condicion de pago</label>
                                 <select id="manualOrderPaymentCondition" class="input-field">
                                     <option value="CONTADO">Contado</option>
                                     <option value="CTA_CTE">Cuenta corriente</option>
                                 </select>
+                            </div>
+                        </div>
+                        <div id="manualOrderQuickClientPanel" class="hidden rounded-xl border border-orange-500/30 bg-orange-900/10 p-4">
+                            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+                                <div>
+                                    <h4 class="text-base font-semibold text-orange-200">Alta rapida de cliente desde ventas</h4>
+                                    <p class="text-xs text-orange-100/70">Crea el cliente, se selecciona automaticamente y sigues cargando la venta.</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button type="button" id="manualOrderQuickClientReset" class="px-3 py-1 rounded border border-white/20 text-white/90 hover:bg-white/10 text-xs">Limpiar</button>
+                                    <button type="button" id="manualOrderQuickClientCancel" class="px-3 py-1 rounded border border-white/20 text-white/90 hover:bg-white/10 text-xs">Cerrar</button>
+                                </div>
+                            </div>
+                            <div id="manualOrderQuickClientForm" class="space-y-3">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div>
+                                        <label for="manualOrderQuickClientName" class="block text-sm text-gray-300 mb-1">Nombre / Razon social</label>
+                                        <input id="manualOrderQuickClientName" type="text" class="input-field" required>
+                                    </div>
+                                    <div>
+                                        <label for="manualOrderQuickClientFantasyName" class="block text-sm text-gray-300 mb-1">Fantasia / Apellido</label>
+                                        <input id="manualOrderQuickClientFantasyName" type="text" class="input-field">
+                                    </div>
+                                    <div>
+                                        <label for="manualOrderQuickClientType" class="block text-sm text-gray-300 mb-1">Tipo</label>
+                                        <select id="manualOrderQuickClientType" class="input-field">
+                                            <option value="FISICA">Persona fisica</option>
+                                            <option value="JURIDICA">Persona juridica</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                    <div>
+                                        <label for="manualOrderQuickClientTaxId" class="block text-sm text-gray-300 mb-1">CUIT/CUIL/DNI</label>
+                                        <input id="manualOrderQuickClientTaxId" type="text" class="input-field" required>
+                                    </div>
+                                    <div>
+                                        <label for="manualOrderQuickClientIvaCondition" class="block text-sm text-gray-300 mb-1">Condicion IVA</label>
+                                        <input id="manualOrderQuickClientIvaCondition" type="text" class="input-field" placeholder="Consumidor final / Monotributo" required>
+                                    </div>
+                                    <div>
+                                        <label for="manualOrderQuickClientEmail" class="block text-sm text-gray-300 mb-1">Email</label>
+                                        <input id="manualOrderQuickClientEmail" type="email" class="input-field" required>
+                                    </div>
+                                    <div>
+                                        <label for="manualOrderQuickClientPhone" class="block text-sm text-gray-300 mb-1">Telefono</label>
+                                        <input id="manualOrderQuickClientPhone" type="text" class="input-field" required>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <button type="button" id="manualOrderQuickClientSubmit" class="action-button bg-orange-600 hover:bg-orange-700">Crear y usar cliente</button>
+                                </div>
                             </div>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -635,14 +704,81 @@
                 <div id="ordersList" class="space-y-4"></div>
             </div>
 
+            <div id="suppliers" class="section-content hidden">
+                <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Proveedores</h2>
+                <p class="text-center text-gray-400 mb-6">Gestiona proveedores y reutilizalos despues en las compras de stock.</p>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div id="supplierFormPanel" class="rounded-xl border border-cyan-500/30 bg-cyan-900/10 p-4">
+                        <div class="flex items-center justify-between gap-3 mb-3">
+                            <h3 id="supplierFormTitle" class="text-lg font-semibold text-cyan-200">Nuevo proveedor</h3>
+                            <button type="button" id="supplierResetBtn" class="px-3 py-1 rounded border border-white/20 text-white/90 hover:bg-white/10">Limpiar</button>
+                        </div>
+                        <form id="supplierForm" class="space-y-3">
+                            <input id="supplierFormId" type="hidden">
+                            <div class="grid md:grid-cols-2 gap-3">
+                                <div>
+                                    <label for="supplierName" class="block text-sm text-gray-300 mb-1">Nombre</label>
+                                    <input id="supplierName" type="text" class="input-field" placeholder="Proveedor SA" required>
+                                </div>
+                                <div>
+                                    <label for="supplierCuit" class="block text-sm text-gray-300 mb-1">CUIT</label>
+                                    <input id="supplierCuit" type="text" class="input-field" placeholder="20123456789">
+                                </div>
+                            </div>
+                            <div class="grid md:grid-cols-3 gap-3">
+                                <div>
+                                    <label for="supplierContactName" class="block text-sm text-gray-300 mb-1">Contacto</label>
+                                    <input id="supplierContactName" type="text" class="input-field" placeholder="Nombre y apellido">
+                                </div>
+                                <div>
+                                    <label for="supplierContactPhone" class="block text-sm text-gray-300 mb-1">Telefono</label>
+                                    <input id="supplierContactPhone" type="text" class="input-field" placeholder="351...">
+                                </div>
+                                <div>
+                                    <label for="supplierContactEmail" class="block text-sm text-gray-300 mb-1">Email</label>
+                                    <input id="supplierContactEmail" type="email" class="input-field" placeholder="proveedor@mail.com">
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap justify-end gap-2">
+                                <button type="button" id="supplierCancelEdit" class="action-button bg-slate-600 hover:bg-slate-700 hidden">Cancelar</button>
+                                <button type="submit" id="supplierSubmitButton" class="action-button bg-cyan-600 hover:bg-cyan-700">Guardar proveedor</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <div class="flex flex-col md:flex-row gap-3 md:items-center md:justify-between mb-3">
+                            <h3 class="text-lg font-semibold text-white">Listado</h3>
+                            <button type="button" id="suppliersRefreshButton" class="px-3 py-1 rounded border border-white/20 text-white/90 hover:bg-white/10">Actualizar</button>
+                        </div>
+                        <input id="suppliersSearch" type="text" class="input-field mb-3" placeholder="Buscar por nombre, CUIT, contacto o email">
+                        <div id="suppliersList" class="space-y-3"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Sección: Finanzas -->
                         <!-- Secci�n: Compras de Stock -->
             <div id="supplierPurchases" class="section-content hidden">
                 <h2 class="text-3xl font-bold text-center mb-6 text-blue-300">Compras de Stock</h2>
                 <div class="grid md:grid-cols-2 gap-6">
-                    <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <div id="purchaseCreatePanel" class="rounded-xl border border-white/10 bg-white/5 p-4">
                         <h3 class="text-lg font-semibold text-white mb-3">Nueva Compra</h3>
                         <form id="purchaseForm" class="space-y-3">
+                            <div class="rounded-xl border border-cyan-500/30 bg-cyan-900/10 p-3">
+                                <div class="flex flex-col md:flex-row gap-3 md:items-end">
+                                    <div class="flex-1">
+                                        <label for="purchaseSupplierSelect" class="block text-sm text-gray-300 mb-1">Proveedor registrado</label>
+                                        <select id="purchaseSupplierSelect" class="input-field">
+                                            <option value="">-- Seleccionar proveedor o cargar manualmente --</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button type="button" id="purchaseRefreshSuppliers" class="px-3 py-2 rounded border border-white/20 text-white/90 hover:bg-white/10">Actualizar</button>
+                                        <button type="button" id="purchaseClearSupplier" class="px-3 py-2 rounded border border-white/20 text-white/90 hover:bg-white/10">Carga manual</button>
+                                    </div>
+                                </div>
+                                <p id="purchaseSupplierMeta" class="text-xs text-cyan-100/80 mt-2">Si eliges un proveedor registrado, sus datos se cargan automaticamente y se bloquean para evitar ediciones accidentales.</p>
+                            </div>
                             <div class="grid md:grid-cols-2 gap-3">
                                 <div>
                                     <label class="text-sm text-gray-400">Proveedor (Nombre)</label>

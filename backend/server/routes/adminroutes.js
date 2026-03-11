@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middlewares/authmiddleware');
 const admin = require('../controllers/admincontroller');
+const suppliers = require('../controllers/suppliercontroller');
 const { requirePermission } = require('../middlewares/permission');
 
 // Mensajes de contacto (admin)
@@ -9,6 +10,11 @@ router.get('/contact-messages', authMiddleware, requirePermission('administracio
 router.delete('/contact-messages/:id', authMiddleware, requirePermission('administracion.configure'), admin.deleteContactMessage);
 
 // Compras (proveedores y compras)
+router.get('/suppliers', authMiddleware, requirePermission('compras.read'), suppliers.listSuppliers);
+router.get('/suppliers/:id', authMiddleware, requirePermission('compras.read'), suppliers.getSupplier);
+router.post('/suppliers', authMiddleware, requirePermission('compras.write'), suppliers.createSupplier);
+router.put('/suppliers/:id', authMiddleware, requirePermission('compras.write'), suppliers.updateSupplier);
+router.delete('/suppliers/:id', authMiddleware, requirePermission('compras.delete'), suppliers.deleteSupplier);
 router.post('/purchases', authMiddleware, requirePermission('compras.write'), admin.createPurchase);
 router.get('/purchases', authMiddleware, requirePermission('compras.read'), admin.listPurchases);
 router.get('/purchases/:id', authMiddleware, requirePermission('compras.read'), admin.getPurchase);

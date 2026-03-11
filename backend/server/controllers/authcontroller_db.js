@@ -9,11 +9,34 @@ const JWT_ALG = process.env.JWT_ALG || 'HS256';
 const JWT_ISSUER = process.env.JWT_ISSUER;
 const JWT_AUDIENCE = process.env.JWT_AUDIENCE;
 
-// Aceptar identificador que puede ser email o username
 const validateLogin = [
   check('email').isString().trim().notEmpty().withMessage('Ingrese email o usuario'),
-  check('password').isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres').trim().escape()
+  check('password')
+    .isLength({ min: 6 })
+    .withMessage('La contraseña debe tener al menos 6 caracteres')
+    .trim()
+    .escape(),
 ];
+
+async function resolveLoginUser(identifier) {
+  const baseSelect = `SELECT id, email, username, client_id, password_hash, status, must_change_password, failed_attempts, locked_until
+                        FROM Users
+                       WHERE %FILTER%
+                         AND deleted_at IS NULL`;
+
+  const byUsername = await query(
+    baseSelect.replace('%FILTER%', 'LOWER(username) = $1') + ' LIMIT 1',
+    [identifier]
+  );
+  if (byUsername.rows.length) return { user: byUsername.rows[0], ambiguousEmail: false };
+
+  const byEmail = await query(
+    baseSelect.replace('%FILTER%', 'LOWER(email) = $1') + ' ORDER BY id ASC LIMIT 2',
+    [identifier]
+  );
+  if (byEmail.rows.length > 1) return { user: null, ambiguousEmail: true };
+  return { user: byEmail.rows[0] || null, ambiguousEmail: false };
+}
 
 async function loginDb(req, res) {
   const errors = validationResult(req);
@@ -30,45 +53,63 @@ async function loginDb(req, res) {
   }
 
   try {
-    const sel = await query(
-      `SELECT id, email, username, client_id, password_hash, status, must_change_password, failed_attempts, locked_until
-         FROM Users WHERE (LOWER(email) = $1 OR LOWER(username) = $1) AND deleted_at IS NULL LIMIT 1`,
-      [ident]
-    );
-    if (!sel.rows.length) {
+    const resolved = await resolveLoginUser(ident);
+    if (resolved.ambiguousEmail) {
+      return res.status(409).json({
+        error: 'Hay más de un usuario con ese email. Inicia sesión con nombre de usuario.',
+      });
+    }
+
+    const u = resolved.user;
+    if (!u) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
-    const u = sel.rows[0];
     if (String(u.status || '').toUpperCase() !== 'ACTIVE') {
       return res.status(403).json({ error: 'Usuario inactivo' });
     }
     if (u.locked_until && new Date(u.locked_until) > new Date()) {
       return res.status(423).json({ error: 'Cuenta bloqueada temporalmente' });
     }
+
     const ok = await bcrypt.compare(String(password || ''), u.password_hash || '');
     if (!ok) {
-      try { await query('UPDATE Users SET failed_attempts = COALESCE(failed_attempts,0) + 1 WHERE id = $1', [u.id]); } catch {}
+      try {
+        await query(
+          'UPDATE Users SET failed_attempts = COALESCE(failed_attempts, 0) + 1 WHERE id = $1',
+          [u.id]
+        );
+      } catch {}
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
-    try { await query('UPDATE Users SET failed_attempts = 0, locked_until = NULL WHERE id = $1', [u.id]); } catch {}
+    try {
+      await query('UPDATE Users SET failed_attempts = 0, locked_until = NULL WHERE id = $1', [u.id]);
+    } catch {}
 
     const signOpts = { algorithm: JWT_ALG, expiresIn: '15m' };
     if (JWT_ISSUER) signOpts.issuer = JWT_ISSUER;
     if (JWT_AUDIENCE) signOpts.audience = JWT_AUDIENCE;
-    const accessJti = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
+    const accessJti = crypto.randomUUID
+      ? crypto.randomUUID()
+      : crypto.randomBytes(16).toString('hex');
     const accessPayload = { email: u.email, userId: u.id, clientId: u.client_id || null };
     const accessToken = jwt.sign(accessPayload, SECRET, { ...signOpts, jwtid: accessJti });
 
-    const jti = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
+    const jti = crypto.randomUUID
+      ? crypto.randomUUID()
+      : crypto.randomBytes(16).toString('hex');
     const refreshSignOpts = { algorithm: JWT_ALG, expiresIn: '7d', jwtid: jti };
     if (JWT_ISSUER) refreshSignOpts.issuer = JWT_ISSUER;
     if (JWT_AUDIENCE) refreshSignOpts.audience = JWT_AUDIENCE;
-    const refreshToken = jwt.sign({ email: u.email }, REFRESH_SECRET, refreshSignOpts);
+    const refreshPayload = { email: u.email, userId: u.id, clientId: u.client_id || null };
+    const refreshToken = jwt.sign(refreshPayload, REFRESH_SECRET, refreshSignOpts);
+
     try {
       const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
       const decoded = jwt.decode(refreshToken);
-      const exp = decoded && decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7*24*60*60*1000);
+      const exp = decoded && decoded.exp
+        ? new Date(decoded.exp * 1000)
+        : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       const ua = req.get('User-Agent') || null;
       const ip = req.ip || null;
       await query(
@@ -86,9 +127,10 @@ async function loginDb(req, res) {
       user: {
         id: u.id,
         email: u.email,
+        username: u.username || null,
         clientId: u.client_id || null,
-        mustChangePassword: !!u.must_change_password
-      }
+        mustChangePassword: !!u.must_change_password,
+      },
     });
   } catch (err) {
     console.error('[auth-db] login error:', err.message);
@@ -97,5 +139,5 @@ async function loginDb(req, res) {
 }
 
 module.exports = {
-  loginDb: [...validateLogin, loginDb]
+  loginDb: [...validateLogin, loginDb],
 };

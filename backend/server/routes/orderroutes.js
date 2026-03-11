@@ -2,11 +2,13 @@ const express = require('express');
 const router = express.Router();
 const order = require('../controllers/ordercontroller_v3');
 const orderPayment = require('../controllers/order_payment_controller');
+const sellers = require('../controllers/sellercontroller');
 const authMiddleware = require('../middlewares/authmiddleware');
 const { requirePermission } = require('../middlewares/permission');
 
 // Admin endpoints (protected by RBAC)
 router.get('/pedidos', authMiddleware, requirePermission('ventas.read'), order.listOrdersV2);
+router.get('/pedidos/sellers', authMiddleware, requirePermission('ventas.write'), sellers.listSellersInternal);
 router.post('/pedidos/manual', authMiddleware, requirePermission('ventas.write'), order.createManualOrder);
 router.get('/pedidos/:id/pdf', authMiddleware, requirePermission('ventas.read'), order.orderPdf);
 router.get('/pedidos/:id/remito', authMiddleware, requirePermission('ventas.read'), order.orderRemitoPdf);

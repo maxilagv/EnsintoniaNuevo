@@ -1,5 +1,7 @@
 const { query } = require('../db/pg');
-const { resolveEffectivePermissions, matchPermission } = require('../middlewares/permission');
+const { resolveEffectivePermissions, matchPermission, resolveRequestUser, isEnvAdmin } = require('../middlewares/permission');
+const { listAssignableSalesUsers, findAssignableSalesUserById } = require('../utils/sales-users');
+const { canAssignSalesToOtherSeller } = require('../utils/sales-access');
 
 async function listSellersPublic(req, res) {
   try {
@@ -91,5 +93,37 @@ async function listLogisticsPublic(req, res) {
   }
 }
 
-module.exports = { listSellersPublic, listLogisticsPublic };
+async function listSellersInternal(req, res) {
+  try {
+    const q = req.query && req.query.q ? String(req.query.q) : '';
+    const limit = req.query && req.query.limit ? Number(req.query.limit) : 100;
+    const authEmail = req.user && req.user.email ? String(req.user.email) : '';
+    if (isEnvAdmin(authEmail)) {
+      const rows = await listAssignableSalesUsers({ q, limit });
+      return res.json(rows);
+    }
 
+    const resolved = await resolveRequestUser(req);
+    const currentUserId = resolved && resolved.user ? resolved.user.id : null;
+    if (!Number.isInteger(currentUserId) || currentUserId <= 0) {
+      return res.status(403).json({ error: 'Usuario no registrado en el sistema' });
+    }
+
+    const granted = await resolveEffectivePermissions(currentUserId);
+    if (!canAssignSalesToOtherSeller(granted)) {
+      const selfSeller = await findAssignableSalesUserById(currentUserId);
+      return res.json(selfSeller ? [selfSeller] : []);
+    }
+
+    const rows = await listAssignableSalesUsers({ q, limit });
+    return res.json(rows);
+  } catch (err) {
+    if (err && err.code === 'AMBIGUOUS_AUTH_USER') {
+      return res.status(err.statusCode || 409).json({ error: err.message });
+    }
+    console.error('listSellersInternal error:', err.message);
+    return res.status(500).json({ error: 'No se pudieron obtener vendedores' });
+  }
+}
+
+module.exports = { listSellersPublic, listLogisticsPublic, listSellersInternal };

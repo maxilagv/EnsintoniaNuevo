@@ -1,16 +1,17 @@
 const { query } = require('../db/pg');
+const { normalizeEmail, findActiveUsersByEmail, resolveRequestUser } = require('../utils/auth-identity');
 
 function isEnvAdmin(email) {
-  const adminEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
-  return adminEmail && String(email || '').trim().toLowerCase() === adminEmail;
+  const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL);
+  return adminEmail && normalizeEmail(email) === adminEmail;
 }
 
 async function resolveUserIdByEmail(email) {
-  const emailNorm = String(email || '').trim().toLowerCase();
+  const emailNorm = normalizeEmail(email);
   if (!emailNorm) return null;
   try {
-    const { rows } = await query('SELECT id FROM Users WHERE LOWER(email) = $1 AND deleted_at IS NULL', [emailNorm]);
-    return rows.length ? rows[0].id : null;
+    const rows = await findActiveUsersByEmail(emailNorm, 2);
+    return rows.length === 1 ? rows[0].id : null;
   } catch (e) {
     return null;
   }
@@ -74,13 +75,17 @@ function requirePermission(perms) {
       if (!email) return res.status(401).json({ error: 'No autenticado' });
       if (isEnvAdmin(email)) return next();
 
-      const userId = await resolveUserIdByEmail(email);
+      const resolved = await resolveRequestUser(req);
+      const userId = resolved && resolved.user ? resolved.user.id : null;
       if (!userId) return res.status(403).json({ error: 'Usuario no registrado en el sistema' });
       const granted = await resolveEffectivePermissions(userId);
       const ok = required.every(p => matchPermission(p, granted));
       if (!ok) return res.status(403).json({ error: 'Permisos insuficientes' });
       return next();
     } catch (e) {
+      if (e && e.code === 'AMBIGUOUS_AUTH_USER') {
+        return res.status(e.statusCode || 409).json({ error: e.message });
+      }
       return res.status(500).json({ error: 'Error verificando permisos' });
     }
   };
@@ -94,16 +99,28 @@ function requireAnyPermission(perms) {
       if (!email) return res.status(401).json({ error: 'No autenticado' });
       if (isEnvAdmin(email)) return next();
 
-      const userId = await resolveUserIdByEmail(email);
+      const resolved = await resolveRequestUser(req);
+      const userId = resolved && resolved.user ? resolved.user.id : null;
       if (!userId) return res.status(403).json({ error: 'Usuario no registrado en el sistema' });
       const granted = await resolveEffectivePermissions(userId);
       const ok = required.some(p => matchPermission(p, granted));
       if (!ok) return res.status(403).json({ error: 'Permisos insuficientes' });
       return next();
     } catch (e) {
+      if (e && e.code === 'AMBIGUOUS_AUTH_USER') {
+        return res.status(e.statusCode || 409).json({ error: e.message });
+      }
       return res.status(500).json({ error: 'Error verificando permisos' });
     }
   };
 }
 
-module.exports = { requirePermission, requireAnyPermission, resolveEffectivePermissions, matchPermission, isEnvAdmin };
+module.exports = {
+  requirePermission,
+  requireAnyPermission,
+  resolveEffectivePermissions,
+  matchPermission,
+  isEnvAdmin,
+  resolveUserIdByEmail,
+  resolveRequestUser,
+};

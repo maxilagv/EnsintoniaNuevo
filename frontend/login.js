@@ -29,6 +29,14 @@ function showMessageBox(message, type = 'info') {
   setTimeout(() => overlay.classList.add('show'), 10);
 }
 
+async function readErrorMessage(resp, fallback) {
+  try {
+    const data = await resp.json();
+    if (data && data.error) return String(data.error);
+  } catch {}
+  return fallback;
+}
+
 /* ==========================================================
    Redirección automática si ya hay sesión activa
 ========================================================== */
@@ -83,13 +91,18 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (!resp.ok) {
-        // Fallback a login admin
+        if (resp.status !== 401) {
+          throw new Error(await readErrorMessage(resp, `Error HTTP ${resp.status}`));
+        }
+        // Fallback a login admin solo para credenciales no encontradas en DB
         resp = await fetch(`${API_BASE}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
-        if (!resp.ok) throw new Error(`Error HTTP ${resp.status}`);
+        if (!resp.ok) {
+          throw new Error(await readErrorMessage(resp, `Error HTTP ${resp.status}`));
+        }
       }
 
       const data = await resp.json();
@@ -113,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Login error:', err);
       feedbackMessage.textContent = 'Acceso Denegado';
       feedbackMessage.classList.add('show', 'error', 'animate-shake');
-      showMessageBox('Usuario o contraseña incorrectos.', 'error');
+      showMessageBox(err && err.message ? err.message : 'Usuario o contraseña incorrectos.', 'error');
       loginContainer?.classList.add('animate-shake');
       loginContainer?.addEventListener('animationend', () =>
         loginContainer.classList.remove('animate-shake'), { once: true });

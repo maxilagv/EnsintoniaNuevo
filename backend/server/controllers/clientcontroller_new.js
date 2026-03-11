@@ -2,6 +2,7 @@ const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const { query, withTransaction } = require('../db/pg');
 const { audit } = require('../utils/audit');
+const { resolveRequestUser } = require('../utils/auth-identity');
 
 function normStr(v) {
   return v == null ? null : String(v).trim();
@@ -681,19 +682,8 @@ async function registerClientAccountPayment(req, res) {
 
   let createdByUserId = null;
   try {
-    const email =
-      req.user && req.user.email
-        ? String(req.user.email).trim().toLowerCase()
-        : null;
-    if (email) {
-      const { rows: urows } = await query(
-        'SELECT id FROM Users WHERE LOWER(email) = $1 AND deleted_at IS NULL LIMIT 1',
-        [email]
-      );
-      if (urows.length) {
-        createdByUserId = urows[0].id;
-      }
-    }
+    const resolved = await resolveRequestUser(req);
+    createdByUserId = resolved && resolved.user ? resolved.user.id : null;
   } catch {
     createdByUserId = null;
   }

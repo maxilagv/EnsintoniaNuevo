@@ -42,6 +42,12 @@ async function refreshTokenV2(req, res) {
     if (JWT_AUDIENCE) verifyOptions.audience = JWT_AUDIENCE;
     const payload = jwt.verify(refreshToken, REFRESH_SECRET, verifyOptions);
     const email = String(payload.email || '').toLowerCase();
+    let userId = Number.isInteger(Number(payload.userId)) && Number(payload.userId) > 0
+      ? Number(payload.userId)
+      : null;
+    let clientId = Number.isInteger(Number(payload.clientId)) && Number(payload.clientId) > 0
+      ? Number(payload.clientId)
+      : null;
     const jti = payload.jti || payload.jwtid || null;
     if (!jti) return res.status(403).json({ error: 'Token inválido' });
     const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
@@ -50,17 +56,38 @@ async function refreshTokenV2(req, res) {
     const rec = rows[0];
     if (rec.revoked_at) return res.status(403).json({ error: 'Token revocado' });
     if (new Date(rec.expires_at) < new Date()) return res.status(403).json({ error: 'Token expirado' });
+    if (!userId && email) {
+      const { rows: users } = await query(
+        `SELECT id, client_id
+           FROM Users
+          WHERE LOWER(email) = $1
+            AND deleted_at IS NULL
+          ORDER BY id ASC
+          LIMIT 2`,
+        [email]
+      );
+      if (users.length > 1) {
+        return res.status(409).json({
+          error: 'Hay más de un usuario con ese email. Inicia sesión nuevamente con nombre de usuario.',
+        });
+      }
+      if (users.length === 1) {
+        userId = users[0].id;
+        clientId = users[0].client_id || null;
+      }
+    }
     await query('UPDATE RefreshTokens SET revoked_at = CURRENT_TIMESTAMP, last_used_at = CURRENT_TIMESTAMP WHERE id = $1', [rec.id]);
     const accessSignOpts = { algorithm: JWT_ALG, expiresIn: '15m' };
     if (JWT_ISSUER) accessSignOpts.issuer = JWT_ISSUER;
     if (JWT_AUDIENCE) accessSignOpts.audience = JWT_AUDIENCE;
     const accessJti = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
-    const newAccessToken = jwt.sign({ email }, SECRET, { ...accessSignOpts, jwtid: accessJti });
+    const refreshedPayload = userId ? { email, userId, clientId: clientId || null } : { email };
+    const newAccessToken = jwt.sign(refreshedPayload, SECRET, { ...accessSignOpts, jwtid: accessJti });
     const newJti = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
     const refreshSignOpts = { algorithm: JWT_ALG, expiresIn: '7d', jwtid: newJti };
     if (JWT_ISSUER) refreshSignOpts.issuer = JWT_ISSUER;
     if (JWT_AUDIENCE) refreshSignOpts.audience = JWT_AUDIENCE;
-    const newRefreshToken = jwt.sign({ email }, REFRESH_SECRET, refreshSignOpts);
+    const newRefreshToken = jwt.sign(refreshedPayload, REFRESH_SECRET, refreshSignOpts);
     const newHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
     const decoded = jwt.decode(newRefreshToken);
     const exp = decoded && decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7*24*60*60*1000);

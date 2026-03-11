@@ -31,11 +31,21 @@ function requireSessionOrRedirect() {
 async function refreshAccessToken() {
   const refreshToken = TOKENS.refresh;
   if (!refreshToken) return false;
-  const resp = await fetch(`${API_BASE}/refresh-token`, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ refreshToken })
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  let resp;
+  try {
+    resp = await fetch(`${API_BASE}/refresh-token`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ refreshToken }),
+      signal: controller.signal,
+    });
+  } catch (_) {
+    return false;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!resp.ok) return false;
   const data = await resp.json().catch(() => ({}));
   if (data?.accessToken) {
@@ -43,6 +53,22 @@ async function refreshAccessToken() {
     return true;
   }
   return false;
+}
+
+async function shouldTryTokenRefresh(resp) {
+  if (resp.status === 401) return true;
+  if (resp.status !== 403) return false;
+  try {
+    const data = await resp.clone().json();
+    const msg = String((data && data.error) || '').toLowerCase();
+    return (
+      msg.includes('token') ||
+      msg.includes('expir') ||
+      msg.includes('autenticad')
+    );
+  } catch {
+    return false;
+  }
 }
 
 function getCookie(name){
@@ -68,7 +94,7 @@ async function fetchWithAuth(url, opt = {}, retry = true) {
   }
   const resp = await fetch(url, { credentials: 'include', ...opt, headers });
 
-  if ((resp.status === 401 || resp.status === 403) && retry) {
+  if (retry && (await shouldTryTokenRefresh(resp))) {
     const ok = await refreshAccessToken();
     if (ok) return fetchWithAuth(url, opt, false);
     TOKENS.clear();
@@ -101,9 +127,12 @@ const ROUTES = {
   salesBySellerDetail: (id, qs = '') => `${API_BASE}/analytics/sales-by-seller/${encodeURIComponent(id)}/detail${qs ? ('?' + qs) : ''}`,
   extraExpenses: (qs = '') => `${API_BASE}/extra-expenses${qs ? ('?' + qs) : ''}`,
   extraExpense: (id) => `${API_BASE}/extra-expenses/${encodeURIComponent(id)}`,
+  suppliers: (qs = '') => `${API_BASE}/suppliers${qs ? ('?' + qs) : ''}`,
+  supplier: (id) => `${API_BASE}/suppliers/${encodeURIComponent(id)}`,
   purchases: () => `${API_BASE}/purchases`,
   purchase: (id) => `${API_BASE}/purchases/${encodeURIComponent(id)}`,
   purchaseStatus: (id) => `${API_BASE}/purchases/${encodeURIComponent(id)}`,
+  manualOrderSellers: (qs = '') => `${API_BASE}/pedidos/sellers${qs ? ('?' + qs) : ''}`,
   manualOrder: () => `${API_BASE}/pedidos/manual`,
   // Clientes
   clients: (qs = '') => `${API_BASE}/clients${qs ? ('?' + qs) : ''}`,
@@ -210,8 +239,20 @@ function showSection(sectionId) {
   } else if (sectionId === 'orders') {
     try { initManualOrderUiOnce(); } catch {}
     try { loadManualOrderDependencies(); } catch {}
-    loadOrdersAdminServer2();
+    if (hasPerm('ventas.read')) {
+      loadOrdersAdminServer2();
+    } else {
+      const ordersList = document.getElementById('ordersList');
+      if (ordersList) {
+        ordersList.innerHTML = '<p class="text-center text-gray-400">No tienes permiso para ver el historial de ventas, pero sí puedes registrar ventas manuales.</p>';
+      }
+    }
+  } else if (sectionId === 'suppliers') {
+    try { initSuppliersUiOnce(); } catch {}
+    loadSuppliersAdmin();
   } else if (sectionId === 'supplierPurchases') {
+    try { initPurchaseSupplierUiOnce(); } catch {}
+    loadSupplierOptions();
     loadPurchases();
   } else if (sectionId === 'customers') {
     try { initCustomersUiOnce(); } catch {}
@@ -301,6 +342,14 @@ function normalizeStockText(s) {
   }
 }
 
+function normalizeSearchText(s) {
+  try {
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  } catch {
+    return String(s || '').toLowerCase().trim();
+  }
+}
+
 function applyStockSearchFilter() {
   const base = Array.isArray(stockProductsCache) ? stockProductsCache : [];
   const qRaw = inventorySearchInput ? inventorySearchInput.value : '';
@@ -335,15 +384,77 @@ const customersTaxIdInput = document.getElementById('customersTaxId');
   const customersStatusSelect = document.getElementById('customersStatus');
   const customersTypeSelect = document.getElementById('customersType');
   const customersTableBody = document.getElementById('customersTableBody');
-  const customersDetailBox = document.getElementById('customersDetail');
-  const customersDetailContent = document.getElementById('customersDetailContent');
+const customersDetailBox = document.getElementById('customersDetail');
+const customersDetailContent = document.getElementById('customersDetailContent');
 const createCustomerForm = document.getElementById('createCustomerForm');
+const customerCreateFields = {
+  name: document.getElementById('customerNameCreate'),
+  fantasyName: document.getElementById('customerFantasyCreate'),
+  clientType: document.getElementById('customerTypeCreate'),
+  taxId: document.getElementById('customerTaxIdCreate'),
+  ivaCondition: document.getElementById('customerIvaCreate'),
+  email: document.getElementById('customerEmailCreate'),
+  phone: document.getElementById('customerPhoneCreate'),
+};
 const manualOrderForm = document.getElementById('manualOrderForm');
 const manualOrderItemsWrap = document.getElementById('manualOrderItems');
 const manualOrderClientSelect = document.getElementById('manualOrderClientId');
+const manualOrderClientSearchInput = document.getElementById('manualOrderClientSearch');
+const manualOrderRefreshClientsBtn = document.getElementById('manualOrderRefreshClients');
+const manualOrderClientSummary = document.getElementById('manualOrderClientSummary');
+const manualOrderQuickClientToggleBtn = document.getElementById('manualOrderQuickClientToggle');
+const manualOrderQuickClientPanel = document.getElementById('manualOrderQuickClientPanel');
+const manualOrderQuickClientForm = document.getElementById('manualOrderQuickClientForm');
+const manualOrderQuickClientCancelBtn = document.getElementById('manualOrderQuickClientCancel');
+const manualOrderQuickClientResetBtn = document.getElementById('manualOrderQuickClientReset');
+const manualOrderQuickClientSubmitBtn = document.getElementById('manualOrderQuickClientSubmit');
+const manualOrderQuickClientFields = {
+  name: document.getElementById('manualOrderQuickClientName'),
+  fantasyName: document.getElementById('manualOrderQuickClientFantasyName'),
+  clientType: document.getElementById('manualOrderQuickClientType'),
+  taxId: document.getElementById('manualOrderQuickClientTaxId'),
+  ivaCondition: document.getElementById('manualOrderQuickClientIvaCondition'),
+  email: document.getElementById('manualOrderQuickClientEmail'),
+  phone: document.getElementById('manualOrderQuickClientPhone'),
+};
+const manualOrderSellerPanel = document.getElementById('manualOrderSellerPanel');
+const manualOrderSellerSelect = document.getElementById('manualOrderSellerUserId');
+const manualOrderRefreshSellersBtn = document.getElementById('manualOrderRefreshSellers');
+const manualOrderSellerSummary = document.getElementById('manualOrderSellerSummary');
+const supplierForm = document.getElementById('supplierForm');
+const supplierFormPanel = document.getElementById('supplierFormPanel');
+const supplierFormIdInput = document.getElementById('supplierFormId');
+const supplierFormTitle = document.getElementById('supplierFormTitle');
+const supplierResetBtn = document.getElementById('supplierResetBtn');
+const supplierCancelEditBtn = document.getElementById('supplierCancelEdit');
+const supplierSubmitButton = document.getElementById('supplierSubmitButton');
+const suppliersSearchInput = document.getElementById('suppliersSearch');
+const suppliersRefreshButton = document.getElementById('suppliersRefreshButton');
+const suppliersList = document.getElementById('suppliersList');
+const purchaseCreatePanel = document.getElementById('purchaseCreatePanel');
+const purchaseSupplierSelect = document.getElementById('purchaseSupplierSelect');
+const purchaseRefreshSuppliersBtn = document.getElementById('purchaseRefreshSuppliers');
+const purchaseClearSupplierBtn = document.getElementById('purchaseClearSupplier');
+const purchaseSupplierMeta = document.getElementById('purchaseSupplierMeta');
+const purchaseSupplierFields = {
+  name: document.getElementById('supName'),
+  cuit: document.getElementById('supCuit'),
+  contactName: document.getElementById('supContact'),
+  contactPhone: document.getElementById('supPhone'),
+  contactEmail: document.getElementById('supEmail'),
+};
 let manualOrderProductsCache = [];
+let manualOrderClientsCache = [];
+let manualOrderSellersCache = [];
+let suppliersCache = [];
 let manualOrderUiBound = false;
 let manualOrderSubmitting = false;
+let manualOrderQuickClientSubmitting = false;
+let currentSessionUserId = null;
+let currentSessionClientId = null;
+let manualOrderCanUseCurrentSeller = false;
+let suppliersUiBound = false;
+let purchaseSupplierUiBound = false;
   // Reportes de ventas por vendedor (se inicializa lazy desde JS)
   let reportsPeriodEl = document.getElementById('reportsPeriod');
   let reportsDateEl = document.getElementById('reportsDate');
@@ -419,59 +530,228 @@ function readCustomersFilters(){
   return params.toString();
 }
 
+function readClientCreatePayload(fields){
+  const name = String(fields?.name?.value || '').trim();
+  const fantasyName = String(fields?.fantasyName?.value || '').trim();
+  const clientType = String(fields?.clientType?.value || 'FISICA').toUpperCase();
+  const taxId = String(fields?.taxId?.value || '').replace(/\D+/g, '');
+  const ivaCondition = String(fields?.ivaCondition?.value || '').trim();
+  const email = String(fields?.email?.value || '').trim();
+  const phone = String(fields?.phone?.value || '').trim();
+  return {
+    name,
+    fantasyName: fantasyName || null,
+    clientType: clientType === 'JURIDICA' ? 'JURIDICA' : 'FISICA',
+    taxId,
+    ivaCondition,
+    email,
+    phone,
+  };
+}
+
+function validateClientCreatePayload(payload){
+  if (!payload.name || !payload.taxId || !payload.ivaCondition || !payload.email || !payload.phone) {
+    return 'Completa los campos obligatorios para crear el cliente';
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(payload.email || ''))) {
+    return 'El email del cliente no es valido';
+  }
+  return '';
+}
+
+function resetClientCreateFields(fields){
+  Object.values(fields || {}).forEach((field) => {
+    if (!field) return;
+    if (field.tagName === 'SELECT') {
+      field.value = field.id && field.id.toLowerCase().includes('type') ? 'FISICA' : '';
+      return;
+    }
+    field.value = '';
+  });
+}
+
+function mapManualOrderClient(raw){
+  const id = Number(raw && raw.id ? raw.id : 0);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  return {
+    id,
+    code: raw && raw.code ? String(raw.code) : '',
+    name: raw && raw.name ? String(raw.name) : 'Cliente',
+    fantasyName: raw && (raw.fantasy_name || raw.fantasyName) ? String(raw.fantasy_name || raw.fantasyName) : '',
+    clientType: String((raw && (raw.client_type || raw.clientType)) || 'FISICA').toUpperCase(),
+    taxId: raw && (raw.tax_id || raw.taxId) ? String(raw.tax_id || raw.taxId) : '',
+    ivaCondition: raw && (raw.iva_condition || raw.ivaCondition) ? String(raw.iva_condition || raw.ivaCondition) : '',
+    email: raw && raw.email ? String(raw.email) : '',
+    phone: raw && raw.phone ? String(raw.phone) : '',
+    status: raw && raw.status ? String(raw.status).toUpperCase() : 'ACTIVE',
+  };
+}
+
+function getManualOrderClientById(id){
+  const wanted = Number(id);
+  if (!Number.isInteger(wanted) || wanted <= 0) return null;
+  return manualOrderClientsCache.find((client) => client.id === wanted) || null;
+}
+
+function buildManualOrderClientSearchIndex(client){
+  return normalizeSearchText([
+    client.code,
+    client.name,
+    client.fantasyName,
+    client.taxId,
+    client.email,
+    client.phone,
+  ].join(' '));
+}
+
+function populateManualOrderBuyerFromClient(client, options = {}){
+  if (!client) return;
+  const force = options.force !== false;
+  const buyerNameInput = document.getElementById('manualOrderBuyerName');
+  const buyerLastnameInput = document.getElementById('manualOrderBuyerLastname');
+  const buyerEmailInput = document.getElementById('manualOrderBuyerEmail');
+  const buyerPhoneInput = document.getElementById('manualOrderBuyerPhone');
+  const maybeSet = (input, value) => {
+    if (!input) return;
+    if (!force && String(input.value || '').trim()) return;
+    input.value = value || '';
+  };
+  maybeSet(buyerNameInput, client.name || '');
+  maybeSet(buyerLastnameInput, client.clientType === 'FISICA' ? (client.fantasyName || '') : '');
+  maybeSet(buyerEmailInput, client.email || '');
+  maybeSet(buyerPhoneInput, client.phone || '');
+}
+
+function updateManualOrderClientSummary(options = {}){
+  if (!manualOrderClientSummary) return;
+  const selectedId = Number(manualOrderClientSelect?.value || 0);
+  const client = Number.isInteger(selectedId) && selectedId > 0 ? getManualOrderClientById(selectedId) : null;
+  if (!client) {
+    manualOrderClientSummary.textContent = 'Selecciona un cliente activo o crea uno nuevo desde esta misma venta.';
+    return;
+  }
+  manualOrderClientSummary.textContent = [
+    client.code || 'Sin codigo',
+    client.name || 'Cliente',
+    client.taxId ? `Doc ${client.taxId}` : '',
+    client.email || '',
+    client.phone || '',
+  ].filter(Boolean).join(' · ');
+  if (options.fillBuyer !== false) {
+    populateManualOrderBuyerFromClient(client, { force: options.forceBuyer !== false });
+  }
+}
+
+function renderManualOrderClientOptions(selectedId){
+  if (!manualOrderClientSelect) return;
+  const prev = selectedId != null ? String(selectedId) : String(manualOrderClientSelect.value || '');
+  const filter = normalizeSearchText(manualOrderClientSearchInput?.value || '');
+  let clients = Array.isArray(manualOrderClientsCache) ? manualOrderClientsCache.slice() : [];
+  if (filter) {
+    clients = clients.filter((client) => buildManualOrderClientSearchIndex(client).includes(filter));
+  }
+
+  const selectedClient = prev ? getManualOrderClientById(prev) : null;
+  if (selectedClient && !clients.some((client) => client.id === selectedClient.id)) {
+    clients.unshift(selectedClient);
+  }
+
+  manualOrderClientSelect.innerHTML = '<option value="">-- Seleccionar cliente activo --</option>';
+  clients.forEach((client) => {
+    const opt = document.createElement('option');
+    opt.value = String(client.id);
+    opt.textContent = [client.code || 'SIN-COD', client.name || 'Cliente', client.taxId ? `(${client.taxId})` : '']
+      .filter(Boolean)
+      .join(' - ');
+    manualOrderClientSelect.appendChild(opt);
+  });
+
+  if (prev && [...manualOrderClientSelect.options].some((option) => option.value === prev)) {
+    manualOrderClientSelect.value = prev;
+  } else {
+    manualOrderClientSelect.value = '';
+  }
+  updateManualOrderClientSummary({ fillBuyer: false });
+}
+
+function setManualOrderQuickClientPanel(open){
+  if (!manualOrderQuickClientPanel) return;
+  manualOrderQuickClientPanel.classList.toggle('hidden', !open);
+}
+
+async function loadManualOrderClients(options = {}){
+  if (!manualOrderClientSelect) return;
+  const selectedId = options.selectedId != null ? String(options.selectedId) : String(manualOrderClientSelect.value || '');
+  try {
+    const resp = await fetchWithAuth(ROUTES.clients('status=ACTIVE&size=100'));
+    if (!resp.ok) {
+      let msg = `HTTP ${resp.status}`;
+      try {
+        const data = await resp.json();
+        if (data && data.error) msg = data.error;
+      } catch {}
+      throw new Error(msg);
+    }
+    const rows = await resp.json();
+    manualOrderClientsCache = (Array.isArray(rows) ? rows : [])
+      .map(mapManualOrderClient)
+      .filter(Boolean)
+      .sort((a, b) => `${a.name} ${a.code}`.localeCompare(`${b.name} ${b.code}`, 'es', { sensitivity: 'base' }));
+    renderManualOrderClientOptions(selectedId);
+    if (selectedId && [...manualOrderClientSelect.options].some((option) => option.value === selectedId)) {
+      manualOrderClientSelect.value = selectedId;
+      updateManualOrderClientSummary({ fillBuyer: options.fillBuyer !== false, forceBuyer: options.forceBuyer !== false });
+    }
+  } catch (err) {
+    console.error('loadManualOrderClients', err);
+    showMessageBox('No se pudieron cargar los clientes para venta manual', 'error');
+  }
+}
+
+async function createClientFromFields(fields, options = {}){
+  const payload = readClientCreatePayload(fields);
+  const validationMessage = validateClientCreatePayload(payload);
+  if (validationMessage) {
+    showMessageBox(validationMessage, 'warning');
+    return null;
+  }
+
+  const resp = await fetchWithAuth(ROUTES.clients(), {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  if (!resp.ok) {
+    let msg = 'No se pudo crear el cliente';
+    try {
+      const dataErr = await resp.json();
+      if (dataErr && dataErr.error) msg = dataErr.error;
+    } catch {}
+    throw new Error(msg);
+  }
+
+  const data = await resp.json().catch(() => ({}));
+  resetClientCreateFields(fields);
+  await Promise.all([
+    loadCustomersAdmin().catch(() => {}),
+    loadManualOrderClients({
+      selectedId: options.selectManualOrderClient ? data.id : undefined,
+      fillBuyer: options.selectManualOrderClient,
+      forceBuyer: options.selectManualOrderClient,
+    }).catch(() => {}),
+  ]);
+  return data;
+}
+
 async function onCreateCustomerSubmit(e){
   e.preventDefault();
   try {
-    const name = String(document.getElementById('customerNameCreate')?.value || '').trim();
-    const fantasyName = String(document.getElementById('customerFantasyCreate')?.value || '').trim();
-    const clientType = String(document.getElementById('customerTypeCreate')?.value || 'FISICA').toUpperCase();
-    const taxId = String(document.getElementById('customerTaxIdCreate')?.value || '').replace(/\D+/g, '');
-    const ivaCondition = String(document.getElementById('customerIvaCreate')?.value || '').trim();
-    const email = String(document.getElementById('customerEmailCreate')?.value || '').trim();
-    const phone = String(document.getElementById('customerPhoneCreate')?.value || '').trim();
-
-    if (!name || !taxId || !ivaCondition || !email || !phone) {
-      showMessageBox('Completa los campos obligatorios para crear el cliente', 'warning');
-      return;
-    }
-
-    const payload = {
-      name,
-      fantasyName: fantasyName || null,
-      clientType: clientType === 'JURIDICA' ? 'JURIDICA' : 'FISICA',
-      taxId,
-      ivaCondition,
-      email,
-      phone,
-    };
-
-    const resp = await fetchWithAuth(ROUTES.clients(), {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-
-    if (!resp.ok) {
-      let msg = 'No se pudo crear el cliente';
-      try {
-        const dataErr = await resp.json();
-        if (dataErr && dataErr.error) msg = dataErr.error;
-      } catch {}
-      showMessageBox(msg, 'error');
-      return;
-    }
-
-    const data = await resp.json().catch(() => ({}));
+    const data = await createClientFromFields(customerCreateFields);
+    if (!data) return;
     showMessageBox(`Cliente creado correctamente${data && data.code ? ` (${data.code})` : ''}`, 'success');
-    createCustomerForm?.reset();
-    try {
-      const typeSel = document.getElementById('customerTypeCreate');
-      if (typeSel) typeSel.value = 'FISICA';
-    } catch {}
-    await loadCustomersAdmin();
-    await loadManualOrderClients();
   } catch (err) {
     console.error('onCreateCustomerSubmit', err);
-    showMessageBox('No se pudo crear el cliente', 'error');
+    showMessageBox(err && err.message ? err.message : 'No se pudo crear el cliente', 'error');
   }
 }
 
@@ -789,11 +1069,108 @@ async function loadCustomerOrders(id){
   }
 }
 
-async function loadManualOrderClients(){
-  if (!manualOrderClientSelect) return;
-  const prev = manualOrderClientSelect.value;
+function mapManualOrderSeller(raw){
+  const id = Number(raw && raw.id ? raw.id : 0);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  const displayName = String(raw && raw.displayName ? raw.displayName : raw && raw.name ? raw.name : raw && raw.username ? `@${raw.username}` : `Usuario #${id}`).trim();
+  return {
+    id,
+    displayName: displayName || `Usuario #${id}`,
+    name: raw && raw.name ? String(raw.name) : '',
+    username: raw && raw.username ? String(raw.username) : '',
+    email: raw && raw.email ? String(raw.email) : '',
+    department: raw && raw.department ? String(raw.department) : '',
+    position: raw && raw.position ? String(raw.position) : '',
+  };
+}
+
+function getManualOrderSellerById(id){
+  const wanted = Number(id);
+  if (!Number.isInteger(wanted) || wanted <= 0) return null;
+  return manualOrderSellersCache.find((seller) => seller.id === wanted) || null;
+}
+
+function buildManualOrderSellerLabel(seller){
+  const extras = [seller.position, seller.department].filter(Boolean);
+  return extras.length ? `${seller.displayName} - ${extras.join(' / ')}` : seller.displayName;
+}
+
+function syncManualOrderSellerUi(){
+  const canAssignOther = canAssignManualOrderToOtherSeller();
+  if (manualOrderSellerSelect) {
+    manualOrderSellerSelect.classList.toggle('hidden', !canAssignOther);
+    manualOrderSellerSelect.disabled = !canAssignOther;
+    if (!canAssignOther) manualOrderSellerSelect.value = '';
+  }
+  if (manualOrderRefreshSellersBtn) {
+    manualOrderRefreshSellersBtn.classList.toggle('hidden', !canAssignOther);
+    manualOrderRefreshSellersBtn.disabled = !canAssignOther;
+  }
+  if (manualOrderSellerPanel) {
+    manualOrderSellerPanel.classList.toggle('opacity-80', !canAssignOther);
+  }
+}
+
+function updateManualOrderSellerSummary(){
+  if (!manualOrderSellerSummary) return;
+  const canAssignOther = canAssignManualOrderToOtherSeller();
+  const selectedId = Number(manualOrderSellerSelect?.value || 0);
+  const selectedSeller = Number.isInteger(selectedId) && selectedId > 0
+    ? getManualOrderSellerById(selectedId)
+    : (manualOrderCanUseCurrentSeller ? getManualOrderSellerById(currentSessionUserId) : null);
+
+  if (canAssignOther && selectedId > 0 && selectedSeller) {
+    manualOrderSellerSummary.textContent = `La venta se asignara a ${buildManualOrderSellerLabel(selectedSeller)}.`;
+    return;
+  }
+  if (!manualOrderCanUseCurrentSeller) {
+    manualOrderSellerSummary.textContent = 'Tu usuario no esta habilitado como vendedor. Debes seleccionar uno.';
+    return;
+  }
+  if (selectedSeller) {
+    manualOrderSellerSummary.textContent = canAssignOther
+      ? `Si no cambias este campo, la venta se asignara a ${buildManualOrderSellerLabel(selectedSeller)}.`
+      : `La venta quedara adjudicada automaticamente a ${buildManualOrderSellerLabel(selectedSeller)}.`;
+    return;
+  }
+  manualOrderSellerSummary.textContent = canAssignOther
+    ? 'Si no eliges un vendedor, el sistema intentara usar el usuario logueado.'
+    : 'La venta se adjudicara automaticamente a tu usuario.';
+}
+
+function renderManualOrderSellerOptions(selectedId){
+  if (!manualOrderSellerSelect) return;
+  const prev = selectedId != null ? String(selectedId) : String(manualOrderSellerSelect.value || '');
+  manualOrderSellerSelect.innerHTML = '';
+
+  const emptyOption = document.createElement('option');
+  emptyOption.value = '';
+  emptyOption.textContent = manualOrderCanUseCurrentSeller
+    ? '-- Usar mi usuario en esta venta --'
+    : '-- Seleccionar vendedor --';
+  manualOrderSellerSelect.appendChild(emptyOption);
+
+  manualOrderSellersCache.forEach((seller) => {
+    const opt = document.createElement('option');
+    opt.value = String(seller.id);
+    opt.textContent = buildManualOrderSellerLabel(seller);
+    manualOrderSellerSelect.appendChild(opt);
+  });
+
+  if (prev && [...manualOrderSellerSelect.options].some((option) => option.value === prev)) {
+    manualOrderSellerSelect.value = prev;
+  } else {
+    manualOrderSellerSelect.value = '';
+  }
+  syncManualOrderSellerUi();
+  updateManualOrderSellerSummary();
+}
+
+async function loadManualOrderSellers(){
+  if (!manualOrderSellerSelect) return;
   try {
-    const resp = await fetchWithAuth(ROUTES.clients('size=100'));
+    await ensureCurrentSessionContext();
+    const resp = await fetchWithAuth(ROUTES.manualOrderSellers());
     if (!resp.ok) {
       let msg = `HTTP ${resp.status}`;
       try {
@@ -803,25 +1180,15 @@ async function loadManualOrderClients(){
       throw new Error(msg);
     }
     const rows = await resp.json();
-    const clients = Array.isArray(rows) ? rows : [];
-    manualOrderClientSelect.innerHTML = '<option value="">-- Seleccionar cliente --</option>';
-    clients.forEach((c) => {
-      const id = Number(c.id || 0);
-      if (!Number.isInteger(id) || id <= 0) return;
-      const code = c.code ? String(c.code) : '-';
-      const name = c.name ? String(c.name) : 'Cliente';
-      const tax = c.tax_id ? ` (${c.tax_id})` : '';
-      const opt = document.createElement('option');
-      opt.value = String(id);
-      opt.textContent = `${code} - ${name}${tax}`;
-      manualOrderClientSelect.appendChild(opt);
-    });
-    if (prev && [...manualOrderClientSelect.options].some((o) => o.value === prev)) {
-      manualOrderClientSelect.value = prev;
-    }
+    manualOrderSellersCache = (Array.isArray(rows) ? rows : [])
+      .map(mapManualOrderSeller)
+      .filter(Boolean)
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, 'es', { sensitivity: 'base' }));
+    manualOrderCanUseCurrentSeller = !!(currentSessionUserId && getManualOrderSellerById(currentSessionUserId));
+    renderManualOrderSellerOptions();
   } catch (err) {
-    console.error('loadManualOrderClients', err);
-    showMessageBox('No se pudieron cargar los clientes para venta manual', 'error');
+    console.error('loadManualOrderSellers', err);
+    showMessageBox('No se pudieron cargar los vendedores', 'error');
   }
 }
 
@@ -916,7 +1283,7 @@ async function onManualOrderSubmit(e){
     const paymentCondition = String(document.getElementById('manualOrderPaymentCondition')?.value || 'CONTADO').toUpperCase();
     const paymentMethod = String(document.getElementById('manualOrderPaymentMethod')?.value || 'CASH').toUpperCase();
     const dueDate = String(document.getElementById('manualOrderDueDate')?.value || '').trim();
-    const sellerUserIdRaw = String(document.getElementById('manualOrderSellerUserId')?.value || '').trim();
+    const sellerUserIdRaw = String(manualOrderSellerSelect?.value || '').trim();
 
     const buyerName = String(document.getElementById('manualOrderBuyerName')?.value || '').trim();
     const buyerLastname = String(document.getElementById('manualOrderBuyerLastname')?.value || '').trim();
@@ -933,10 +1300,13 @@ async function onManualOrderSubmit(e){
     if (sellerUserIdRaw) {
       const sellerUserId = Number(sellerUserIdRaw);
       if (!Number.isInteger(sellerUserId) || sellerUserId <= 0) {
-        showMessageBox('Vendedor ID inválido', 'warning');
+        showMessageBox('Selecciona un vendedor valido', 'warning');
         return;
       }
       payload.sellerUserId = sellerUserId;
+    } else if (!manualOrderCanUseCurrentSeller) {
+      showMessageBox('Debes seleccionar un vendedor para registrar esta venta manual', 'warning');
+      return;
     }
 
     const buyer = {};
@@ -987,11 +1357,16 @@ async function onManualOrderSubmit(e){
     const data = await resp.json().catch(() => ({}));
     showMessageBox(`Venta manual registrada${data && data.orderNumber ? ` (${data.orderNumber})` : ''}`, 'success');
     manualOrderForm?.reset();
+    if (manualOrderClientSearchInput) manualOrderClientSearchInput.value = '';
+    renderManualOrderClientOptions();
+    renderManualOrderSellerOptions();
+    updateManualOrderClientSummary({ fillBuyer: false });
     onManualPaymentConditionChange();
     if (manualOrderItemsWrap) {
       manualOrderItemsWrap.innerHTML = '';
       addManualOrderItemRow();
     }
+    setManualOrderQuickClientPanel(false);
     await loadOrdersAdminServer2();
     try { await loadFinanceDashboard(); } catch {}
   } catch (err) {
@@ -1011,6 +1386,43 @@ async function onManualOrderSubmit(e){
   }
 }
 
+function onManualOrderClientChange(){
+  updateManualOrderClientSummary({ fillBuyer: true, forceBuyer: true });
+}
+
+async function onManualOrderQuickClientSubmit(e){
+  if (e && typeof e.preventDefault === 'function') e.preventDefault();
+  if (manualOrderQuickClientSubmitting) return;
+  try {
+    manualOrderQuickClientSubmitting = true;
+    if (manualOrderQuickClientSubmitBtn) {
+      manualOrderQuickClientSubmitBtn.disabled = true;
+      manualOrderQuickClientSubmitBtn.classList.add('opacity-70', 'cursor-not-allowed');
+      manualOrderQuickClientSubmitBtn.textContent = 'Creando...';
+    }
+    const data = await createClientFromFields(manualOrderQuickClientFields, {
+      selectManualOrderClient: true,
+    });
+    if (!data) return;
+    if (manualOrderClientSearchInput) manualOrderClientSearchInput.value = '';
+    renderManualOrderClientOptions(data.id);
+    if (manualOrderClientSelect) manualOrderClientSelect.value = String(data.id || '');
+    updateManualOrderClientSummary({ fillBuyer: true, forceBuyer: true });
+    setManualOrderQuickClientPanel(false);
+    showMessageBox(`Cliente creado y seleccionado${data && data.code ? ` (${data.code})` : ''}`, 'success');
+  } catch (err) {
+    console.error('onManualOrderQuickClientSubmit', err);
+    showMessageBox(err && err.message ? err.message : 'No se pudo crear el cliente desde ventas', 'error');
+  } finally {
+    manualOrderQuickClientSubmitting = false;
+    if (manualOrderQuickClientSubmitBtn) {
+      manualOrderQuickClientSubmitBtn.disabled = false;
+      manualOrderQuickClientSubmitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+      manualOrderQuickClientSubmitBtn.textContent = 'Crear y usar cliente';
+    }
+  }
+}
+
 function initManualOrderUiOnce(){
   if (manualOrderUiBound) return;
   manualOrderUiBound = true;
@@ -1026,20 +1438,45 @@ function initManualOrderUiOnce(){
       addManualOrderItemRow();
     }
   });
+  manualOrderClientSelect?.addEventListener('change', onManualOrderClientChange);
+  manualOrderClientSearchInput?.addEventListener('input', () => renderManualOrderClientOptions());
+  manualOrderClientSearchInput?.addEventListener('keydown', (evt) => {
+    if (evt.key === 'Enter') evt.preventDefault();
+  });
+  manualOrderRefreshClientsBtn?.addEventListener('click', () => loadManualOrderClients({ fillBuyer: false, forceBuyer: false }));
+  manualOrderQuickClientToggleBtn?.addEventListener('click', () => {
+    setManualOrderQuickClientPanel(true);
+    manualOrderQuickClientFields.name?.focus();
+  });
+  manualOrderQuickClientCancelBtn?.addEventListener('click', () => setManualOrderQuickClientPanel(false));
+  manualOrderQuickClientResetBtn?.addEventListener('click', () => resetClientCreateFields(manualOrderQuickClientFields));
+  manualOrderQuickClientSubmitBtn?.addEventListener('click', onManualOrderQuickClientSubmit);
+  manualOrderQuickClientForm?.addEventListener('keydown', (evt) => {
+    if (evt.key !== 'Enter') return;
+    const targetTag = String(evt.target?.tagName || '').toUpperCase();
+    if (targetTag === 'TEXTAREA') return;
+    evt.preventDefault();
+    onManualOrderQuickClientSubmit(evt);
+  });
+  manualOrderSellerSelect?.addEventListener('change', updateManualOrderSellerSummary);
+  manualOrderRefreshSellersBtn?.addEventListener('click', () => loadManualOrderSellers());
   document.getElementById('manualOrderPaymentCondition')?.addEventListener('change', onManualPaymentConditionChange);
   manualOrderForm?.addEventListener('submit', onManualOrderSubmit);
 }
 
 async function loadManualOrderDependencies(){
-  if (!manualOrderForm) return;
+  if (!manualOrderForm || !hasPerm('ventas.write')) return;
   await Promise.all([
     loadManualOrderProducts(),
-    loadManualOrderClients(),
+    loadManualOrderClients({ fillBuyer: false, forceBuyer: false }),
+    loadManualOrderSellers(),
   ]);
   if (manualOrderItemsWrap && !manualOrderItemsWrap.querySelector('.manual-order-item')) {
     addManualOrderItemRow();
   }
   onManualPaymentConditionChange();
+  updateManualOrderClientSummary({ fillBuyer: false });
+  updateManualOrderSellerSummary();
 }
 
 async function loadProfilesAndRoles(){
@@ -1084,6 +1521,28 @@ function hasPerm(p){
   return false;
 }
 
+function canAssignManualOrderToOtherSeller(){
+  return hasPerm('administracion.read') || hasPerm('ventas.delete');
+}
+
+async function ensureCurrentSessionContext(){
+  if (currentSessionUserId || currentSessionClientId || __perms.size) return;
+  try {
+    const resp = await fetchWithAuth(`${API_BASE}/me`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (!__perms.size) {
+      __perms = new Set(Array.isArray(data.permissions) ? data.permissions : []);
+    }
+    if (!currentSessionUserId) {
+      currentSessionUserId = Number.isInteger(Number(data.userId)) && Number(data.userId) > 0 ? Number(data.userId) : null;
+    }
+    if (!currentSessionClientId) {
+      currentSessionClientId = Number.isInteger(Number(data.clientId)) && Number(data.clientId) > 0 ? Number(data.clientId) : null;
+    }
+  } catch {}
+}
+
 function setHiddenBySelector(sel, hidden){
   document.querySelectorAll(sel).forEach(el => {
     if (hidden) el.classList.add('hidden'); else el.classList.remove('hidden');
@@ -1096,6 +1555,8 @@ async function initPermissionsGates(){
     if (resp.ok) {
       const data = await resp.json();
       __perms = new Set(Array.isArray(data.permissions) ? data.permissions : []);
+      currentSessionUserId = Number.isInteger(Number(data.userId)) && Number(data.userId) > 0 ? Number(data.userId) : null;
+      currentSessionClientId = Number.isInteger(Number(data.clientId)) && Number(data.clientId) > 0 ? Number(data.clientId) : null;
     }
   } catch {}
 
@@ -1106,7 +1567,7 @@ async function initPermissionsGates(){
     { section: 'createProduct', perm: 'logistica.read' },
     { section: 'editProduct', perm: 'logistica.read' },
     { section: 'manageStock', perm: 'logistica.read' },
-    { section: 'orders', perm: 'ventas.read' },
+    { section: 'suppliers', perm: 'compras.read' },
     { section: 'supplierPurchases', perm: 'compras.read' },
     { section: 'customers', perm: 'clientes.read' },
     { section: 'finance', perm: 'administracion.read' },
@@ -1119,6 +1580,12 @@ async function initPermissionsGates(){
     const sec = document.getElementById(g.section);
     if (sec && !show) sec.classList.add('hidden');
   });
+
+  const canSeeOrders = hasPerm('ventas.read') || hasPerm('ventas.write');
+  const ordersBtn = document.querySelector('.nav-button[data-section="orders"]');
+  if (ordersBtn) ordersBtn.classList.toggle('hidden', !canSeeOrders);
+  const ordersSec = document.getElementById('orders');
+  if (ordersSec && !canSeeOrders) ordersSec.classList.add('hidden');
   // Regla especial: reports visible si tiene ventas.read O administracion.read
   const canSeeReports = hasPerm('ventas.read') || hasPerm('administracion.read');
   const repBtn = document.querySelector('.nav-button[data-section="reports"]');
@@ -1126,8 +1593,14 @@ async function initPermissionsGates(){
   const repSec = document.getElementById('reports');
   if (repSec && !canSeeReports) repSec.classList.add('hidden');
 
+  const canSeeMessages = hasPerm('administracion.read');
+  const msgBtn = document.querySelector('.nav-button[data-section="messages"]');
+  if (msgBtn) msgBtn.classList.toggle('hidden', !canSeeMessages);
+  const msgSec = document.getElementById('messages');
+  if (msgSec && !canSeeMessages) msgSec.classList.add('hidden');
+
   // Regla especial: clientes visible para permisos de clientes o ventas.
-  const canSeeCustomers = hasPerm('clientes.read') || hasPerm('ventas.read') || hasPerm('administracion.read');
+  const canSeeCustomers = hasPerm('clientes.read') || hasPerm('ventas.read') || hasPerm('ventas.write') || hasPerm('administracion.read');
   const custBtn = document.querySelector('.nav-button[data-section="customers"]');
   if (custBtn) custBtn.classList.toggle('hidden', !canSeeCustomers);
   const custSec = document.getElementById('customers');
@@ -1137,11 +1610,19 @@ async function initPermissionsGates(){
   const canCreateClients = hasPerm('clientes.write') || hasPerm('ventas.write');
   const createCustomerPanel = document.getElementById('createCustomerPanel');
   if (createCustomerPanel) createCustomerPanel.classList.toggle('hidden', !canCreateClients);
+  if (manualOrderQuickClientToggleBtn) manualOrderQuickClientToggleBtn.classList.toggle('hidden', !canCreateClients);
+  if (!canCreateClients && manualOrderQuickClientPanel) manualOrderQuickClientPanel.classList.add('hidden');
+
+  const canManageSuppliers = hasPerm('compras.write');
+  if (supplierFormPanel) supplierFormPanel.classList.toggle('hidden', !canManageSuppliers);
+  if (purchaseCreatePanel) purchaseCreatePanel.classList.toggle('hidden', !canManageSuppliers);
 
   // Venta manual: solo para ventas.write.
   const canCreateManualOrder = hasPerm('ventas.write');
   const manualOrderPanel = document.getElementById('manualOrderPanel');
   if (manualOrderPanel) manualOrderPanel.classList.toggle('hidden', !canCreateManualOrder);
+  syncManualOrderSellerUi();
+  updateManualOrderSellerSummary();
 
   // Limitar acciones de edici�n si no hay logistica.write
   if (!hasPerm('logistica.write')){
@@ -3172,7 +3653,7 @@ async function loadOrdersAdmin(){
   const box = document.getElementById('ordersList');
   if (!box) return;
   const orders = loadLocalOrders();
-  if (!orders.length) { box.innerHTML = '<p class="text-center text-gray-400">No hay compras registradas.</p>'; return; }
+  if (!orders.length) { box.innerHTML = '<p class="text-center text-gray-400">No hay ventas registradas.</p>'; return; }
   // M?s recientes primero
   orders.sort((a,b)=> new Date(b.createdAt||0) - new Date(a.createdAt||0));
   box.innerHTML = orders.map(renderOrderCard).join('');
@@ -4132,8 +4613,6 @@ logoutButton?.addEventListener('click', () => {
 (function init() {
   requireSessionOrRedirect();
   bindNav();
-  // Mostrar primera secci?n por defecto (coincide con tu HTML)
-  showSection('createCategory');
 })();
 
 
@@ -4175,7 +4654,7 @@ async function loadOrdersAdminServer(){
   } catch(err) {
     console.warn('Fallo al listar /pedidos. Mostrando datos locales.', err && err.message ? err.message : err);
     const orders = loadLocalOrders();
-    if (!orders.length) { box.innerHTML = '<p class="text-center text-gray-400">No hay compras registradas.</p>'; return; }
+    if (!orders.length) { box.innerHTML = '<p class="text-center text-gray-400">No hay ventas registradas.</p>'; return; }
     orders.sort(function(a,b){ return new Date(b.createdAt||0) - new Date(a.createdAt||0); });
     __ordersCache = orders;
     renderOrdersList(orders);
@@ -4248,7 +4727,7 @@ let __ordersCache = [];
 function renderOrdersList(orders){
   const box = document.getElementById('ordersList');
   if (!box) return;
-  if (!orders.length){ box.innerHTML = '<p class="text-center text-gray-400">No hay compras registradas.</p>'; return; }
+  if (!orders.length){ box.innerHTML = '<p class="text-center text-gray-400">No hay ventas registradas.</p>'; return; }
   const hidden = new Set(loadHiddenOrders().map(x => String(x)));
   const visible = orders.filter(o => !hidden.has(String(o.id)));
   box.innerHTML = visible.map(renderOrderCard2).join('');
@@ -4408,7 +4887,7 @@ async function loadOrdersAdminServer2(){
   } catch(err) {
     console.warn('Fallo al listar /pedidos. Mostrando datos locales.', err && err.message ? err.message : err);
     const orders = loadLocalOrders();
-    if (!orders.length) { box.innerHTML = '<p class="text-center text-gray-400">No hay compras registradas.</p>'; return; }
+    if (!orders.length) { box.innerHTML = '<p class="text-center text-gray-400">No hay ventas registradas.</p>'; return; }
     orders.sort(function(a,b){ return new Date(b.createdAt||0) - new Date(a.createdAt||0); });
     __ordersCache = orders;
     renderOrdersList(orders);
@@ -4482,7 +4961,7 @@ document.getElementById('orders-print')?.addEventListener('click', (e) => {
   e.preventDefault();
   try {
     const rows = __ordersCache || [];
-    if (!rows.length) { showMessageBox('No hay compras para imprimir','info'); return; }
+    if (!rows.length) { showMessageBox('No hay ventas para imprimir','info'); return; }
     const w = window.open('', '_blank');
     if (!w) return;
     const lines = rows.map(o => {
@@ -4496,8 +4975,8 @@ document.getElementById('orders-print')?.addEventListener('click', (e) => {
         <td style="padding:4px 8px;border:1px solid #ccc;">${total}</td>
       </tr>`;
     }).join('');
-    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Historial de compras</title></head><body>
-      <h1 style="font-family:Arial, sans-serif;">Historial de compras</h1>
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Historial de ventas</title></head><body>
+      <h1 style="font-family:Arial, sans-serif;">Historial de ventas</h1>
       <table style="border-collapse:collapse;font-family:Arial, sans-serif;font-size:12px;">
         <thead>
           <tr>
@@ -4518,6 +4997,296 @@ document.getElementById('orders-print')?.addEventListener('click', (e) => {
     showMessageBox('No se pudo abrir impresión','error');
   }
 });
+
+// ===== Proveedores =====
+function getSupplierFormPayload(){
+  return {
+    name: String(document.getElementById('supplierName')?.value || '').trim(),
+    cuit: String(document.getElementById('supplierCuit')?.value || '').replace(/\D+/g, ''),
+    contact_name: String(document.getElementById('supplierContactName')?.value || '').trim() || null,
+    contact_phone: String(document.getElementById('supplierContactPhone')?.value || '').trim() || null,
+    contact_email: String(document.getElementById('supplierContactEmail')?.value || '').trim().toLowerCase() || null,
+  };
+}
+
+function resetSupplierForm(){
+  supplierForm?.reset();
+  if (supplierFormIdInput) supplierFormIdInput.value = '';
+  if (supplierFormTitle) supplierFormTitle.textContent = 'Nuevo proveedor';
+  if (supplierSubmitButton) supplierSubmitButton.textContent = 'Guardar proveedor';
+  supplierCancelEditBtn?.classList.add('hidden');
+}
+
+function findSupplierInCache(id){
+  const numericId = Number(id || 0);
+  if (!Number.isInteger(numericId) || numericId <= 0) return null;
+  return (Array.isArray(suppliersCache) ? suppliersCache : []).find((s) => Number(s.id) === numericId) || null;
+}
+
+function fillSupplierForm(supplier){
+  if (!supplier) {
+    resetSupplierForm();
+    return;
+  }
+  if (supplierFormIdInput) supplierFormIdInput.value = String(supplier.id || '');
+  if (supplierFormTitle) supplierFormTitle.textContent = `Editar proveedor #${supplier.id}`;
+  if (supplierSubmitButton) supplierSubmitButton.textContent = 'Actualizar proveedor';
+  supplierCancelEditBtn?.classList.remove('hidden');
+  const assign = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.value = value || '';
+  };
+  assign('supplierName', supplier.name);
+  assign('supplierCuit', supplier.cuit);
+  assign('supplierContactName', supplier.contact_name);
+  assign('supplierContactPhone', supplier.contact_phone);
+  assign('supplierContactEmail', supplier.contact_email);
+  supplierFormPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setPurchaseSupplierFieldsReadonly(readonly){
+  Object.values(purchaseSupplierFields).forEach((field) => {
+    if (!field) return;
+    field.readOnly = readonly;
+    field.classList.toggle('opacity-70', readonly);
+    field.classList.toggle('cursor-not-allowed', readonly);
+  });
+}
+
+function fillPurchaseSupplierFields(supplier){
+  if (purchaseSupplierFields.name) purchaseSupplierFields.name.value = supplier?.name || '';
+  if (purchaseSupplierFields.cuit) purchaseSupplierFields.cuit.value = supplier?.cuit || '';
+  if (purchaseSupplierFields.contactName) purchaseSupplierFields.contactName.value = supplier?.contact_name || '';
+  if (purchaseSupplierFields.contactPhone) purchaseSupplierFields.contactPhone.value = supplier?.contact_phone || '';
+  if (purchaseSupplierFields.contactEmail) purchaseSupplierFields.contactEmail.value = supplier?.contact_email || '';
+}
+
+function setPurchaseSupplierMetaText(text){
+  if (purchaseSupplierMeta) purchaseSupplierMeta.textContent = text;
+}
+
+function clearPurchaseSupplierSelection(){
+  if (purchaseSupplierSelect) purchaseSupplierSelect.value = '';
+  fillPurchaseSupplierFields(null);
+  setPurchaseSupplierFieldsReadonly(false);
+  setPurchaseSupplierMetaText(
+    'Modo manual activo. Puedes escribir un proveedor nuevo o ir al modulo Proveedores para registrarlo.'
+  );
+}
+
+function onPurchaseSupplierChange(){
+  const supplier = findSupplierInCache(purchaseSupplierSelect?.value || '');
+  if (!supplier) {
+    clearPurchaseSupplierSelection();
+    return;
+  }
+  fillPurchaseSupplierFields(supplier);
+  setPurchaseSupplierFieldsReadonly(true);
+  const metaParts = [
+    supplier.name || 'Proveedor seleccionado',
+    supplier.cuit ? `CUIT ${supplier.cuit}` : null,
+    supplier.contact_name || null,
+    supplier.contact_email || null,
+  ].filter(Boolean);
+  setPurchaseSupplierMetaText(`Usando proveedor registrado: ${metaParts.join(' | ')}`);
+}
+
+function populatePurchaseSupplierSelect(selectedValue = ''){
+  if (!purchaseSupplierSelect) return;
+  purchaseSupplierSelect.innerHTML = '<option value="">-- Seleccionar proveedor o cargar manualmente --</option>';
+  (Array.isArray(suppliersCache) ? suppliersCache : []).forEach((supplier) => {
+    const opt = document.createElement('option');
+    opt.value = String(supplier.id);
+    const pieces = [supplier.name || `Proveedor #${supplier.id}`];
+    if (supplier.cuit) pieces.push(`(${supplier.cuit})`);
+    opt.textContent = pieces.join(' ');
+    purchaseSupplierSelect.appendChild(opt);
+  });
+  if (selectedValue && [...purchaseSupplierSelect.options].some((opt) => opt.value === String(selectedValue))) {
+    purchaseSupplierSelect.value = String(selectedValue);
+    onPurchaseSupplierChange();
+  }
+}
+
+function renderSuppliersList(rows){
+  if (!suppliersList) return;
+  const list = Array.isArray(rows) ? rows : [];
+  if (!list.length) {
+    suppliersList.innerHTML = '<p class="text-gray-400">No hay proveedores cargados.</p>';
+    return;
+  }
+  const canWrite = hasPerm('compras.write');
+  const canDelete = hasPerm('compras.delete');
+  suppliersList.innerHTML = list.map((supplier) => `
+    <div class="rounded-lg border border-white/10 p-3" data-supplier-id="${supplier.id}">
+      <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+        <div>
+          <div class="text-cyan-200 font-semibold">${escapeHtml(supplier.name || `Proveedor #${supplier.id}`)}</div>
+          <div class="text-sm text-gray-400">${supplier.cuit ? `CUIT: ${escapeHtml(supplier.cuit)}` : 'Sin CUIT cargado'}</div>
+          <div class="text-sm text-gray-300 mt-1">${escapeHtml(supplier.contact_name || 'Sin contacto principal')}</div>
+          <div class="text-xs text-gray-400">${escapeHtml(supplier.contact_phone || '-')} ${supplier.contact_email ? `| ${escapeHtml(supplier.contact_email)}` : ''}</div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="px-3 py-1 rounded bg-cyan-600 hover:bg-cyan-700 text-white text-xs" data-supplier-action="use" data-supplier-id="${supplier.id}">Usar en compra</button>
+          ${canWrite ? `<button type="button" class="px-3 py-1 rounded bg-sky-600 hover:bg-sky-700 text-white text-xs" data-supplier-action="edit" data-supplier-id="${supplier.id}">Editar</button>` : ''}
+          ${canDelete ? `<button type="button" class="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-xs" data-supplier-action="delete" data-supplier-id="${supplier.id}">Eliminar</button>` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadSupplierOptions(preselectedId = null){
+  try {
+    const resp = await fetchWithAuth(ROUTES.suppliers('size=200'));
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const rows = await resp.json();
+    suppliersCache = (Array.isArray(rows) ? rows : [])
+      .slice()
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es'));
+    populatePurchaseSupplierSelect(preselectedId != null ? String(preselectedId) : (purchaseSupplierSelect?.value || ''));
+    if (!purchaseSupplierSelect?.value) {
+      clearPurchaseSupplierSelection();
+    }
+  } catch (err) {
+    console.error('loadSupplierOptions', err);
+    setPurchaseSupplierMetaText('No se pudieron cargar los proveedores registrados.');
+  }
+}
+
+async function loadSuppliersAdmin(){
+  if (!suppliersList) return;
+  try {
+    const params = new URLSearchParams();
+    const q = String(suppliersSearchInput?.value || '').trim();
+    if (q) params.set('q', q);
+    params.set('size', '200');
+    const resp = await fetchWithAuth(ROUTES.suppliers(params.toString()));
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const rows = await resp.json();
+    suppliersCache = (Array.isArray(rows) ? rows : [])
+      .slice()
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es'));
+    renderSuppliersList(suppliersCache);
+  } catch (err) {
+    console.error('loadSuppliersAdmin', err);
+    showMessageBox('No se pudieron cargar proveedores', 'error');
+  }
+}
+
+async function onSupplierFormSubmit(e){
+  e.preventDefault();
+  const payload = getSupplierFormPayload();
+  if (!payload.name) {
+    showMessageBox('Ingresa el nombre del proveedor', 'warning');
+    return;
+  }
+  if (payload.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.contact_email)) {
+    showMessageBox('El email del proveedor no es válido', 'warning');
+    return;
+  }
+
+  const supplierId = String(supplierFormIdInput?.value || '').trim();
+  try {
+    const resp = await fetchWithAuth(
+      supplierId ? ROUTES.supplier(supplierId) : ROUTES.suppliers(),
+      {
+        method: supplierId ? 'PUT' : 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+    if (!resp.ok) {
+      let msg = supplierId ? 'No se pudo actualizar el proveedor' : 'No se pudo crear el proveedor';
+      try {
+        const data = await resp.json();
+        if (data && data.error) msg = data.error;
+      } catch {}
+      showMessageBox(msg, 'error');
+      return;
+    }
+    const data = await resp.json().catch(() => ({}));
+    showMessageBox(supplierId ? 'Proveedor actualizado' : 'Proveedor creado', 'success');
+    resetSupplierForm();
+    await loadSuppliersAdmin();
+    await loadSupplierOptions(data && data.id ? data.id : null);
+  } catch (err) {
+    console.error('onSupplierFormSubmit', err);
+    showMessageBox('No se pudo guardar el proveedor', 'error');
+  }
+}
+
+async function onSuppliersListClick(e){
+  const btn = e.target?.closest('button[data-supplier-action]');
+  if (!btn) return;
+  const supplierId = Number(btn.getAttribute('data-supplier-id') || 0);
+  if (!Number.isInteger(supplierId) || supplierId <= 0) return;
+  const action = btn.getAttribute('data-supplier-action');
+  const supplier = findSupplierInCache(supplierId);
+  if (!supplier) return;
+
+  if (action === 'edit') {
+    fillSupplierForm(supplier);
+    return;
+  }
+
+  if (action === 'use') {
+    showSection('supplierPurchases');
+    await loadSupplierOptions(supplierId);
+    if (purchaseSupplierSelect) purchaseSupplierSelect.value = String(supplierId);
+    onPurchaseSupplierChange();
+    showMessageBox(`Proveedor listo para compra: ${supplier.name}`, 'success');
+    return;
+  }
+
+  if (action === 'delete') {
+    const ok = window.confirm(`¿Eliminar el proveedor "${supplier.name}"?`);
+    if (!ok) return;
+    try {
+      const resp = await fetchWithAuth(ROUTES.supplier(supplierId), { method: 'DELETE' });
+      if (!resp.ok) {
+        let msg = 'No se pudo eliminar el proveedor';
+        try {
+          const data = await resp.json();
+          if (data && data.error) msg = data.error;
+        } catch {}
+        showMessageBox(msg, 'error');
+        return;
+      }
+      if (String(supplierFormIdInput?.value || '') === String(supplierId)) {
+        resetSupplierForm();
+      }
+      await loadSuppliersAdmin();
+      await loadSupplierOptions();
+      if (String(purchaseSupplierSelect?.value || '') === String(supplierId)) {
+        clearPurchaseSupplierSelection();
+      }
+      showMessageBox('Proveedor eliminado', 'success');
+    } catch (err) {
+      console.error('delete supplier', err);
+      showMessageBox('No se pudo eliminar el proveedor', 'error');
+    }
+  }
+}
+
+function initSuppliersUiOnce(){
+  if (suppliersUiBound) return;
+  suppliersUiBound = true;
+  supplierForm?.addEventListener('submit', onSupplierFormSubmit);
+  supplierResetBtn?.addEventListener('click', resetSupplierForm);
+  supplierCancelEditBtn?.addEventListener('click', resetSupplierForm);
+  suppliersRefreshButton?.addEventListener('click', () => loadSuppliersAdmin());
+  suppliersSearchInput?.addEventListener('input', () => loadSuppliersAdmin());
+  suppliersList?.addEventListener('click', onSuppliersListClick);
+}
+
+function initPurchaseSupplierUiOnce(){
+  if (purchaseSupplierUiBound) return;
+  purchaseSupplierUiBound = true;
+  purchaseSupplierSelect?.addEventListener('change', onPurchaseSupplierChange);
+  purchaseRefreshSuppliersBtn?.addEventListener('click', () => loadSupplierOptions());
+  purchaseClearSupplierBtn?.addEventListener('click', clearPurchaseSupplierSelection);
+  clearPurchaseSupplierSelection();
+}
 
 // ===== Compras de Stock (Suppliers + Purchases) =====
 async function addPurchaseItemRow(){
@@ -4549,6 +5318,7 @@ async function loadPurchases(){
     if (!box) return;
     const resp = await fetchWithAuth(ROUTES.purchases());
     const rows = resp.ok ? await resp.json() : [];
+    const canDeletePurchase = hasPerm('compras.delete');
     if (!rows.length){ box.innerHTML = '<p class="text-gray-400">Sin compras</p>'; return; }
     box.innerHTML = rows.map(p=>{
       const its = (p.items||[]).map(it=>
@@ -4566,13 +5336,14 @@ async function loadPurchases(){
           <div class="text-sm text-gray-400">Proveedor: ${p.supplier_name||''} ${p.supplier_cuit? '('+p.supplier_cuit+')':''}</div>
           <div class="text-sm text-gray-400">Estado: ${String(p.status||'').toUpperCase()}  Moneda: ${p.currency||'ARS'}  Total: ${currency(p.total_amount||0)}</div>
           <div class="mt-2 space-y-1">${its}</div>
-          <div class="mt-2 flex justify-end">
-            <button
-              type="button"
-              class="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-xs purchase-delete"
-              data-purchase-id="${p.id}"
-            >Eliminar compra</button>
-          </div>
+          ${canDeletePurchase ? `
+            <div class="mt-2 flex justify-end">
+              <button
+                type="button"
+                class="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-xs purchase-delete"
+                data-purchase-id="${p.id}"
+              >Eliminar compra</button>
+            </div>` : ''}
         </div>`;
     }).join('');
   } catch (e) {
@@ -4646,6 +5417,7 @@ document.getElementById('addPurchaseItem')?.addEventListener('click', addPurchas
 document.getElementById('purchaseForm')?.addEventListener('submit', async (e)=>{
   e.preventDefault();
   try {
+    const supplierId = Number(purchaseSupplierSelect?.value || 0);
     const supplier = {
       name: document.getElementById('supName')?.value||'',
       cuit: document.getElementById('supCuit')?.value||'',
@@ -4662,19 +5434,30 @@ document.getElementById('purchaseForm')?.addEventListener('submit', async (e)=>{
       unit_cost: Number(r.querySelector('[data-p-cost]')?.value||0)
     })).filter(it=> it.product_id>0 && it.quantity>0 && it.unit_cost>0);
     if (!items.length){ showMessageBox('Agrega al menos un item','warning'); return; }
-    const payload = { supplier, currency, notes, items };
+    const payload = { currency, notes, items };
+    if (Number.isInteger(supplierId) && supplierId > 0) {
+      payload.supplierId = supplierId;
+    } else if (Object.values(supplier).some((value) => String(value || '').trim() !== '')) {
+      payload.supplier = supplier;
+    }
     const resp = await fetchWithAuth(`${API_BASE}/purchases`, { method: 'POST', body: JSON.stringify(payload) });
     if (!resp.ok){ const tx = await resp.text(); console.error('create purchase', resp.status, tx); showMessageBox('No se pudo crear la compra','error'); return; }
     showMessageBox('Compra creada y stock actualizado','success');
     document.getElementById('purchaseItems').innerHTML = '';
+    clearPurchaseSupplierSelection();
     await addPurchaseItemRow();
+    await loadSupplierOptions();
     loadPurchases();
     loadFinanceDashboard();
   } catch(err){ console.error('purchase submit', err); showMessageBox('Error creando compra','error'); }
 });
 
 // hook section change
-(function(){ try { addPurchaseItemRow(); } catch{} })();
+(function(){
+  try { addPurchaseItemRow(); } catch{}
+  try { initPurchaseSupplierUiOnce(); } catch{}
+  try { loadSupplierOptions(); } catch{}
+})();
 
 /* ====== PDF y Remitos (autenticados) ====== */
 (function(){
